@@ -158,7 +158,7 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Em Progresso</span>
                     <span className="font-mono font-bold text-[#F59E0B]">
-                      {metrics.totalIssues - metrics.doneIssues}
+                      {metrics.inProgressIssues || (metrics.totalIssues - metrics.doneIssues)}
                     </span>
                   </div>
                   <div className="h-2 bg-secondary rounded-full overflow-hidden mt-4">

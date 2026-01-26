@@ -119,6 +119,8 @@ export function processSheetData(rows: SheetRow[]) {
   const metrics = {
     totalIssues: rows.length,
     doneIssues: 0,
+    canceledIssues: 0,
+    inProgressIssues: 0,
     completionRate: 0,
     progressLast24h: 0,
     qaGargaloCount: 0,
@@ -130,8 +132,9 @@ export function processSheetData(rows: SheetRow[]) {
   };
 
   const doneStatuses = ['Done', 'Concluído', 'Closed', 'Finalizado', 'DONE'];
-  const qaStatuses = ['Testing', 'QA', 'Em Teste', 'Review', 'In Testing', 'Test To Do', 'Test Doing', 'STAGING'];
-  const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
+  const canceledStatuses = ['Canceled', 'Cancelado', 'Cancelled'];
+  const qaStatuses = ['Test To Do', 'Test Doing', 'STAGING'];
+  const devStatuses = ['Dev To Do', 'CODE DOING'];
 
   // Contar issues por status
   const statusCount: { [key: string]: number } = {};
@@ -162,6 +165,11 @@ export function processSheetData(rows: SheetRow[]) {
       metrics.doneIssues++;
     }
 
+    // Contar issues canceladas
+    if (canceledStatuses.includes(status)) {
+      metrics.canceledIssues++;
+    }
+
     // Contar gargalo QA
     if (qaStatuses.includes(status)) {
       metrics.qaGargaloCount++;
@@ -182,6 +190,9 @@ export function processSheetData(rows: SheetRow[]) {
       });
     }
   });
+
+  // Calcular issues em progresso (excluindo concluídas e canceladas)
+  metrics.inProgressIssues = metrics.totalIssues - metrics.doneIssues - metrics.canceledIssues;
 
   // Calcular taxa de conclusão
   metrics.completionRate = metrics.totalIssues > 0 

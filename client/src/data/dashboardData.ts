@@ -7,6 +7,8 @@ export interface DashboardMetrics {
   devAndCodeReviewCount: number;
   totalIssues: number;
   doneIssues: number;
+  canceledIssues?: number;
+  inProgressIssues?: number;
 }
 
 export interface CriticalIssue {

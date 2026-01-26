@@ -53,6 +53,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         devAndCodeReviewCount: processedData.devAndCodeReviewCount,
         totalIssues: processedData.totalIssues,
         doneIssues: processedData.doneIssues,
+        canceledIssues: processedData.canceledIssues,
+        inProgressIssues: processedData.inProgressIssues,
       });
 
       setStatusDistribution(processedData.statusDistribution);
