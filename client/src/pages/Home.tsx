@@ -1,17 +1,12 @@
-import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, Target, RefreshCw } from 'lucide-react';
+import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MetricCard } from '@/components/MetricCard';
 import { CriticalIssuesList } from '@/components/CriticalIssuesList';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatusChart } from '@/components/StatusChart';
-import { useGoogleSheets } from '@/hooks/useGoogleSheets';
-import {
-  dashboardMetrics,
-  criticalIssues,
-  statusDistribution,
-  nextSteps,
-} from '@/data/dashboardData';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { nextSteps } from '@/data/dashboardData';
 
 /**
  * Design Philosophy: Modern Enterprise Analytics
@@ -22,7 +17,7 @@ import {
  */
 
 export default function Home() {
-  const { loading, error, refreshData, lastUpdated } = useGoogleSheets();
+  const { metrics, statusDistribution, criticalIssues, loading, error, lastUpdated, refreshData } = useDashboard();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -49,14 +44,14 @@ export default function Home() {
             <div className="flex flex-col items-end gap-3">
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Status do Projeto</p>
-                <StatusBadge status={dashboardMetrics.projectHealth} label="Crítico" />
+                <StatusBadge status={metrics.projectHealth} label="Crítico" />
               </div>
               <button
                 onClick={handleRefresh}
-                disabled={isRefreshing}
+                disabled={isRefreshing || loading}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity text-sm font-medium"
               >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
                 Atualizar Dados
               </button>
               {lastUpdated && (
@@ -82,14 +77,14 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <MetricCard
               title="Taxa de Conclusão"
-              value={`${dashboardMetrics.completionRate}%`}
+              value={`${metrics.completionRate}%`}
               icon={CheckCircle2}
               description="Issues concluídas do total"
               highlight
             />
             <MetricCard
               title="Progresso (24h)"
-              value={dashboardMetrics.progressLast24h}
+              value={metrics.progressLast24h}
               icon={TrendingUp}
               trend="down"
               trendValue="0 novas"
@@ -100,10 +95,10 @@ export default function Home() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Gargalo QA</p>
                   <p className="text-3xl font-bold font-display text-foreground mb-4">
-                    {dashboardMetrics.qaGargaloCount}
+                    {metrics.qaGargaloCount}
                   </p>
                   <div className="space-y-2">
-                    {dashboardMetrics.qaStatuses.map((status) => (
+                    {metrics.qaStatuses.map((status) => (
                       <p key={status} className="text-xs text-muted-foreground">
                         • <span className="font-medium">{status}</span>
                       </p>
@@ -127,7 +122,7 @@ export default function Home() {
                   </p>
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-bold font-display text-foreground">
-                      {dashboardMetrics.devAndCodeReviewCount}
+                      {metrics.devAndCodeReviewCount}
                     </p>
                     <span className="text-sm font-semibold text-muted-foreground">
                       issues
@@ -151,25 +146,25 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Total de Issues</span>
                     <span className="font-mono font-bold text-primary">
-                      {dashboardMetrics.totalIssues}
+                      {metrics.totalIssues}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Concluídas</span>
                     <span className="font-mono font-bold text-[#10B981]">
-                      {dashboardMetrics.doneIssues}
+                      {metrics.doneIssues}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Em Progresso</span>
                     <span className="font-mono font-bold text-[#F59E0B]">
-                      {dashboardMetrics.totalIssues - dashboardMetrics.doneIssues}
+                      {metrics.totalIssues - metrics.doneIssues}
                     </span>
                   </div>
                   <div className="h-2 bg-secondary rounded-full overflow-hidden mt-4">
                     <div
                       className="h-full bg-gradient-to-r from-primary to-blue-600 transition-all duration-500"
-                      style={{ width: `${dashboardMetrics.completionRate}%` }}
+                      style={{ width: `${metrics.completionRate}%` }}
                     />
                   </div>
                 </div>
@@ -180,7 +175,7 @@ export default function Home() {
           {/* Progress Ring */}
           <div className="flex justify-center mb-8">
             <ProgressRing
-              percentage={dashboardMetrics.completionRate}
+              percentage={metrics.completionRate}
               label="Taxa de Conclusão"
             />
           </div>
@@ -190,23 +185,32 @@ export default function Home() {
         <section className="mb-12">
           <h2 className="text-2xl font-display text-foreground mb-6">Riscos e Bloqueadores</h2>
           <div className="bg-card border border-border rounded-lg p-6">
-            <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
-              <p className="text-sm text-red-800">
-                <strong>Bloqueador Crítico:</strong> REM-3537 impede o avanço da migração de
-                certificados. Requer atenção imediata.
+            {criticalIssues.length > 0 && (
+              <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
+                <p className="text-sm text-red-800">
+                  <strong>Bloqueador(es) Crítico(s):</strong> {criticalIssues.length} issue(s) crítica(s) detectada(s). Requer atenção imediata.
+                </p>
+              </div>
+            )}
+            {criticalIssues.length > 0 ? (
+              <CriticalIssuesList issues={criticalIssues} />
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhuma issue crítica detectada no momento.
               </p>
-            </div>
-            <CriticalIssuesList issues={criticalIssues} />
+            )}
           </div>
         </section>
 
         {/* Status Distribution Chart */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-display text-foreground mb-6">Status vs Issue Type</h2>
-          <div className="bg-card border border-border rounded-lg p-6">
-            <StatusChart data={statusDistribution} />
-          </div>
-        </section>
+        {statusDistribution.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-2xl font-display text-foreground mb-6">Status vs Issue Type</h2>
+            <div className="bg-card border border-border rounded-lg p-6">
+              <StatusChart data={statusDistribution} />
+            </div>
+          </section>
+        )}
 
         {/* Next Steps Section */}
         <section className="mb-12">
