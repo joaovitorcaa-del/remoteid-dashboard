@@ -3,7 +3,8 @@ export interface DashboardMetrics {
   completionRate: number;
   progressLast24h: number;
   qaGargaloCount: number;
-  staleIssuesCount: number;
+  qaStatuses: string[];
+  devAndCodeReviewCount: number;
   totalIssues: number;
   doneIssues: number;
 }
@@ -28,7 +29,8 @@ export const dashboardMetrics: DashboardMetrics = {
   completionRate: 62.4,
   progressLast24h: 0,
   qaGargaloCount: 25,
-  staleIssuesCount: 106,
+  qaStatuses: ['Test To Do', 'Test Doing', 'STAGING'],
+  devAndCodeReviewCount: 6,
   totalIssues: 125,
   doneIssues: 78,
 };

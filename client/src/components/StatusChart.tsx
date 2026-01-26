@@ -1,9 +1,28 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { StatusDistribution } from '@/data/dashboardData';
 
 interface StatusChartProps {
   data: StatusDistribution[];
 }
+
+const CustomLabel = (props: any) => {
+  const { x, y, width, height, value } = props;
+  if (value === 0) return null;
+  
+  return (
+    <text
+      x={x + width / 2}
+      y={y + height / 2}
+      fill="white"
+      textAnchor="middle"
+      dominantBaseline="middle"
+      fontSize="12"
+      fontWeight="bold"
+    >
+      {value}
+    </text>
+  );
+};
 
 export function StatusChart({ data }: StatusChartProps) {
   const colors = {
@@ -34,9 +53,15 @@ export function StatusChart({ data }: StatusChartProps) {
             formatter={(value) => value}
           />
           <Legend />
-          <Bar dataKey="bugs" stackId="a" fill={colors.bugs} name="Bugs" />
-          <Bar dataKey="improvements" stackId="a" fill={colors.improvements} name="Improvements" />
-          <Bar dataKey="tests" stackId="a" fill={colors.tests} name="Tests" />
+          <Bar dataKey="bugs" stackId="a" fill={colors.bugs} name="Bugs">
+            <LabelList dataKey="bugs" content={CustomLabel} />
+          </Bar>
+          <Bar dataKey="improvements" stackId="a" fill={colors.improvements} name="Improvements">
+            <LabelList dataKey="improvements" content={CustomLabel} />
+          </Bar>
+          <Bar dataKey="tests" stackId="a" fill={colors.tests} name="Tests">
+            <LabelList dataKey="tests" content={CustomLabel} />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

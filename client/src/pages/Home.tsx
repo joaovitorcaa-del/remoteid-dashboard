@@ -1,9 +1,11 @@
-import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, Target } from 'lucide-react';
+import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, Target, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MetricCard } from '@/components/MetricCard';
 import { CriticalIssuesList } from '@/components/CriticalIssuesList';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatusChart } from '@/components/StatusChart';
+import { useGoogleSheets } from '@/hooks/useGoogleSheets';
 import {
   dashboardMetrics,
   criticalIssues,
@@ -20,6 +22,18 @@ import {
  */
 
 export default function Home() {
+  const { loading, error, refreshData, lastUpdated } = useGoogleSheets();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshData();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -32,9 +46,29 @@ export default function Home() {
                 Acompanhamento de Riscos e Progresso do Projeto
               </p>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Status do Projeto</p>
-              <StatusBadge status={dashboardMetrics.projectHealth} label="Crítico" />
+            <div className="flex flex-col items-end gap-3">
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Status do Projeto</p>
+                <StatusBadge status={dashboardMetrics.projectHealth} label="Crítico" />
+              </div>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity text-sm font-medium"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Atualizar Dados
+              </button>
+              {lastUpdated && (
+                <p className="text-xs text-muted-foreground">
+                  Última atualização: {lastUpdated}
+                </p>
+              )}
+              {error && (
+                <p className="text-xs text-red-600">
+                  Erro: {error}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -45,7 +79,7 @@ export default function Home() {
         <section className="mb-12">
           <h2 className="text-2xl font-display text-foreground mb-6">Sumário Executivo</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <MetricCard
               title="Taxa de Conclusão"
               value={`${dashboardMetrics.completionRate}%`}
@@ -61,32 +95,55 @@ export default function Home() {
               trendValue="0 novas"
               description="Issues finalizadas"
             />
-            <MetricCard
-              title="Gargalo QA"
-              value={dashboardMetrics.qaGargaloCount}
-              icon={Clock}
-              trend="down"
-              trendValue="25 issues"
-              description="Aguardando testes"
-            />
-            <MetricCard
-              title="Issues Estagnadas"
-              value={dashboardMetrics.staleIssuesCount}
-              icon={AlertCircle}
-              trend="down"
-              trendValue="84.8%"
-              description="Sem atualização > 3 dias"
-            />
+            <div className="rounded-lg border p-6 bg-card border-border">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Gargalo QA</p>
+                  <p className="text-3xl font-bold font-display text-foreground mb-4">
+                    {dashboardMetrics.qaGargaloCount}
+                  </p>
+                  <div className="space-y-2">
+                    {dashboardMetrics.qaStatuses.map((status) => (
+                      <p key={status} className="text-xs text-muted-foreground">
+                        • <span className="font-medium">{status}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary">
+                  <Clock className="w-6 h-6 text-primary" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Progress Ring */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex justify-center">
-              <ProgressRing
-                percentage={dashboardMetrics.completionRate}
-                label="Taxa de Conclusão"
-              />
+          {/* New Row: Dev/Code Review Card */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="rounded-lg border p-6 bg-card border-border">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    Em Desenvolvimento/Code Review
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-bold font-display text-foreground">
+                      {dashboardMetrics.devAndCodeReviewCount}
+                    </p>
+                    <span className="text-sm font-semibold text-muted-foreground">
+                      issues
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Dev To Do + CODE DOING + Dev Doing
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary">
+                  <Zap className="w-6 h-6 text-primary" />
+                </div>
+              </div>
             </div>
+
+            {/* Progress Ring and Distribution */}
             <div className="md:col-span-2">
               <div className="bg-card border border-border rounded-lg p-6">
                 <h3 className="text-lg font-display text-foreground mb-4">Distribuição de Issues</h3>
@@ -118,6 +175,14 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Progress Ring */}
+          <div className="flex justify-center mb-8">
+            <ProgressRing
+              percentage={dashboardMetrics.completionRate}
+              label="Taxa de Conclusão"
+            />
           </div>
         </section>
 
@@ -167,7 +232,7 @@ export default function Home() {
         <section className="border-t border-border pt-8 mt-12">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <p>RemoteID Executive Dashboard • Atualizado em 26 de Janeiro de 2026</p>
-            <p>Dados extraídos do backlog do projeto</p>
+            <p>Dados sincronizados com Google Sheets</p>
           </div>
         </section>
       </main>
