@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { DashboardMetrics, StatusDistribution, CriticalIssue } from '@/data/dashboardData';
 import { fetchGoogleSheetData, processSheetData } from '@/lib/googleSheetsService';
+import { saveSnapshot, cleanOldSnapshots } from '@/lib/snapshotService';
 
 interface DashboardContextType {
   metrics: DashboardMetrics;
@@ -66,7 +67,22 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setCriticalIssues(processedData.criticalIssues);
       setImpediments(processedData.impediments);
       setBacklogItems(processedData.backlogItems);
-      setLastUpdated(new Date().toLocaleString('pt-BR'));
+      
+      // Salvar snapshot
+      await saveSnapshot({
+        completionRate: processedData.completionRate,
+        totalIssues: processedData.totalIssues,
+        doneIssues: processedData.doneIssues,
+        inProgressIssues: processedData.inProgressIssues,
+        qaGargaloCount: processedData.qaGargaloCount,
+        impedimentsCount: processedData.impediments.length,
+      });
+      
+      // Limpar snapshots antigos
+      cleanOldSnapshots();
+      
+      setLastUpdated(new Date().toLocaleTimeString('pt-BR'));
+      setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar dados';
       setError(errorMessage);

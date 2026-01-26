@@ -9,6 +9,7 @@ import { StatusChart } from '@/components/StatusChart';
 import { BurnDownChart } from '@/components/BurnDownChart';
 import { BacklogCard } from '@/components/BacklogCard';
 import { AIInsightModal } from '@/components/AIInsightModal';
+import { ProjectEvolution } from '@/components/ProjectEvolution';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useNextSteps } from '@/hooks/useNextSteps';
 
@@ -326,6 +327,12 @@ export default function Home() {
               </p>
             )}
           </div>
+        </section>
+
+        {/* Project Evolution Section */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-display text-foreground mb-6">Evolução do Projeto</h2>
+          <ProjectEvolution />
         </section>
 
         {/* Footer */}
