@@ -13,6 +13,7 @@ export interface SheetRow {
   Status: string;
   Assignee?: string;
   Updated?: string;
+  Flagged?: string;
 }
 
 /**
@@ -128,6 +129,7 @@ export function processSheetData(rows: SheetRow[]) {
     devAndCodeReviewCount: 0,
     projectHealth: 'green' as 'red' | 'yellow' | 'green',
     criticalIssues: [] as any[],
+    impediments: [] as any[],
     statusDistribution: {} as any,
   };
 
@@ -186,6 +188,17 @@ export function processSheetData(rows: SheetRow[]) {
         key: row.Key,
         status: status,
         summary: row.Summary,
+        impact: 'critical' as const,
+      });
+    }
+
+    // Identificar impedimentos
+    if (row.Flagged && row.Flagged.toLowerCase().includes('impediment')) {
+      metrics.impediments.push({
+        key: row.Key,
+        status: status,
+        summary: row.Summary,
+        flagged: row.Flagged,
         impact: 'critical' as const,
       });
     }

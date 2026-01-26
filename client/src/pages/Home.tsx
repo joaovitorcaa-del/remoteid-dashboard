@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MetricCard } from '@/components/MetricCard';
 import { CriticalIssuesList } from '@/components/CriticalIssuesList';
+import { ImpedimentsList } from '@/components/ImpedimentsList';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatusChart } from '@/components/StatusChart';
 import { useDashboard } from '@/contexts/DashboardContext';
@@ -17,7 +18,7 @@ import { nextSteps } from '@/data/dashboardData';
  */
 
 export default function Home() {
-  const { metrics, statusDistribution, criticalIssues, loading, error, lastUpdated, refreshData } = useDashboard();
+  const { metrics, statusDistribution, criticalIssues, impediments, loading, error, lastUpdated, refreshData } = useDashboard();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -185,18 +186,24 @@ export default function Home() {
         <section className="mb-12">
           <h2 className="text-2xl font-display text-foreground mb-6">Riscos e Bloqueadores</h2>
           <div className="bg-card border border-border rounded-lg p-6">
+            {impediments.length > 0 && (
+              <ImpedimentsList impediments={impediments} />
+            )}
+
             {criticalIssues.length > 0 && (
-              <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
-                <p className="text-sm text-red-800">
-                  <strong>Bloqueador(es) Crítico(s):</strong> {criticalIssues.length} issue(s) crítica(s) detectada(s). Requer atenção imediata.
-                </p>
+              <div>
+                <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-sm text-red-800">
+                    <strong>Bloqueador(es) Crítico(s):</strong> {criticalIssues.length} issue(s) crítica(s) detectada(s). Requer atenção imediata.
+                  </p>
+                </div>
+                <CriticalIssuesList issues={criticalIssues} />
               </div>
             )}
-            {criticalIssues.length > 0 ? (
-              <CriticalIssuesList issues={criticalIssues} />
-            ) : (
+
+            {impediments.length === 0 && criticalIssues.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhuma issue crítica detectada no momento.
+                Nenhum impedimento ou issue crítica detectada no momento.
               </p>
             )}
           </div>
