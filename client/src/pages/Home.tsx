@@ -1,5 +1,5 @@
-import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles, Target, Users, Code, TestTube, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MetricCard } from '@/components/MetricCard';
 import { CriticalIssuesList } from '@/components/CriticalIssuesList';
@@ -10,7 +10,7 @@ import { BurnDownChart } from '@/components/BurnDownChart';
 import { BacklogCard } from '@/components/BacklogCard';
 import { AIInsightModal } from '@/components/AIInsightModal';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { nextSteps } from '@/data/dashboardData';
+import { useNextSteps } from '@/hooks/useNextSteps';
 
 /**
  * Design Philosophy: Modern Enterprise Analytics
@@ -22,8 +22,42 @@ import { nextSteps } from '@/data/dashboardData';
 
 export default function Home() {
   const { metrics, statusDistribution, criticalIssues, impediments, backlogItems, loading, error, lastUpdated, refreshData } = useDashboard();
+  const { steps: dynamicSteps, generateNextSteps } = useNextSteps();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAIInsight, setShowAIInsight] = useState(false);
+
+  useEffect(() => {
+    if (metrics.totalIssues > 0) {
+      generateNextSteps({
+        completionRate: metrics.completionRate,
+        totalIssues: metrics.totalIssues,
+        doneIssues: metrics.doneIssues,
+        inProgressIssues: metrics.inProgressIssues || 0,
+        canceledIssues: metrics.canceledIssues || 0,
+        qaGargaloCount: metrics.qaGargaloCount,
+        devAndCodeReviewCount: metrics.devAndCodeReviewCount,
+        backlogCount: metrics.backlogCount || 0,
+        impedimentsCount: impediments.length,
+        projectHealth: metrics.projectHealth,
+      });
+    }
+  }, [metrics, impediments.length, generateNextSteps]);
+
+  const getIconComponent = (iconName: string) => {
+    const icons: { [key: string]: React.ReactNode } = {
+      CheckCircle2: <CheckCircle2 className="w-5 h-5" />,
+      AlertCircle: <AlertCircle className="w-5 h-5" />,
+      Zap: <Zap className="w-5 h-5" />,
+      TrendingUp: <TrendingUp className="w-5 h-5" />,
+      Clock: <Clock className="w-5 h-5" />,
+      Target: <Target className="w-5 h-5" />,
+      Users: <Users className="w-5 h-5" />,
+      Code: <Code className="w-5 h-5" />,
+      TestTube: <TestTube className="w-5 h-5" />,
+      Shield: <Shield className="w-5 h-5" />,
+    };
+    return icons[iconName] || <CheckCircle2 className="w-5 h-5" />;
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -254,19 +288,43 @@ export default function Home() {
         <section className="mb-12">
           <h2 className="text-2xl font-display text-foreground mb-6">Próximos Passos</h2>
           <div className="space-y-4">
-            {nextSteps.map((step, index) => (
-              <div
-                key={index}
-                className="flex gap-4 p-4 rounded-lg border border-border bg-card hover:bg-secondary transition-colors"
-              >
-                <div className="flex-shrink-0 pt-1">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white font-bold text-sm">
-                    {index + 1}
+            {dynamicSteps.length > 0 ? (
+              dynamicSteps.map((step) => {
+                const priorityColors = {
+                  high: 'border-red-200 bg-red-50',
+                  medium: 'border-yellow-200 bg-yellow-50',
+                  low: 'border-green-200 bg-green-50',
+                };
+                const priorityBadgeColors = {
+                  high: 'bg-red-100 text-red-800',
+                  medium: 'bg-yellow-100 text-yellow-800',
+                  low: 'bg-green-100 text-green-800',
+                };
+                return (
+                  <div
+                    key={step.id}
+                    className={`flex gap-4 p-4 rounded-lg border ${priorityColors[step.priority]} hover:opacity-90 transition-opacity`}
+                  >
+                    <div className="flex-shrink-0 pt-1 text-foreground">
+                      {getIconComponent(step.icon)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="font-semibold text-foreground">{step.title}</h3>
+                        <span className={`text-xs px-2 py-1 rounded font-semibold whitespace-nowrap ${priorityBadgeColors[step.priority]}`}>
+                          {step.priority === 'high' ? 'Alta' : step.priority === 'medium' ? 'Média' : 'Baixa'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{step.description}</p>
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm text-foreground">{step}</p>
-              </div>
-            ))}
+                );
+              })
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Carregando próximos passos...
+              </p>
+            )}
           </div>
         </section>
 
