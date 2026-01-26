@@ -1,9 +1,9 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { getSnapshotsLastDays, calculateAverageVelocity, predictCompletionDate } from '@/lib/snapshotService';
+import { getConsolidatedSnapshots, calculateAverageVelocity, predictCompletionDate } from '@/lib/snapshotService';
 import { TrendingUp, Calendar } from 'lucide-react';
 
 export function ProjectEvolution() {
-  const snapshots = getSnapshotsLastDays(30);
+  const snapshots = getConsolidatedSnapshots(30);
   const velocity = calculateAverageVelocity(7);
   const completionDate = predictCompletionDate(
     snapshots[snapshots.length - 1]?.totalIssues || 0,

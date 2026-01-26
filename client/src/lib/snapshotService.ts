@@ -88,6 +88,42 @@ export function getSnapshotsLastDays(days: number): Snapshot[] {
 }
 
 /**
+ * Consolidar snapshots por dia, mantendo apenas o último de cada dia
+ */
+export function getConsolidatedSnapshots(days: number = 30): Snapshot[] {
+  const snapshots = getSnapshotsLastDays(days);
+  
+  if (snapshots.length === 0) {
+    return [];
+  }
+
+  const groupedByDate: { [key: string]: Snapshot[] } = {};
+  
+  snapshots.forEach((snapshot) => {
+    if (!groupedByDate[snapshot.date]) {
+      groupedByDate[snapshot.date] = [];
+    }
+    groupedByDate[snapshot.date].push(snapshot);
+  });
+
+  const consolidated: Snapshot[] = [];
+  
+  Object.keys(groupedByDate).forEach((date) => {
+    const snapshotsOfDay = groupedByDate[date];
+    snapshotsOfDay.sort((a, b) => b.time.localeCompare(a.time));
+    consolidated.push(snapshotsOfDay[0]);
+  });
+
+  consolidated.sort((a, b) => {
+    const dateA = new Date(a.date.split('/').reverse().join('-'));
+    const dateB = new Date(b.date.split('/').reverse().join('-'));
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  return consolidated;
+}
+
+/**
  * Limpar snapshots antigos (mais de 90 dias)
  */
 export function cleanOldSnapshots(): void {
