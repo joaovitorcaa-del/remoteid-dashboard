@@ -1,4 +1,4 @@
-import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw } from 'lucide-react';
+import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MetricCard } from '@/components/MetricCard';
@@ -6,6 +6,9 @@ import { CriticalIssuesList } from '@/components/CriticalIssuesList';
 import { ImpedimentsList } from '@/components/ImpedimentsList';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatusChart } from '@/components/StatusChart';
+import { BurnDownChart } from '@/components/BurnDownChart';
+import { BacklogCard } from '@/components/BacklogCard';
+import { AIInsightModal } from '@/components/AIInsightModal';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { nextSteps } from '@/data/dashboardData';
 
@@ -18,8 +21,9 @@ import { nextSteps } from '@/data/dashboardData';
  */
 
 export default function Home() {
-  const { metrics, statusDistribution, criticalIssues, impediments, loading, error, lastUpdated, refreshData } = useDashboard();
+  const { metrics, statusDistribution, criticalIssues, impediments, backlogItems, loading, error, lastUpdated, refreshData } = useDashboard();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showAIInsight, setShowAIInsight] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -47,14 +51,23 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground mb-2">Status do Projeto</p>
                 <StatusBadge status={metrics.projectHealth} label="Crítico" />
               </div>
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing || loading}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity text-sm font-medium"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
-                Atualizar Dados
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAIInsight(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Insight de IA
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing || loading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity text-sm font-medium"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
+                  Atualizar Dados
+                </button>
+              </div>
               {lastUpdated && (
                 <p className="text-xs text-muted-foreground">
                   Última atualização: {lastUpdated}
@@ -173,12 +186,21 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Progress Ring */}
-          <div className="flex justify-center mb-8">
-            <ProgressRing
-              percentage={metrics.completionRate}
-              label="Taxa de Conclusão"
-            />
+          {/* Progress Ring and Burn-Down Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="flex justify-center">
+              <ProgressRing
+                percentage={metrics.completionRate}
+                label="Taxa de Conclusão"
+              />
+            </div>
+            <div className="bg-card border border-border rounded-lg p-6">
+              <BurnDownChart
+                completionRate={metrics.completionRate}
+                totalIssues={metrics.totalIssues}
+                doneIssues={metrics.doneIssues}
+              />
+            </div>
           </div>
         </section>
 
@@ -209,15 +231,24 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Status Distribution Chart */}
-        {statusDistribution.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-display text-foreground mb-6">Status vs Issue Type</h2>
-            <div className="bg-card border border-border rounded-lg p-6">
-              <StatusChart data={statusDistribution} />
+        {/* Status Distribution Chart and Backlog */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-display text-foreground mb-6">Distribuicao e Backlog</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-card border border-border rounded-lg p-6">
+              {statusDistribution.length > 0 ? (
+                <StatusChart data={statusDistribution} />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Carregando dados...
+                </p>
+              )}
             </div>
-          </section>
-        )}
+            <div className="lg:col-span-1">
+              <BacklogCard items={backlogItems} count={metrics.backlogCount || 0} />
+            </div>
+          </div>
+        </section>
 
         {/* Next Steps Section */}
         <section className="mb-12">
@@ -247,6 +278,24 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      {/* AI Insight Modal */}
+      <AIInsightModal
+        isOpen={showAIInsight}
+        onClose={() => setShowAIInsight(false)}
+        dashboardData={{
+          completionRate: metrics.completionRate,
+          totalIssues: metrics.totalIssues,
+          doneIssues: metrics.doneIssues,
+          inProgressIssues: metrics.inProgressIssues || 0,
+          canceledIssues: metrics.canceledIssues || 0,
+          qaGargaloCount: metrics.qaGargaloCount,
+          devAndCodeReviewCount: metrics.devAndCodeReviewCount,
+          backlogCount: metrics.backlogCount || 0,
+          impedimentsCount: impediments.length,
+          projectHealth: metrics.projectHealth,
+        }}
+      />
     </div>
   );
 }

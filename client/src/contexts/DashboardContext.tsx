@@ -7,6 +7,7 @@ interface DashboardContextType {
   statusDistribution: StatusDistribution[];
   criticalIssues: CriticalIssue[];
   impediments: any[];
+  backlogItems: any[];
   loading: boolean;
   error: string | null;
   lastUpdated: string | null;
@@ -30,6 +31,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [statusDistribution, setStatusDistribution] = useState<StatusDistribution[]>([]);
   const [criticalIssues, setCriticalIssues] = useState<CriticalIssue[]>([]);
   const [impediments, setImpediments] = useState<any[]>([]);
+  const [backlogItems, setBacklogItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -62,6 +64,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setStatusDistribution(processedData.statusDistribution);
       setCriticalIssues(processedData.criticalIssues);
       setImpediments(processedData.impediments);
+      setBacklogItems(processedData.backlogItems);
       setLastUpdated(new Date().toLocaleString('pt-BR'));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar dados';
@@ -79,6 +82,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         statusDistribution,
         criticalIssues,
         impediments,
+        backlogItems,
         loading,
         error,
         lastUpdated,
