@@ -182,7 +182,7 @@ export default function Home() {
             <div className="rounded-lg border p-6 bg-card border-border">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground mb-3">Gargalo QA</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Etapa QA</p>
                   <p className="text-3xl font-bold font-display text-foreground mb-4">
                     {filteredData.metrics.qaGargaloCount || 0}
                   </p>

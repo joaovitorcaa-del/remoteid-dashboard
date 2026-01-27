@@ -34,7 +34,7 @@ export function AIInsightModal({ isOpen, onClose, dashboardData }: AIInsightModa
         - Issues Concluídas: ${dashboardData.doneIssues}
         - Issues em Progresso: ${dashboardData.inProgressIssues}
         - Issues Canceladas: ${dashboardData.canceledIssues}
-        - Gargalo QA (Test To Do + Test Doing + STAGING): ${dashboardData.qaGargaloCount}
+        - Etapa QA (Test To Do + Test Doing + STAGING): ${dashboardData.qaGargaloCount}
         - Em Desenvolvimento/Code Review: ${dashboardData.devAndCodeReviewCount}
         - Backlog (Ready to Sprint): ${dashboardData.backlogCount}
         - Impedimentos: ${dashboardData.impedimentsCount}
@@ -62,7 +62,7 @@ export function AIInsightModal({ isOpen, onClose, dashboardData }: AIInsightModa
         setInsight(
           `O projeto RemoteID está em status ${dashboardData.projectHealth === 'red' ? 'CRÍTICO' : dashboardData.projectHealth === 'yellow' ? 'ATENÇÃO' : 'SAUDÁVEL'} com ${dashboardData.completionRate}% de conclusão. ` +
           `Há ${dashboardData.impedimentsCount} impedimentos bloqueando o avanço, sendo o principal foco a resolução destes bloqueadores. ` +
-          `O gargalo de QA concentra ${dashboardData.qaGargaloCount} issues aguardando testes, representando ${Math.round((dashboardData.qaGargaloCount / dashboardData.totalIssues) * 100)}% do total. ` +
+          `A Etapa QA concentra ${dashboardData.qaGargaloCount} issues aguardando testes, representando ${Math.round((dashboardData.qaGargaloCount / dashboardData.totalIssues) * 100)}% do total. ` +
           `Com ${dashboardData.backlogCount} itens no backlog prontos para começar, recomenda-se: (1) Desbloquear os ${dashboardData.impedimentsCount} impedimentos críticos, (2) Aumentar capacidade de QA para acelerar testes, (3) Manter ritmo de desenvolvimento com os itens do backlog. ` +
           `A velocidade atual sugere conclusão em aproximadamente ${Math.ceil((100 - dashboardData.completionRate) / (dashboardData.completionRate / 7))} dias.`
         );
