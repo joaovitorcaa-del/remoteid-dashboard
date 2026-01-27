@@ -436,15 +436,15 @@ export default function Home() {
               <p className="text-sm text-muted-foreground py-4">Nenhuma issue concluida nas ultimas 24 horas</p>
             ) : (
               completedIssues.map((issue: any, index: number) => (
-                <div key={index} className="border rounded-lg p-3 bg-muted/50 hover:bg-muted transition-colors">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-mono text-sm font-semibold text-primary">{issue.Key}</p>
-                      <p className="text-sm mt-1 break-words">{issue.Summary}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span>Tipo: {issue['Issue Type']}</span>
-                        <span>Responsavel: {issue.Assignee || 'Nao atribuido'}</span>
-                      </div>
+                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
+                      <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
+                      <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
                     </div>
                   </div>
                 </div>
