@@ -1,15 +1,11 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { getConsolidatedSnapshots, calculateAverageVelocity, predictCompletionDate } from '@/lib/snapshotService';
-import { TrendingUp, Calendar } from 'lucide-react';
+import { getConsolidatedSnapshots, calculateAverageVelocity, calculateWeeklyCompletionRate } from '@/lib/snapshotService';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 export function ProjectEvolution() {
   const snapshots = getConsolidatedSnapshots(30);
   const velocity = calculateAverageVelocity(7);
-  const completionDate = predictCompletionDate(
-    snapshots[snapshots.length - 1]?.totalIssues || 0,
-    snapshots[snapshots.length - 1]?.doneIssues || 0,
-    7
-  );
+  const weeklyCompletion = calculateWeeklyCompletionRate();
 
   // Preparar dados para o gráfico
   const chartData = snapshots.map((snapshot) => ({
@@ -47,19 +43,32 @@ export function ProjectEvolution() {
 
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-muted-foreground">Data Prevista de Conclusão</p>
-            <Calendar className="w-4 h-4 text-green-600" />
+            <p className="text-xs text-muted-foreground">Taxa de Conclusão Semanal</p>
+            {weeklyCompletion.trend === 'up' && (
+              <TrendingUp className="w-4 h-4 text-green-600" />
+            )}
+            {weeklyCompletion.trend === 'down' && (
+              <TrendingDown className="w-4 h-4 text-red-600" />
+            )}
+            {weeklyCompletion.trend === 'stable' && (
+              <Minus className="w-4 h-4 text-gray-600" />
+            )}
           </div>
           <p className="text-2xl font-bold text-foreground">
-            {completionDate
-              ? completionDate.toLocaleDateString('pt-BR')
-              : 'N/A'}
+            {weeklyCompletion.currentWeek}%
+            <span className="text-sm font-normal text-muted-foreground ml-1">vs {weeklyCompletion.previousWeek}%</span>
           </p>
-          {completionDate && (
-            <p className="text-xs text-muted-foreground mt-1">
-              em ~{Math.ceil((completionDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} dias
-            </p>
-          )}
+          <p className={`text-xs mt-1 ${
+            weeklyCompletion.trend === 'up'
+              ? 'text-green-600'
+              : weeklyCompletion.trend === 'down'
+              ? 'text-red-600'
+              : 'text-gray-600'
+          }`}>
+            {weeklyCompletion.trend === 'up' && '↑ '}
+            {weeklyCompletion.trend === 'down' && '↓ '}
+            {Math.abs(weeklyCompletion.percentageChange)}% vs semana anterior
+          </p>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-4">

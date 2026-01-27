@@ -242,3 +242,66 @@ export function predictCompletionDate(
 
   return completionDate;
 }
+
+/**
+ * Calcular taxa de conclusão semanal
+ */
+export function calculateWeeklyCompletionRate(): {
+  currentWeek: number;
+  previousWeek: number;
+  trend: 'up' | 'down' | 'stable';
+  percentageChange: number;
+} {
+  const snapshots = getConsolidatedSnapshots(14); // Últimas 2 semanas
+
+  if (snapshots.length === 0) {
+    return {
+      currentWeek: 0,
+      previousWeek: 0,
+      trend: 'stable',
+      percentageChange: 0,
+    };
+  }
+
+  const today = new Date();
+  const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fourteenDaysAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+  // Snapshots da semana atual
+  const currentWeekSnapshots = snapshots.filter((snapshot) => {
+    const snapshotDate = new Date(snapshot.date.split('/').reverse().join('-'));
+    return snapshotDate >= sevenDaysAgo;
+  });
+
+  // Snapshots da semana anterior
+  const previousWeekSnapshots = snapshots.filter((snapshot) => {
+    const snapshotDate = new Date(snapshot.date.split('/').reverse().join('-'));
+    return snapshotDate >= fourteenDaysAgo && snapshotDate < sevenDaysAgo;
+  });
+
+  const currentWeekRate =
+    currentWeekSnapshots.length > 0
+      ? currentWeekSnapshots[currentWeekSnapshots.length - 1].completionRate
+      : 0;
+
+  const previousWeekRate =
+    previousWeekSnapshots.length > 0
+      ? previousWeekSnapshots[previousWeekSnapshots.length - 1].completionRate
+      : 0;
+
+  const percentageChange = currentWeekRate - previousWeekRate;
+  let trend: 'up' | 'down' | 'stable' = 'stable';
+
+  if (percentageChange > 1) {
+    trend = 'up';
+  } else if (percentageChange < -1) {
+    trend = 'down';
+  }
+
+  return {
+    currentWeek: Math.round(currentWeekRate),
+    previousWeek: Math.round(previousWeekRate),
+    trend,
+    percentageChange: Math.round(percentageChange * 10) / 10,
+  };
+}
