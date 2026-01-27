@@ -138,8 +138,8 @@ export function processSheetData(rows: SheetRow[]) {
   const doneStatuses = ['Done', 'Concluído', 'Closed', 'Finalizado', 'DONE'];
   const canceledStatuses = ['Canceled', 'Cancelado', 'Cancelled'];
   const qaStatuses = ['Test To Do', 'Test Doing', 'STAGING'];
-  const devStatuses = ['Dev To Do', 'CODE DOING'];
-  const backlogStatuses = ['READY TO SPRINT'];
+  const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW'];
+  const backlogStatuses = ['READY TO SPRINT', 'OPENED'];
 
   // Contar issues por status
   const statusCount: { [key: string]: number } = {};
