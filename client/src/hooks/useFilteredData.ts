@@ -1,5 +1,6 @@
 import { useFilter } from '@/contexts/FilterContext';
 import { DashboardMetrics, StatusDistribution, CriticalIssue } from '@/data/dashboardData';
+import { calculateProgress24h } from '@/lib/progressCalculator';
 
 export interface FilteredData {
   metrics: DashboardMetrics;
@@ -18,13 +19,18 @@ export function useFilteredData(
   allIssues: any[] = []
 ): FilteredData {
   const { selectedIssueType } = useFilter();
+  const { newIssuesCompleted, trend } = calculateProgress24h();
 
   // Se não há filtro selecionado, retornar dados originais
   if (!selectedIssueType) {
     const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
     const allDevIssues = allIssues.filter((issue) => devStatuses.includes(issue.Status));
     return {
-      metrics: originalMetrics,
+      metrics: {
+        ...originalMetrics,
+        progressLast24h: newIssuesCompleted,
+        progressLast24hTrend: trend,
+      },
       statusDistribution: originalStatusDistribution,
       criticalIssues: originalCriticalIssues,
       devIssues: allDevIssues,
@@ -96,6 +102,8 @@ export function useFilteredData(
       inProgressIssues: filteredInProgress,
       qaGargaloCount: filteredQAGargaloCount,
       qaStatuses: filteredQAStatusesList,
+      progressLast24h: newIssuesCompleted,
+      progressLast24hTrend: trend,
     },
     statusDistribution: filteredStatusDistribution,
     criticalIssues: filteredCriticalIssues,

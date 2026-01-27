@@ -160,11 +160,11 @@ export default function Home() {
             />
             <MetricCard
               title="Progresso (24h)"
-              value={filteredData.metrics.inProgressIssues || 0}
+              value={filteredData.metrics.progressLast24h || 0}
               icon={TrendingUp}
-              trend="down"
-              trendValue="0 novas"
-              description="Issues em progresso"
+              trend={filteredData.metrics.progressLast24hTrend === 'up' ? 'up' : 'down'}
+              trendValue={`${filteredData.metrics.progressLast24h || 0} novas`}
+              description="Issues concluídas"
             />
             <div className="rounded-lg border p-6 bg-card border-border">
               <div className="flex items-start justify-between">

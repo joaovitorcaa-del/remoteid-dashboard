@@ -2,6 +2,7 @@ export interface DashboardMetrics {
   projectHealth: 'red' | 'yellow' | 'green';
   completionRate: number;
   progressLast24h: number;
+  progressLast24hTrend?: 'up' | 'down' | 'stable';
   qaGargaloCount: number;
   qaStatuses: string[];
   devAndCodeReviewCount: number;
