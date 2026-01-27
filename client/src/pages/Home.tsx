@@ -272,22 +272,12 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Progress Ring and Issue Type Chart */}
+          {/* Issue Type Chart and Burn-Down Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div className="flex justify-center">
-              <ProgressRing
-                percentage={metrics.completionRate}
-                label="Taxa de Conclusão"
-              />
-            </div>
             <div className="bg-card border border-border rounded-lg p-6">
               <h3 className="text-lg font-display text-foreground mb-4">Distribuição por Tipo</h3>
               <IssueTypeChart issues={allIssues || []} />
             </div>
-          </div>
-
-          {/* Burn-Down Chart */}
-          <div className="mb-8">
             <div className="bg-card border border-border rounded-lg p-6">
               <BurnDownChart
                 completionRate={metrics.completionRate}
