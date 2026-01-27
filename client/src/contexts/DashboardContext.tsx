@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { DashboardMetrics, StatusDistribution, CriticalIssue } from '@/data/dashboardData';
 import { fetchGoogleSheetData, processSheetData } from '@/lib/googleSheetsService';
 import { saveSnapshot, cleanOldSnapshots } from '@/lib/snapshotService';
+import { useFilter } from './FilterContext';
 
 interface DashboardContextType {
   metrics: DashboardMetrics;
@@ -9,6 +10,7 @@ interface DashboardContextType {
   criticalIssues: CriticalIssue[];
   impediments: any[];
   backlogItems: any[];
+  allIssues: any[];
   loading: boolean;
   error: string | null;
   lastUpdated: string | null;
@@ -33,6 +35,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [criticalIssues, setCriticalIssues] = useState<CriticalIssue[]>([]);
   const [impediments, setImpediments] = useState<any[]>([]);
   const [backlogItems, setBacklogItems] = useState<any[]>([]);
+  const [allIssues, setAllIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -67,6 +70,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setCriticalIssues(processedData.criticalIssues);
       setImpediments(processedData.impediments);
       setBacklogItems(processedData.backlogItems);
+      setAllIssues(sheetData);
+      
+      // Extrair Issue Types únicos
+      const uniqueIssueTypes = Array.from(new Set(sheetData.map(row => row['Issue Type']).filter(Boolean)));
+      // Usar o contexto de filtro para atualizar tipos disponíveis
+      // Será feito no componente Home
       
       // Salvar snapshot
       await saveSnapshot({
@@ -100,6 +109,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         criticalIssues,
         impediments,
         backlogItems,
+        allIssues,
         loading,
         error,
         lastUpdated,

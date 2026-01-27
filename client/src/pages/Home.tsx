@@ -10,8 +10,11 @@ import { BurnDownChart } from '@/components/BurnDownChart';
 import { BacklogCard } from '@/components/BacklogCard';
 import { AIInsightModal } from '@/components/AIInsightModal';
 import { ProjectEvolution } from '@/components/ProjectEvolution';
+import { IssueTypeFilter } from '@/components/IssueTypeFilter';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { useFilter } from '@/contexts/FilterContext';
 import { useNextSteps } from '@/hooks/useNextSteps';
+import { useFilteredData } from '@/hooks/useFilteredData';
 
 /**
  * Design Philosophy: Modern Enterprise Analytics
@@ -22,10 +25,24 @@ import { useNextSteps } from '@/hooks/useNextSteps';
  */
 
 export default function Home() {
-  const { metrics, statusDistribution, criticalIssues, impediments, backlogItems, loading, error, lastUpdated, refreshData } = useDashboard();
+  const { metrics, statusDistribution, criticalIssues, impediments, backlogItems, loading, error, lastUpdated, refreshData, allIssues } = useDashboard();
   const { steps: dynamicSteps, generateNextSteps } = useNextSteps();
+  const { setAvailableIssueTypes } = useFilter();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAIInsight, setShowAIInsight] = useState(false);
+  const [issueTypes, setIssueTypes] = useState<string[]>([]);
+  
+  // Aplicar filtro aos dados
+  const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
+
+  useEffect(() => {
+    // Extrair tipos de issue únicos
+    if (allIssues && allIssues.length > 0) {
+      const types = Array.from(new Set(allIssues.map((issue: any) => issue['Issue Type']).filter(Boolean)));
+      setIssueTypes(types as string[]);
+      setAvailableIssueTypes(types as string[]);
+    }
+  }, [allIssues, setAvailableIssueTypes]);
 
   useEffect(() => {
     if (metrics.totalIssues > 0) {
@@ -268,11 +285,14 @@ export default function Home() {
 
         {/* Status Distribution Chart and Backlog */}
         <section className="mb-12">
-          <h2 className="text-2xl font-display text-foreground mb-6">Distribuicao e Backlog</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-display text-foreground">Distribuição e Backlog</h2>
+            {issueTypes.length > 0 && <IssueTypeFilter issueTypes={issueTypes} />}
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 bg-card border border-border rounded-lg p-6">
-              {statusDistribution.length > 0 ? (
-                <StatusChart data={statusDistribution} />
+              {filteredData.statusDistribution.length > 0 ? (
+                <StatusChart data={filteredData.statusDistribution} />
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-8">
                   Carregando dados...
