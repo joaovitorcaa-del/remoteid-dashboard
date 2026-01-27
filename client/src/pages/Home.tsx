@@ -11,6 +11,7 @@ import { BacklogCard } from '@/components/BacklogCard';
 import { AIInsightModal } from '@/components/AIInsightModal';
 import { ProjectEvolution } from '@/components/ProjectEvolution';
 import { IssueTypeFilter } from '@/components/IssueTypeFilter';
+import { DevIssuesModal } from '@/components/DevIssuesModal';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useFilter } from '@/contexts/FilterContext';
 import { useNextSteps } from '@/hooks/useNextSteps';
@@ -30,17 +31,23 @@ export default function Home() {
   const { setAvailableIssueTypes } = useFilter();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAIInsight, setShowAIInsight] = useState(false);
+  const [showDevIssuesModal, setShowDevIssuesModal] = useState(false);
   const [issueTypes, setIssueTypes] = useState<string[]>([]);
+  const [devIssues, setDevIssues] = useState<any[]>([]);
   
   // Aplicar filtro aos dados
   const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
 
   useEffect(() => {
-    // Extrair tipos de issue únicos
+    // Extrair tipos de issue únicos e issues de desenvolvimento
     if (allIssues && allIssues.length > 0) {
       const types = Array.from(new Set(allIssues.map((issue: any) => issue['Issue Type']).filter(Boolean)));
       setIssueTypes(types as string[]);
       setAvailableIssueTypes(types as string[]);
+      
+      const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
+      const devIssuesList = allIssues.filter((issue: any) => devStatuses.includes(issue.Status));
+      setDevIssues(devIssuesList);
     }
   }, [allIssues, setAvailableIssueTypes]);
 
@@ -99,6 +106,7 @@ export default function Home() {
               </p>
             </div>
             <div className="flex flex-col items-end gap-3">
+              {issueTypes.length > 0 && <IssueTypeFilter issueTypes={issueTypes} />}
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Status do Projeto</p>
                 <StatusBadge status={metrics.projectHealth} label="Crítico" />
@@ -143,7 +151,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <MetricCard
               title="Taxa de Conclusão"
-              value={`${metrics.completionRate}%`}
+              value={`${filteredData.metrics.completionRate.toFixed(1)}%`}
               icon={CheckCircle2}
               description="Issues concluídas do total"
               highlight
@@ -161,7 +169,7 @@ export default function Home() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Gargalo QA</p>
                   <p className="text-3xl font-bold font-display text-foreground mb-4">
-                    {metrics.qaGargaloCount}
+                    {filteredData.metrics.qaGargaloCount || 0}
                   </p>
                   <div className="space-y-2">
                     {metrics.qaStatuses.map((status) => (
@@ -180,7 +188,7 @@ export default function Home() {
 
           {/* New Row: Dev/Code Review Card */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="rounded-lg border p-6 bg-card border-border">
+            <div className="rounded-lg border p-6 bg-card border-border cursor-pointer hover:bg-secondary/50 transition-colors" onMouseEnter={() => setShowDevIssuesModal(true)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground mb-2">
@@ -188,7 +196,7 @@ export default function Home() {
                   </p>
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-bold font-display text-foreground">
-                      {metrics.devAndCodeReviewCount}
+                      {devIssues.length}
                     </p>
                     <span className="text-sm font-semibold text-muted-foreground">
                       issues
@@ -380,6 +388,13 @@ export default function Home() {
           impedimentsCount: impediments.length,
           projectHealth: metrics.projectHealth,
         }}
+      />
+      
+      {/* Dev Issues Modal */}
+      <DevIssuesModal 
+        open={showDevIssuesModal} 
+        onOpenChange={setShowDevIssuesModal} 
+        issues={devIssues} 
       />
     </div>
   );
