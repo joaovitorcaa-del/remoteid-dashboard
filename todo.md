@@ -20,3 +20,6 @@
 - [x] Adicionar modal ao card "Backlog" com listagem de itens (similar ao Dev/Code Review)
 - [x] Remover card de Backlog duplicado (abaixo do gráfico "Distribuição e Backlog")
 - [x] Reordenar status do gráfico: opened, ready to sprint, Dev to Do, Code Doing, Code Review, Test to Do, Test Doing, Staging, Done
+
+## Bugs Reportados
+- [x] Insight de IA está dando erro ao clicar no botão (Corrigido: import de useState adicionado)
