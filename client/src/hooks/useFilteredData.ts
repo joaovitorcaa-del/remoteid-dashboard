@@ -79,6 +79,12 @@ export function useFilteredData(
   const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
   const filteredDevIssues = filteredIssues.filter((issue) => devStatuses.includes(issue.Status));
 
+  // Calcular Gargalo QA (issues em status de teste)
+  const qaStatuses = ['Test To Do', 'Test Doing', 'STAGING'];
+  const filteredQAGargalo = filteredIssues.filter((issue) => qaStatuses.includes(issue.Status));
+  const filteredQAGargaloCount = filteredQAGargalo.length;
+  const filteredQAStatusesList = Array.from(new Set(filteredQAGargalo.map((issue) => issue.Status)));
+
   // Retornar dados filtrados
   return {
     metrics: {
@@ -88,6 +94,8 @@ export function useFilteredData(
       doneIssues: filteredDone,
       canceledIssues: filteredCanceled,
       inProgressIssues: filteredInProgress,
+      qaGargaloCount: filteredQAGargaloCount,
+      qaStatuses: filteredQAStatusesList,
     },
     statusDistribution: filteredStatusDistribution,
     criticalIssues: filteredCriticalIssues,
