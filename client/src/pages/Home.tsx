@@ -172,7 +172,46 @@ export default function Home() {
             {issueTypes.length > 0 && <IssueTypeFilter issueTypes={issueTypes} />}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* PRIMEIRA LINHA: Distribuição de Issues + Taxa de Conclusão */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Card 1: Distribuição de Issues */}
+            <div className="bg-card border border-border rounded-lg p-6">
+              <h3 className="text-lg font-display text-foreground mb-4">Distribuição de Issues</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Total de Issues</span>
+                  <span className="font-mono font-bold text-primary">
+                    {filteredData.metrics.totalIssues}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Concluídas</span>
+                  <span className="font-mono font-bold text-[#10B981]">
+                    {filteredData.metrics.doneIssues}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Em Progresso</span>
+                  <span className="font-mono font-bold text-[#F59E0B]">
+                    {filteredData.metrics.inProgressIssues || (filteredData.metrics.totalIssues - filteredData.metrics.doneIssues - (filteredData.metrics.canceledIssues || 0))}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Canceladas</span>
+                  <span className="font-mono font-bold text-[#6B7280]">
+                    {filteredData.metrics.canceledIssues || 0}
+                  </span>
+                </div>
+                <div className="h-2 bg-secondary rounded-full overflow-hidden mt-4">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary to-blue-600 transition-all duration-500"
+                    style={{ width: `${filteredData.metrics.completionRate}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Taxa de Conclusão */}
             <MetricCard
               title="Taxa de Conclusão"
               value={`${filteredData.metrics.completionRate.toFixed(1)}%`}
@@ -180,47 +219,11 @@ export default function Home() {
               description="Issues concluídas do total"
               highlight
             />
-            <div
-              onClick={() => setShowCompletedIssuesModal(true)}
-              className="cursor-pointer h-full"
-            >
-              <MetricCard
-                title="Progresso (24h)"
-                value={filteredData.metrics.progressLast24h || 0}
-                icon={TrendingUp}
-                trend={filteredData.metrics.progressLast24hTrend === 'up' ? 'up' : 'down'}
-                trendValue={`${filteredData.metrics.progressLast24h || 0} novas`}
-                description="Issues concluídas"
-              />
-            </div>
-            <div className="rounded-lg border p-6 bg-card border-border">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground mb-3">Etapa QA</p>
-                  <p className="text-3xl font-bold font-display text-foreground mb-4">
-                    {filteredData.metrics.qaGargaloCount || 0}
-                  </p>
-                  <div className="space-y-2">
-                    {filteredData.metrics.qaStatuses?.map((status) => (
-                      <p key={status} className="text-xs text-muted-foreground">
-                        • <span className="font-medium">{status}</span>
-                      </p>
-                    )) || metrics.qaStatuses.map((status) => (
-                      <p key={status} className="text-xs text-muted-foreground">
-                        • <span className="font-medium">{status}</span>
-                      </p>
-                    ))}
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg bg-secondary">
-                  <Clock className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* New Row: Dev/Code Review Card */}
+          {/* SEGUNDA LINHA: Dev/Code Review + Etapa QA + Progresso (24h) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* Card 3: Em Desenvolvimento/Code Review */}
             <div className="rounded-lg border p-6 bg-card border-border cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => setShowDevIssuesModal(true)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -245,58 +248,56 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Progress Ring and Distribution */}
-            <div className="md:col-span-2">
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-display text-foreground mb-4">Distribuição de Issues</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Total de Issues</span>
-                    <span className="font-mono font-bold text-primary">
-                      {filteredData.metrics.totalIssues}
-                    </span>
+            {/* Card 4: Etapa QA */}
+            <div className="rounded-lg border p-6 bg-card border-border">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Etapa QA</p>
+                  <p className="text-3xl font-bold font-display text-foreground mb-4">
+                    {filteredData.metrics.qaGargaloCount || 0}
+                  </p>
+                  <div className="space-y-2">
+                    {filteredData.metrics.qaStatuses?.map((status) => (
+                      <p key={status} className="text-xs text-muted-foreground">
+                        • <span className="font-medium">{status}</span>
+                      </p>
+                    )) || metrics.qaStatuses.map((status) => (
+                      <p key={status} className="text-xs text-muted-foreground">
+                        • <span className="font-medium">{status}</span>
+                      </p>
+                    ))}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Concluídas</span>
-                    <span className="font-mono font-bold text-[#10B981]">
-                      {filteredData.metrics.doneIssues}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Em Progresso</span>
-                    <span className="font-mono font-bold text-[#F59E0B]">
-                      {filteredData.metrics.inProgressIssues || (filteredData.metrics.totalIssues - filteredData.metrics.doneIssues - (filteredData.metrics.canceledIssues || 0))}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Canceladas</span>
-                    <span className="font-mono font-bold text-[#6B7280]">
-                      {filteredData.metrics.canceledIssues || 0}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden mt-4">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-blue-600 transition-all duration-500"
-                      style={{ width: `${filteredData.metrics.completionRate}%` }}
-                    />
-                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary">
+                  <Clock className="w-6 h-6 text-primary" />
                 </div>
               </div>
             </div>
+
+            {/* Card 5: Progresso (24h) */}
+            <div
+              onClick={() => setShowCompletedIssuesModal(true)}
+              className="cursor-pointer h-full"
+            >
+              <MetricCard
+                title="Progresso (24h)"
+                value={filteredData.metrics.progressLast24h || 0}
+                icon={TrendingUp}
+                trend={filteredData.metrics.progressLast24hTrend === 'up' ? 'up' : 'down'}
+                trendValue={`${filteredData.metrics.progressLast24h || 0} novas`}
+                description="Issues concluídas"
+              />
+            </div>
           </div>
 
-          {/* Issue Type Chart and Burn-Down Chart */}
+          {/* Issue Type Chart and Backlog Card */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div className="bg-card border border-border rounded-lg p-6">
               <h3 className="text-lg font-display text-foreground mb-4">Distribuição por Tipo</h3>
               <IssueTypeChart issues={allIssues || []} />
             </div>
-            <div className="bg-card border border-border rounded-lg p-6">
-              <BurnDownChart
-                completionRate={metrics.completionRate}
-                totalIssues={metrics.totalIssues}
-                doneIssues={metrics.doneIssues}
-              />
+            <div className="lg:col-span-1">
+              <BacklogCard items={backlogItems} count={filteredData.metrics.backlogCount || 0} />
             </div>
           </div>
         </section>
