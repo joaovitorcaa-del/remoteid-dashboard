@@ -107,6 +107,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
+      <div ref={dashboardRef}>
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="container py-6">
           <div className="flex items-center justify-between">
@@ -154,7 +155,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="container py-8" ref={dashboardRef}>
+      <main className="container py-8">
         {/* Executive Summary Section */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
@@ -398,6 +399,7 @@ export default function Home() {
           </div>
         </section>
       </main>
+      </div>
 
       {/* AI Insight Modal */}
       <AIInsightModal
