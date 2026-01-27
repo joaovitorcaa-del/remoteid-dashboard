@@ -174,7 +174,11 @@ export default function Home() {
                     {filteredData.metrics.qaGargaloCount || 0}
                   </p>
                   <div className="space-y-2">
-                    {metrics.qaStatuses.map((status) => (
+                    {filteredData.metrics.qaStatuses?.map((status) => (
+                      <p key={status} className="text-xs text-muted-foreground">
+                        • <span className="font-medium">{status}</span>
+                      </p>
+                    )) || metrics.qaStatuses.map((status) => (
                       <p key={status} className="text-xs text-muted-foreground">
                         • <span className="font-medium">{status}</span>
                       </p>
@@ -222,25 +226,25 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Total de Issues</span>
                     <span className="font-mono font-bold text-primary">
-                      {metrics.totalIssues}
+                      {filteredData.metrics.totalIssues}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Concluídas</span>
                     <span className="font-mono font-bold text-[#10B981]">
-                      {metrics.doneIssues}
+                      {filteredData.metrics.doneIssues}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Em Progresso</span>
                     <span className="font-mono font-bold text-[#F59E0B]">
-                      {metrics.inProgressIssues || (metrics.totalIssues - metrics.doneIssues)}
+                      {filteredData.metrics.inProgressIssues || (filteredData.metrics.totalIssues - filteredData.metrics.doneIssues)}
                     </span>
                   </div>
                   <div className="h-2 bg-secondary rounded-full overflow-hidden mt-4">
                     <div
                       className="h-full bg-gradient-to-r from-primary to-blue-600 transition-all duration-500"
-                      style={{ width: `${metrics.completionRate}%` }}
+                      style={{ width: `${filteredData.metrics.completionRate}%` }}
                     />
                   </div>
                 </div>
@@ -310,7 +314,7 @@ export default function Home() {
               )}
             </div>
             <div className="lg:col-span-1">
-              <BacklogCard items={backlogItems} count={metrics.backlogCount || 0} />
+              <BacklogCard items={backlogItems} count={filteredData.metrics.backlogCount || 0} />
             </div>
           </div>
         </section>
