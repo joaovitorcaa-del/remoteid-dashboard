@@ -5,6 +5,7 @@ export interface FilteredData {
   metrics: DashboardMetrics;
   statusDistribution: StatusDistribution[];
   criticalIssues: CriticalIssue[];
+  devIssues: any[];
 }
 
 /**
@@ -20,10 +21,13 @@ export function useFilteredData(
 
   // Se não há filtro selecionado, retornar dados originais
   if (!selectedIssueType) {
+    const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
+    const allDevIssues = allIssues.filter((issue) => devStatuses.includes(issue.Status));
     return {
       metrics: originalMetrics,
       statusDistribution: originalStatusDistribution,
       criticalIssues: originalCriticalIssues,
+      devIssues: allDevIssues,
     };
   }
 
@@ -71,6 +75,10 @@ export function useFilteredData(
     (issue) => filteredIssues.some((fi) => fi.Key === issue.key)
   );
 
+  // Filtrar issues em desenvolvimento
+  const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
+  const filteredDevIssues = filteredIssues.filter((issue) => devStatuses.includes(issue.Status));
+
   // Retornar dados filtrados
   return {
     metrics: {
@@ -83,5 +91,6 @@ export function useFilteredData(
     },
     statusDistribution: filteredStatusDistribution,
     criticalIssues: filteredCriticalIssues,
+    devIssues: filteredDevIssues,
   };
 }

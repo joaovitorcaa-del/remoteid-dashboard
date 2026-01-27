@@ -106,7 +106,6 @@ export default function Home() {
               </p>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {issueTypes.length > 0 && <IssueTypeFilter issueTypes={issueTypes} />}
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Status do Projeto</p>
                 <StatusBadge status={metrics.projectHealth} label="Crítico" />
@@ -146,7 +145,10 @@ export default function Home() {
       <main className="container py-8">
         {/* Executive Summary Section */}
         <section className="mb-12">
-          <h2 className="text-2xl font-display text-foreground mb-6">Sumário Executivo</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-display text-foreground">Sumário Executivo</h2>
+            {issueTypes.length > 0 && <IssueTypeFilter issueTypes={issueTypes} />}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <MetricCard
@@ -158,11 +160,11 @@ export default function Home() {
             />
             <MetricCard
               title="Progresso (24h)"
-              value={metrics.progressLast24h}
+              value={filteredData.metrics.inProgressIssues || 0}
               icon={TrendingUp}
               trend="down"
               trendValue="0 novas"
-              description="Issues finalizadas"
+              description="Issues em progresso"
             />
             <div className="rounded-lg border p-6 bg-card border-border">
               <div className="flex items-start justify-between">
@@ -188,7 +190,7 @@ export default function Home() {
 
           {/* New Row: Dev/Code Review Card */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="rounded-lg border p-6 bg-card border-border cursor-pointer hover:bg-secondary/50 transition-colors" onMouseEnter={() => setShowDevIssuesModal(true)}>
+            <div className="rounded-lg border p-6 bg-card border-border cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => setShowDevIssuesModal(true)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground mb-2">
@@ -196,7 +198,7 @@ export default function Home() {
                   </p>
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-bold font-display text-foreground">
-                      {devIssues.length}
+                      {filteredData.devIssues?.length || 0}
                     </p>
                     <span className="text-sm font-semibold text-muted-foreground">
                       issues
@@ -394,7 +396,7 @@ export default function Home() {
       <DevIssuesModal 
         open={showDevIssuesModal} 
         onOpenChange={setShowDevIssuesModal} 
-        issues={devIssues} 
+        issues={filteredData.devIssues} 
       />
     </div>
   );
