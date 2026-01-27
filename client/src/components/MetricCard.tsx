@@ -21,7 +21,7 @@ export function MetricCard({
 }: MetricCardProps) {
   return (
     <div
-      className={`rounded-lg border p-6 transition-all hover:shadow-md ${
+      className={`rounded-lg border p-6 transition-all hover:shadow-md h-full ${
         highlight
           ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'
           : 'bg-card border-border'

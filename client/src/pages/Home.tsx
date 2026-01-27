@@ -12,6 +12,9 @@ import { AIInsightModal } from '@/components/AIInsightModal';
 import { ProjectEvolution } from '@/components/ProjectEvolution';
 import { IssueTypeFilter } from '@/components/IssueTypeFilter';
 import { DevIssuesModal } from '@/components/DevIssuesModal';
+import { CompletedIssuesModal } from '@/components/CompletedIssuesModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { getCompletedIssuesLast24h } from '@/lib/completedIssuesCalculator';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useFilter } from '@/contexts/FilterContext';
 import { useNextSteps } from '@/hooks/useNextSteps';
@@ -32,8 +35,10 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAIInsight, setShowAIInsight] = useState(false);
   const [showDevIssuesModal, setShowDevIssuesModal] = useState(false);
+  const [showCompletedIssuesModal, setShowCompletedIssuesModal] = useState(false);
   const [issueTypes, setIssueTypes] = useState<string[]>([]);
   const [devIssues, setDevIssues] = useState<any[]>([]);
+  const [completedIssues, setCompletedIssues] = useState<any[]>([]);
   
   // Aplicar filtro aos dados
   const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
@@ -48,6 +53,9 @@ export default function Home() {
       const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
       const devIssuesList = allIssues.filter((issue: any) => devStatuses.includes(issue.Status));
       setDevIssues(devIssuesList);
+      
+      const completed = getCompletedIssuesLast24h(allIssues);
+      setCompletedIssues(completed);
     }
   }, [allIssues, setAvailableIssueTypes]);
 
@@ -158,14 +166,19 @@ export default function Home() {
               description="Issues concluídas do total"
               highlight
             />
-            <MetricCard
-              title="Progresso (24h)"
-              value={filteredData.metrics.progressLast24h || 0}
-              icon={TrendingUp}
-              trend={filteredData.metrics.progressLast24hTrend === 'up' ? 'up' : 'down'}
-              trendValue={`${filteredData.metrics.progressLast24h || 0} novas`}
-              description="Issues concluídas"
-            />
+            <div
+              onClick={() => setShowCompletedIssuesModal(true)}
+              className="cursor-pointer h-full"
+            >
+              <MetricCard
+                title="Progresso (24h)"
+                value={filteredData.metrics.progressLast24h || 0}
+                icon={TrendingUp}
+                trend={filteredData.metrics.progressLast24hTrend === 'up' ? 'up' : 'down'}
+                trendValue={`${filteredData.metrics.progressLast24h || 0} novas`}
+                description="Issues concluídas"
+              />
+            </div>
             <div className="rounded-lg border p-6 bg-card border-border">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -402,6 +415,38 @@ export default function Home() {
         onOpenChange={setShowDevIssuesModal} 
         issues={filteredData.devIssues} 
       />
+      
+      {/* Completed Issues Modal (24h) */}
+      <Dialog open={showCompletedIssuesModal} onOpenChange={setShowCompletedIssuesModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Issues Concluidas (Ultimas 24h)</DialogTitle>
+            <DialogDescription>
+              {completedIssues.length} issue{completedIssues.length !== 1 ? 's' : ''} concluida{completedIssues.length !== 1 ? 's' : ''} nas ultimas 24 horas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {completedIssues.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Nenhuma issue concluida nas ultimas 24 horas</p>
+            ) : (
+              completedIssues.map((issue: any, index: number) => (
+                <div key={index} className="border rounded-lg p-3 bg-muted/50 hover:bg-muted transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-sm font-semibold text-primary">{issue.Key}</p>
+                      <p className="text-sm mt-1 break-words">{issue.Summary}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span>Tipo: {issue['Issue Type']}</span>
+                        <span>Responsavel: {issue.Assignee || 'Nao atribuido'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
