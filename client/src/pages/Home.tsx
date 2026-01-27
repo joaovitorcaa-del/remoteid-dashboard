@@ -50,7 +50,7 @@ export default function Home() {
       setIssueTypes(types as string[]);
       setAvailableIssueTypes(types as string[]);
       
-      const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
+      const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW'];
       const devIssuesList = allIssues.filter((issue: any) => devStatuses.includes(issue.Status));
       setDevIssues(devIssuesList);
       
@@ -215,7 +215,7 @@ export default function Home() {
                   </p>
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-bold font-display text-foreground">
-                      {filteredData.devIssues?.length || 0}
+                      {filteredData.metrics.devAndCodeReviewCount || 0}
                     </p>
                     <span className="text-sm font-semibold text-muted-foreground">
                       issues
