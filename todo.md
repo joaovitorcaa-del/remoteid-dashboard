@@ -23,3 +23,9 @@
 
 ## Bugs Reportados
 - [x] Insight de IA está dando erro ao clicar no botão (Corrigido: import de useState adicionado)
+
+## Integração com LLM
+- [x] Criar rota tRPC para chamar o LLM com prompt estruturado
+- [x] Atualizar AIInsightModal para usar a rota tRPC
+- [x] Testar geração de insights com modelo de linguagem real (10/10 testes passando)
+- [x] Adicionar tratamento de erros e fallback para insights simulados

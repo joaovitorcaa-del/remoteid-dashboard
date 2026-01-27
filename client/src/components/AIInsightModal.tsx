@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { X, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { trpc } from '@/lib/trpc';
+import { Streamdown } from 'streamdown';
 
 interface AIInsightModalProps {
   isOpen: boolean;
@@ -23,53 +25,17 @@ export function AIInsightModal({ isOpen, onClose, dashboardData }: AIInsightModa
   const [loading, setLoading] = useState(false);
   const [insight, setInsight] = useState<string>('');
 
+  const generateInsightMutation = trpc.ai.generateInsight.useMutation();
+
   const generateInsight = async () => {
     setLoading(true);
     try {
-      // Preparar contexto dos dados
-      const context = `
-        Contexto do Projeto RemoteID:
-        - Taxa de Conclusão: ${dashboardData.completionRate}%
-        - Total de Issues: ${dashboardData.totalIssues}
-        - Issues Concluídas: ${dashboardData.doneIssues}
-        - Issues em Progresso: ${dashboardData.inProgressIssues}
-        - Issues Canceladas: ${dashboardData.canceledIssues}
-        - Etapa QA (Test To Do + Test Doing + STAGING): ${dashboardData.qaGargaloCount}
-        - Em Desenvolvimento/Code Review: ${dashboardData.devAndCodeReviewCount}
-        - Backlog (Ready to Sprint): ${dashboardData.backlogCount}
-        - Impedimentos: ${dashboardData.impedimentsCount}
-        - Status do Projeto: ${dashboardData.projectHealth}
-      `;
-
-      const prompt = `Atue como gerente de projetos de TI, analise todo o contexto com base nos dados disponíveis e gere um Resumo Executivo do status atual do projeto e também de insights que possam ser obtidos. ${context}`;
-
-      // Simular chamada à API de IA
-      // Em produção, isso seria uma chamada real a um serviço de IA
-      const response = await fetch('/api/ai-insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      }).catch(() => {
-        // Se a API não existir, retornar insight simulado
-        return null;
-      });
-
-      if (response && response.ok) {
-        const data = await response.json();
-        setInsight(data.insight);
-      } else {
-        // Insight simulado para demonstração
-        setInsight(
-          `O projeto RemoteID está em status ${dashboardData.projectHealth === 'red' ? 'CRÍTICO' : dashboardData.projectHealth === 'yellow' ? 'ATENÇÃO' : 'SAUDÁVEL'} com ${dashboardData.completionRate}% de conclusão. ` +
-          `Há ${dashboardData.impedimentsCount} impedimentos bloqueando o avanço, sendo o principal foco a resolução destes bloqueadores. ` +
-          `A Etapa QA concentra ${dashboardData.qaGargaloCount} issues aguardando testes, representando ${Math.round((dashboardData.qaGargaloCount / dashboardData.totalIssues) * 100)}% do total. ` +
-          `Com ${dashboardData.backlogCount} itens no backlog prontos para começar, recomenda-se: (1) Desbloquear os ${dashboardData.impedimentsCount} impedimentos críticos, (2) Aumentar capacidade de QA para acelerar testes, (3) Manter ritmo de desenvolvimento com os itens do backlog. ` +
-          `A velocidade atual sugere conclusão em aproximadamente ${Math.ceil((100 - dashboardData.completionRate) / (dashboardData.completionRate / 7))} dias.`
-        );
-      }
+      const result = await generateInsightMutation.mutateAsync(dashboardData);
+      const insightText = typeof result.insight === 'string' ? result.insight : JSON.stringify(result.insight);
+      setInsight(insightText);
     } catch (error) {
-      setInsight('Erro ao gerar insight. Tente novamente.');
       console.error('Erro ao gerar insight:', error);
+      setInsight('Erro ao gerar insight com IA. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -122,9 +88,9 @@ export function AIInsightModal({ isOpen, onClose, dashboardData }: AIInsightModa
           ) : (
             <div className="space-y-4">
               <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                <p className="text-foreground leading-relaxed text-justify">
-                  {insight}
-                </p>
+                <div className="text-foreground leading-relaxed text-justify prose prose-sm max-w-none">
+                  <Streamdown>{insight}</Streamdown>
+                </div>
               </div>
               <div className="flex gap-3">
                 <Button
