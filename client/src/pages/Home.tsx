@@ -251,7 +251,13 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">Em Progresso</span>
                     <span className="font-mono font-bold text-[#F59E0B]">
-                      {filteredData.metrics.inProgressIssues || (filteredData.metrics.totalIssues - filteredData.metrics.doneIssues)}
+                      {filteredData.metrics.inProgressIssues || (filteredData.metrics.totalIssues - filteredData.metrics.doneIssues - (filteredData.metrics.canceledIssues || 0))}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">Canceladas</span>
+                    <span className="font-mono font-bold text-[#6B7280]">
+                      {filteredData.metrics.canceledIssues || 0}
                     </span>
                   </div>
                   <div className="h-2 bg-secondary rounded-full overflow-hidden mt-4">
