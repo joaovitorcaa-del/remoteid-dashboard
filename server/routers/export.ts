@@ -1,6 +1,6 @@
 import { publicProcedure, router } from "../_core/trpc";
 import { z } from "zod";
-import { execSync } from "child_process";
+import { spawn } from "child_process";
 import { promises as fs } from "fs";
 import path from "path";
 import { TRPCError } from "@trpc/server";
@@ -30,19 +30,47 @@ export const exportRouter = router({
         // Salvar Markdown temporário
         await fs.writeFile(mdFilePath, markdown, "utf-8");
 
-        // Executar manus-md-to-pdf
-        try {
-          execSync(`manus-md-to-pdf "${mdFilePath}" "${pdfFilePath}"`, {
-            stdio: "pipe",
+        // Executar manus-md-to-pdf usando spawn
+        await new Promise<void>((resolve, reject) => {
+          const proc = spawn('manus-md-to-pdf', [mdFilePath, pdfFilePath], {
+            stdio: ['pipe', 'pipe', 'pipe'],
             timeout: 30000,
           });
-        } catch (error) {
-          console.error("Erro ao executar manus-md-to-pdf:", error);
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Falha ao gerar PDF. Tente novamente.",
+
+          let stderr = '';
+          let stdout = '';
+
+          proc.stdout?.on('data', (data) => {
+            stdout += data.toString();
           });
-        }
+
+          proc.stderr?.on('data', (data) => {
+            stderr += data.toString();
+          });
+
+          proc.on('error', (error) => {
+            console.error('Erro ao executar manus-md-to-pdf (spawn error):', error);
+            reject(new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: `Falha ao executar ferramenta de PDF: ${error.message}`,
+            }));
+          });
+
+          proc.on('close', (code) => {
+            if (code !== 0) {
+              console.error(`manus-md-to-pdf saiu com código ${code}`);
+              console.error('stderr:', stderr);
+              console.error('stdout:', stdout);
+              reject(new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: `Falha ao gerar PDF (código ${code}): ${stderr || stdout}`,
+              }));
+            } else {
+              console.log('manus-md-to-pdf concluído com sucesso');
+              resolve();
+            }
+          });
+        });
 
         // Ler o arquivo PDF gerado
         const pdfBuffer = await fs.readFile(pdfFilePath);

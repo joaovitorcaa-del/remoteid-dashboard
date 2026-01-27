@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+// Nota: API de IA para próximos passos pode ser integrada no futuro
+// Por enquanto, usamos análise local dos dados do dashboard
 
 export interface NextStep {
   id: number;
@@ -25,64 +27,13 @@ export function useNextSteps() {
   const [steps, setSteps] = useState<NextStep[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const generateNextSteps = useCallback(async (dashboardData: DashboardData) => {
-    setLoading(true);
+  const generateNextSteps = useCallback((dashboardData: DashboardData) => {
     try {
-      // Preparar contexto dos dados
-      const context = `
-        Contexto do Projeto RemoteID:
-        - Taxa de Conclusão: ${dashboardData.completionRate}%
-        - Total de Issues: ${dashboardData.totalIssues}
-        - Issues Concluídas: ${dashboardData.doneIssues}
-        - Issues em Progresso: ${dashboardData.inProgressIssues}
-        - Issues Canceladas: ${dashboardData.canceledIssues}
-        - Gargalo QA: ${dashboardData.qaGargaloCount}
-        - Em Desenvolvimento/Code Review: ${dashboardData.devAndCodeReviewCount}
-        - Backlog (Ready to Sprint): ${dashboardData.backlogCount}
-        - Impedimentos: ${dashboardData.impedimentsCount}
-        - Status do Projeto: ${dashboardData.projectHealth}
-      `;
-
-      const prompt = `Atue como gerente de projetos de TI. Baseado no contexto do projeto, gere exatamente 5 próximos passos prioritários que o time deve executar nas próximas 24 horas. 
-      
-      Retorne em formato JSON com esta estrutura exata:
-      {
-        "steps": [
-          {
-            "id": 1,
-            "title": "Título do passo",
-            "description": "Descrição breve e acionável",
-            "priority": "high|medium|low",
-            "icon": "nome_do_icone"
-          }
-        ]
-      }
-      
-      Use apenas estes ícones: CheckCircle2, AlertCircle, Zap, TrendingUp, Clock, Target, Users, Code, TestTube, Shield
-      
-      ${context}`;
-
-      // Simular chamada à API de IA
-      const response = await fetch('/api/next-steps', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      }).catch(() => {
-        return null;
-      });
-
-      if (response && response.ok) {
-        const data = await response.json();
-        setSteps(data.steps || generateDefaultSteps(dashboardData));
-      } else {
-        // Gerar passos padrão baseado em análise
-        setSteps(generateDefaultSteps(dashboardData));
-      }
+      // Gerar passos padrão baseado em análise dos dados do dashboard
+      setSteps(generateDefaultSteps(dashboardData));
     } catch (error) {
       console.error('Erro ao gerar próximos passos:', error);
       setSteps(generateDefaultSteps(dashboardData));
-    } finally {
-      setLoading(false);
     }
   }, []);
 

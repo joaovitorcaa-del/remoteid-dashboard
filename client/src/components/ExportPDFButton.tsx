@@ -1,6 +1,5 @@
 import React from 'react';
 import { Download } from 'lucide-react';
-import { trpc } from '@/lib/trpc';
 
 interface ExportPDFButtonProps {
   dashboardData?: any;
@@ -9,37 +8,68 @@ interface ExportPDFButtonProps {
 
 export function ExportPDFButton({ dashboardData, fileName = 'remoteid-dashboard' }: ExportPDFButtonProps) {
   const [isExporting, setIsExporting] = React.useState(false);
-  const exportMutation = trpc.export.generatePDF.useMutation();
 
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      const result = await exportMutation.mutateAsync({
-        dashboardData,
-        fileName,
+      console.log('Iniciando exportação de PDF via HTTP...');
+      console.log('Dados do dashboard:', dashboardData);
+      
+      // Fazer requisição POST para o endpoint de exportação
+      const response = await fetch('/api/export/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dashboardData,
+          fileName,
+        }),
       });
 
-      if (result.success && result.data) {
-        // Converter base64 para Blob
-        const binaryString = atob(result.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+      console.log('Resposta recebida, status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erro HTTP ${response.status}`);
+      }
+
+      // Obter o Blob do PDF
+      const blob = await response.blob();
+      console.log('Blob recebido, tamanho:', blob.size);
+
+      // Criar URL para o Blob
+      const url = window.URL.createObjectURL(blob);
+      console.log('URL criada:', url);
+
+      // Criar link e simular clique
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Extrair nome do arquivo da header Content-Disposition se disponível
+      const contentDisposition = response.headers.get('content-disposition');
+      let downloadFileName = fileName + '.pdf';
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="(.+?)"/);
+        if (fileNameMatch) {
+          downloadFileName = fileNameMatch[1];
         }
-        const blob = new Blob([bytes], { type: 'application/pdf' });
-        
-        // Criar URL temporária e fazer download
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = result.fileName;
-        document.body.appendChild(link);
-        link.click();
+      }
+      
+      link.download = downloadFileName;
+      document.body.appendChild(link);
+      
+      console.log('Clicando no link para download:', downloadFileName);
+      link.click();
+      
+      // Limpar
+      setTimeout(() => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        
-        console.log('PDF exportado com sucesso!');
-      }
+        console.log('Download concluído e limpeza realizada');
+      }, 100);
+      
+      console.log('PDF exportado com sucesso!');
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
@@ -52,12 +82,12 @@ export function ExportPDFButton({ dashboardData, fileName = 'remoteid-dashboard'
   return (
     <button
       onClick={handleExportPDF}
-      disabled={isExporting || exportMutation.isPending}
+      disabled={isExporting}
       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors text-sm font-medium"
       title="Exportar dashboard como PDF"
     >
       <Download className="w-4 h-4" />
-      {isExporting || exportMutation.isPending ? 'Exportando...' : 'Exportar PDF'}
+      {isExporting ? 'Exportando...' : 'Exportar PDF'}
     </button>
   );
 }
