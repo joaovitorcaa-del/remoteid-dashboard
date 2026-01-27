@@ -7,6 +7,7 @@ import { ImpedimentsList } from '@/components/ImpedimentsList';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatusChart } from '@/components/StatusChart';
 import { BurnDownChart } from '@/components/BurnDownChart';
+import { IssueTypeChart } from '@/components/IssueTypeChart';
 import { BacklogCard } from '@/components/BacklogCard';
 import { AIInsightModal } from '@/components/AIInsightModal';
 import { ProjectEvolution } from '@/components/ProjectEvolution';
@@ -271,7 +272,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Progress Ring and Burn-Down Chart */}
+          {/* Progress Ring and Issue Type Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div className="flex justify-center">
               <ProgressRing
@@ -279,6 +280,14 @@ export default function Home() {
                 label="Taxa de Conclusão"
               />
             </div>
+            <div className="bg-card border border-border rounded-lg p-6">
+              <h3 className="text-lg font-display text-foreground mb-4">Distribuição por Tipo</h3>
+              <IssueTypeChart issues={allIssues || []} />
+            </div>
+          </div>
+
+          {/* Burn-Down Chart */}
+          <div className="mb-8">
             <div className="bg-card border border-border rounded-lg p-6">
               <BurnDownChart
                 completionRate={metrics.completionRate}
