@@ -1,5 +1,5 @@
 import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles, Target, Users, Code, TestTube, Shield } from 'lucide-react';
-import { ExportPDFButton } from '@/components/ExportPDFButton';
+
 import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MetricCard } from '@/components/MetricCard';
@@ -132,7 +132,7 @@ export default function Home() {
                 <StatusBadge status={metrics.projectHealth} label="Crítico" />
               </div>
               <div className="flex gap-2">
-                <ExportPDFButton dashboardData={dashboardData} />
+
                 <button
                   onClick={() => setShowAIInsight(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
