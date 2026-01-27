@@ -50,7 +50,7 @@ export default function Home() {
       setIssueTypes(types as string[]);
       setAvailableIssueTypes(types as string[]);
       
-      const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW'];
+      const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW', 'Dev Doing'];
       const devIssuesList = allIssues.filter((issue: any) => devStatuses.includes(issue.Status));
       setDevIssues(devIssuesList);
       
@@ -419,7 +419,7 @@ export default function Home() {
       <DevIssuesModal 
         open={showDevIssuesModal} 
         onOpenChange={setShowDevIssuesModal} 
-        issues={filteredData.devIssues} 
+        issues={devIssues} 
       />
       
       {/* Completed Issues Modal (24h) */}

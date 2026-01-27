@@ -23,7 +23,7 @@ export function useFilteredData(
 
   // Se não há filtro selecionado, retornar dados originais
   if (!selectedIssueType) {
-    const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
+    const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW', 'Dev Doing'];
     const allDevIssues = allIssues.filter((issue) => devStatuses.includes(issue.Status));
     return {
       metrics: {
@@ -82,7 +82,7 @@ export function useFilteredData(
   );
 
   // Filtrar issues em desenvolvimento
-  const devStatuses = ['Dev To Do', 'CODE DOING', 'Dev Doing'];
+  const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW', 'Dev Doing'];
   const filteredDevIssues = filteredIssues.filter((issue) => devStatuses.includes(issue.Status));
 
   // Calcular Gargalo QA (issues em status de teste)
