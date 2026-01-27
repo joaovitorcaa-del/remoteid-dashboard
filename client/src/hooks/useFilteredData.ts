@@ -21,17 +21,27 @@ export function useFilteredData(
   const { selectedIssueType } = useFilter();
   const { newIssuesCompleted, trend } = calculateProgress24h();
 
-  // Se não há filtro selecionado, retornar dados originais
+  // Se não há filtro selecionado, retornar dados originais com reordenação
+  const statusOrder = ['opened', 'ready to sprint', 'Dev to Do', 'Code Doing', 'Code Review', 'Test to Do', 'Test Doing', 'Staging', 'Done'];
+  
   if (!selectedIssueType) {
     const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW', 'Dev Doing'];
     const allDevIssues = allIssues.filter((issue) => devStatuses.includes(issue.Status));
+    const sortedStatusDistribution = [...originalStatusDistribution].sort((a, b) => {
+      const indexA = statusOrder.indexOf(a.status);
+      const indexB = statusOrder.indexOf(b.status);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+    
     return {
       metrics: {
         ...originalMetrics,
         progressLast24h: newIssuesCompleted,
         progressLast24hTrend: trend,
       },
-      statusDistribution: originalStatusDistribution,
+      statusDistribution: sortedStatusDistribution,
       criticalIssues: originalCriticalIssues,
       devIssues: allDevIssues,
     };
@@ -68,13 +78,21 @@ export function useFilteredData(
     }
   });
 
-  const filteredStatusDistribution: StatusDistribution[] = Object.entries(statusTypeCount).map(([status, counts]) => ({
-    status,
-    bugs: counts.bugs,
-    improvements: counts.improvements,
-    tests: counts.tests,
-    total: counts.bugs + counts.improvements + counts.tests,
-  }));
+  const filteredStatusDistribution: StatusDistribution[] = Object.entries(statusTypeCount)
+    .map(([status, counts]) => ({
+      status,
+      bugs: counts.bugs,
+      improvements: counts.improvements,
+      tests: counts.tests,
+      total: counts.bugs + counts.improvements + counts.tests,
+    }))
+    .sort((a, b) => {
+      const indexA = statusOrder.indexOf(a.status);
+      const indexB = statusOrder.indexOf(b.status);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
 
   // Filtrar issues críticas
   const filteredCriticalIssues = originalCriticalIssues.filter(

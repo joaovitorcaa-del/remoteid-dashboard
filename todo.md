@@ -14,3 +14,9 @@
 - [x] Atualizar Dados
 - [x] Filtro por tipo de issue
 - [x] Modais de issues (Dev Issues, Completed Issues)
+
+## Modais e Melhorias de UX
+- [x] Adicionar modal ao card "Etapa QA" com listagem de itens (similar ao Dev/Code Review)
+- [x] Adicionar modal ao card "Backlog" com listagem de itens (similar ao Dev/Code Review)
+- [x] Remover card de Backlog duplicado (abaixo do gráfico "Distribuição e Backlog")
+- [x] Reordenar status do gráfico: opened, ready to sprint, Dev to Do, Code Doing, Code Review, Test to Do, Test Doing, Staging, Done

@@ -38,9 +38,12 @@ export default function Home() {
   const [showAIInsight, setShowAIInsight] = useState(false);
   const [showDevIssuesModal, setShowDevIssuesModal] = useState(false);
   const [showCompletedIssuesModal, setShowCompletedIssuesModal] = useState(false);
+  const [showQAModal, setShowQAModal] = useState(false);
+  const [showBacklogModal, setShowBacklogModal] = useState(false);
   const [issueTypes, setIssueTypes] = useState<string[]>([]);
   const [devIssues, setDevIssues] = useState<any[]>([]);
   const [completedIssues, setCompletedIssues] = useState<any[]>([]);
+  const [qaIssues, setQaIssues] = useState<any[]>([]);
   
   // Aplicar filtro aos dados
   const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
@@ -53,8 +56,12 @@ export default function Home() {
       setAvailableIssueTypes(types as string[]);
       
       const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW', 'Dev Doing'];
+      const qaStatuses = ['Test To Do', 'Test Doing', 'STAGING'];
       const devIssuesList = allIssues.filter((issue: any) => devStatuses.includes(issue.Status));
       setDevIssues(devIssuesList);
+      
+      const qaIssuesList = allIssues.filter((issue: any) => qaStatuses.includes(issue.Status));
+      setQaIssues(qaIssuesList);
       
       const completed = getCompletedIssuesLast24h(allIssues);
       setCompletedIssues(completed);
@@ -249,7 +256,7 @@ export default function Home() {
             </div>
 
             {/* Card 4: Etapa QA */}
-            <div className="rounded-lg border p-6 bg-card border-border">
+            <div className="rounded-lg border p-6 bg-card border-border cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => setShowQAModal(true)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground mb-3">Etapa QA</p>
@@ -296,7 +303,7 @@ export default function Home() {
               <h3 className="text-lg font-display text-foreground mb-4">Distribuição por Tipo</h3>
               <IssueTypeChart issues={allIssues || []} />
             </div>
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 cursor-pointer" onClick={() => setShowBacklogModal(true)}>
               <BacklogCard items={backlogItems} count={filteredData.metrics.backlogCount || 0} />
             </div>
           </div>
@@ -329,25 +336,20 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Status Distribution Chart and Backlog */}
+        {/* Status Distribution Chart */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-display text-foreground">Distribuição e Backlog</h2>
+            <h2 className="text-2xl font-display text-foreground">Distribuição de Status</h2>
             {issueTypes.length > 0 && <IssueTypeFilter issueTypes={issueTypes} />}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-card border border-border rounded-lg p-6">
-              {filteredData.statusDistribution.length > 0 ? (
-                <StatusChart data={filteredData.statusDistribution} />
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Carregando dados...
-                </p>
-              )}
-            </div>
-            <div className="lg:col-span-1">
-              <BacklogCard items={backlogItems} count={filteredData.metrics.backlogCount || 0} />
-            </div>
+          <div className="bg-card border border-border rounded-lg p-6">
+            {filteredData.statusDistribution.length > 0 ? (
+              <StatusChart data={filteredData.statusDistribution} />
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Carregando dados...
+              </p>
+            )}
           </div>
         </section>
 
@@ -458,6 +460,71 @@ export default function Home() {
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
                       <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* QA Issues Modal */}
+      <Dialog open={showQAModal} onOpenChange={setShowQAModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Issues em Etapa QA</DialogTitle>
+            <DialogDescription>
+              {qaIssues.length} issue{qaIssues.length !== 1 ? 's' : ''} em teste ou staging
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {qaIssues.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Nenhuma issue em etapa QA</p>
+            ) : (
+              qaIssues.map((issue: any, index: number) => (
+                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
+                      <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
+                      <span>Status: {issue.Status}</span>
+                      <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Backlog Modal */}
+      <Dialog open={showBacklogModal} onOpenChange={setShowBacklogModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Itens do Backlog</DialogTitle>
+            <DialogDescription>
+              {backlogItems.length} item{backlogItems.length !== 1 ? 's' : ''} no backlog
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {backlogItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Nenhum item no backlog</p>
+            ) : (
+              backlogItems.map((item: any, index: number) => (
+                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">{item.key || item.Key}</p>
+                      <p className="text-sm font-semibold text-foreground flex-1">{item.summary || item.Summary}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>Tipo: {item.issueType || item['Issue Type']}</span>
+                      <span>Responsavel: {item.assignee || item.Assignee || 'Nao atribuido'}</span>
                     </div>
                   </div>
                 </div>
