@@ -13,12 +13,12 @@ export function IssueTypeFilter({ issueTypes }: IssueTypeFilterProps) {
   return (
     <div className="flex items-center gap-3">
       <label className="text-sm font-medium text-foreground">Filtrar por Tipo:</label>
-      <Select value={selectedIssueType || ''} onValueChange={(value) => setSelectedIssueType(value || null)}>
+      <Select value={selectedIssueType || 'all'} onValueChange={(value) => setSelectedIssueType(value === 'all' ? null : value)}>
         <SelectTrigger className="w-48">
           <SelectValue placeholder="Todos os tipos" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Todos os tipos</SelectItem>
+          <SelectItem value="all">Todos os tipos</SelectItem>
           {issueTypes.map((type) => (
             <SelectItem key={type} value={type}>
               {type}
