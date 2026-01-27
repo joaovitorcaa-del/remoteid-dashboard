@@ -1,5 +1,5 @@
 import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles, Target, Users, Code, TestTube, Shield } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MetricCard } from '@/components/MetricCard';
 import { CriticalIssuesList } from '@/components/CriticalIssuesList';
@@ -14,7 +14,6 @@ import { ProjectEvolution } from '@/components/ProjectEvolution';
 import { IssueTypeFilter } from '@/components/IssueTypeFilter';
 import { DevIssuesModal } from '@/components/DevIssuesModal';
 import { CompletedIssuesModal } from '@/components/CompletedIssuesModal';
-import { ExportPDFButton } from '@/components/ExportPDFButton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { getCompletedIssuesLast24h } from '@/lib/completedIssuesCalculator';
 import { useDashboard } from '@/contexts/DashboardContext';
@@ -41,7 +40,6 @@ export default function Home() {
   const [issueTypes, setIssueTypes] = useState<string[]>([]);
   const [devIssues, setDevIssues] = useState<any[]>([]);
   const [completedIssues, setCompletedIssues] = useState<any[]>([]);
-  const dashboardRef = useRef<HTMLDivElement | null>(null);
   
   // Aplicar filtro aos dados
   const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
@@ -107,7 +105,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div ref={dashboardRef}>
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="container py-6">
           <div className="flex items-center justify-between">
@@ -123,7 +120,6 @@ export default function Home() {
                 <StatusBadge status={metrics.projectHealth} label="Crítico" />
               </div>
               <div className="flex gap-2">
-                <ExportPDFButton dashboardRef={dashboardRef} fileName="remoteid-dashboard" />
                 <button
                   onClick={() => setShowAIInsight(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -399,7 +395,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-      </div>
 
       {/* AI Insight Modal */}
       <AIInsightModal
