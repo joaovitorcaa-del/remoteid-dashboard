@@ -29,3 +29,9 @@
 - [x] Atualizar AIInsightModal para usar a rota tRPC
 - [x] Testar geração de insights com modelo de linguagem real (10/10 testes passando)
 - [x] Adicionar tratamento de erros e fallback para insights simulados
+
+## Renomeação do Dashboard
+- [x] Ajustar nome do Dashboard para "App Certisign Dashboard"
+- [x] Atualizar título em Home.tsx
+- [x] Atualizar nome do projeto em package.json
+- [x] Atualizar descrição em index.html
