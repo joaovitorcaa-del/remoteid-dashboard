@@ -7,13 +7,15 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { FilterProvider } from "./contexts/FilterContext";
 import { DashboardProvider } from "./contexts/DashboardContext";
 import Home from "./pages/Home";
+import Planning from "./pages/Planning";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
+      <Route path="/" component={Home} />
+      <Route path="/planning" component={Planning} />
+      <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>

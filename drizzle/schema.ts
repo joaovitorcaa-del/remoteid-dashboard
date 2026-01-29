@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, date, decimal } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +25,34 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+// Sprints table for planning
+export const sprints = mysqlTable("sprints", {
+  id: int("id").autoincrement().primaryKey(),
+  nome: varchar("nome", { length: 255 }).notNull(),
+  dataInicio: date("dataInicio").notNull(),
+  dataFim: date("dataFim").notNull(),
+  ativo: int("ativo").default(0).notNull(), // 0 = false, 1 = true
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Sprint = typeof sprints.$inferSelect;
+export type InsertSprint = typeof sprints.$inferInsert;
+
+// Sprint Issues table - issues assigned to sprints
+export const sprintIssues = mysqlTable("sprintIssues", {
+  id: int("id").autoincrement().primaryKey(),
+  sprintId: int("sprintId").notNull(),
+  chave: varchar("chave", { length: 50 }).notNull(),
+  resumo: text("resumo").notNull(),
+  responsavel: varchar("responsavel", { length: 255 }).notNull(),
+  storyPoints: int("storyPoints").notNull(),
+  dataInicio: date("dataInicio").notNull(),
+  dataFim: date("dataFim").notNull(),
+  ordem: int("ordem").default(0).notNull(),
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SprintIssue = typeof sprintIssues.$inferSelect;
+export type InsertSprintIssue = typeof sprintIssues.$inferInsert;

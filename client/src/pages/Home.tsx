@@ -1,4 +1,5 @@
-import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles, Target, Users, Code, TestTube, Shield } from 'lucide-react';
+import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles, Target, Users, Code, TestTube, Shield, Calendar } from 'lucide-react';
+import { useLocation } from 'wouter';
 
 import { useState, useEffect } from 'react';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -31,6 +32,7 @@ import { useFilteredData } from '@/hooks/useFilteredData';
  */
 
 export default function Home() {
+  const [, navigate] = useLocation();
   const { metrics, statusDistribution, criticalIssues, impediments, backlogItems, loading, error, lastUpdated, refreshData, allIssues } = useDashboard();
   const { steps: dynamicSteps, generateNextSteps } = useNextSteps();
   const { setAvailableIssueTypes } = useFilter();
@@ -139,7 +141,13 @@ export default function Home() {
                 <StatusBadge status={metrics.projectHealth} label="Crítico" />
               </div>
               <div className="flex gap-2">
-
+                <button
+                  onClick={() => navigate('/planning')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Planning
+                </button>
                 <button
                   onClick={() => setShowAIInsight(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
