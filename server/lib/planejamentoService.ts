@@ -1,10 +1,9 @@
 /**
  * Serviço para ler dados da planilha "Planejamento" do Google Sheets
- * Usa URL de exportação CSV direta
+ * Usa a API gviz/tq que funciona com planilhas públicas
  */
 
 const SHEET_ID = '1Hd286KdhsA91kDQX7zevHkOPKReTkFianZD7ZT6hWYc';
-const SHEET_NAME = 'Planejamento';
 
 export interface PlanejamentoIssue {
   chave: string;
@@ -20,8 +19,8 @@ export interface PlanejamentoIssue {
  */
 export async function fetchPlanejamentoData(): Promise<PlanejamentoIssue[]> {
   try {
-    // URL de exportação CSV da Google Sheets (funciona mesmo com planilhas públicas)
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+    // URL da API gviz/tq que funciona com planilhas públicas
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
 
     console.log('[Planejamento] Buscando dados de:', url);
 
@@ -57,7 +56,8 @@ export async function fetchPlanejamentoData(): Promise<PlanejamentoIssue[]> {
 }
 
 /**
- * Parse simples de CSV
+ * Parse de CSV
+ * Mapeia as colunas da planilha para o formato esperado
  */
 function parseCSV(csvText: string): PlanejamentoIssue[] {
   const lines = csvText.trim().split('\n');
@@ -72,6 +72,23 @@ function parseCSV(csvText: string): PlanejamentoIssue[] {
 
   console.log('[Planejamento] Headers encontrados:', headers);
 
+  // Encontrar índices das colunas
+  const keyIndex = headers.findIndex(h => h.toLowerCase().includes('key'));
+  const summaryIndex = headers.findIndex(h => h.toLowerCase().includes('summary'));
+  const assigneeIndex = headers.findIndex(h => h.toLowerCase().includes('assignee'));
+  const storyPointsIndex = headers.findIndex(h => h.toLowerCase().includes('story points'));
+  const typeIndex = headers.findIndex(h => h.toLowerCase().includes('issue type'));
+  const statusIndex = headers.findIndex(h => h.toLowerCase().includes('status'));
+
+  console.log('[Planejamento] Índices:', {
+    key: keyIndex,
+    summary: summaryIndex,
+    assignee: assigneeIndex,
+    storyPoints: storyPointsIndex,
+    type: typeIndex,
+    status: statusIndex
+  });
+
   const rows: PlanejamentoIssue[] = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -82,24 +99,20 @@ function parseCSV(csvText: string): PlanejamentoIssue[] {
 
     if (values.length === 0) continue;
 
-    const row: any = {};
-    headers.forEach((header, index) => {
-      row[header] = values[index] || '';
-    });
-
-    // Mapear campos para o formato esperado
-    const issue: PlanejamentoIssue = {
-      chave: row['Chave'] || row['chave'] || '',
-      resumo: row['Resumo'] || row['resumo'] || '',
-      responsavel: row['Responsável'] || row['responsavel'] || '',
-      storyPoints: parseInt(row['Story Points'] || row['storyPoints'] || '0'),
-      tipo: row['Tipo'] || row['tipo'] || '',
-      status: row['Status'] || row['status'] || '',
-    };
-
+    const chave = keyIndex >= 0 ? values[keyIndex] : '';
+    
     // Apenas adicionar se tiver chave
-    if (issue.chave) {
-      console.log('[Planejamento] Issue adicionada:', issue.chave);
+    if (chave) {
+      const issue: PlanejamentoIssue = {
+        chave: chave,
+        resumo: summaryIndex >= 0 ? values[summaryIndex] : '',
+        responsavel: assigneeIndex >= 0 ? values[assigneeIndex] : '',
+        storyPoints: storyPointsIndex >= 0 ? parseInt(values[storyPointsIndex]) || 0 : 0,
+        tipo: typeIndex >= 0 ? values[typeIndex] : '',
+        status: statusIndex >= 0 ? values[statusIndex] : '',
+      };
+
+      console.log('[Planejamento] Issue adicionada:', issue.chave, '-', issue.resumo);
       rows.push(issue);
     }
   }
