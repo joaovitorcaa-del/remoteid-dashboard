@@ -63,7 +63,8 @@ export function IssueSelectionModal({
     if (localSelected.size === filteredIssues.length) {
       setLocalSelected(new Set());
     } else {
-      setLocalSelected(new Set(filteredIssues.map((i) => i.chave)));
+      const allChaves = filteredIssues.map((i) => i.chave);
+      setLocalSelected(new Set(allChaves));
     }
   };
 
@@ -106,7 +107,7 @@ export function IssueSelectionModal({
               filteredIssues.length > 0 &&
               localSelected.size === filteredIssues.length
             }
-            onChange={handleSelectAll}
+            onCheckedChange={handleSelectAll}
             id="select-all"
           />
           <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
@@ -115,8 +116,8 @@ export function IssueSelectionModal({
         </div>
 
         {/* Issues List */}
-        <ScrollArea className="h-96 border border-border rounded-lg p-4">
-          <div className="space-y-3">
+        <ScrollArea className="h-96 border border-border rounded-lg">
+          <div className="space-y-2 p-4 pr-3">
             {filteredIssues.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 Nenhuma issue encontrada
