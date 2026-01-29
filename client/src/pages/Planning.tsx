@@ -2,13 +2,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, Plus, Trash2, ArrowLeft, RefreshCw } from 'lucide-react';
+import { AlertCircle, Plus, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useState, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { GanttChart } from '@/components/GanttChart';
+import { IssueSelectionModal } from '@/components/IssueSelectionModal';
 
 interface Issue {
   chave: string;
@@ -50,6 +50,7 @@ export default function Planning() {
   const [selectedIssues, setSelectedIssues] = useState<SelectedIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch issues from Planejamento sheet
   const { data: planejamentoIssues, refetch: refetchIssues } = trpc.issues.getPlanejamento.useQuery();
@@ -116,6 +117,36 @@ export default function Planning() {
       // Remove issue from selected
       setSelectedIssues(selectedIssues.filter((i) => i.chave !== issue.chave));
     }
+  };
+
+  const handleModalConfirm = (selectedChaves: string[]) => {
+    // Validar se data de início foi preenchida
+    if (!sprintStart) {
+      toast.error('Preencha a data de início da Sprint primeiro');
+      setIsModalOpen(false);
+      return;
+    }
+
+    // Construir lista de issues selecionadas
+    const newSelectedIssues: SelectedIssue[] = selectedChaves
+      .map((chave) => {
+        const issue = issues.find((i) => i.chave === chave);
+        if (!issue) return null;
+
+        const days = storyPointsToDays(issue.storyPoints);
+        const endDate = calculateEndDate(sprintStart, days);
+        if (!endDate) return null;
+
+        return {
+          ...issue,
+          dataInicio: sprintStart,
+          dataFim: endDate,
+          ordem: selectedChaves.indexOf(chave),
+        };
+      })
+      .filter((issue) => issue !== null) as SelectedIssue[];
+
+    setSelectedIssues(newSelectedIssues);
   };
 
   const handleIssueUpdate = (chave: string, dataInicio: string, dataFim: string) => {
@@ -270,50 +301,22 @@ export default function Planning() {
                 <span>Data de fim deve ser maior ou igual à data de início</span>
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* Issues List */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Issues Disponíveis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-muted-foreground">Carregando issues...</p>
-            ) : issues.length === 0 ? (
-              <p className="text-muted-foreground">Nenhuma issue encontrada</p>
-            ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {issues.map((issue) => (
-                  <div
-                    key={issue.chave}
-                    className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted"
-                  >
-                    <Checkbox
-                      id={`issue-${issue.chave}`}
-                      checked={selectedIssues.some((i) => i.chave === issue.chave)}
-                      onCheckedChange={(checked) =>
-                        handleIssueSelect(issue, checked as boolean)
-                      }
-                    />
-                    <label
-                      htmlFor={`issue-${issue.chave}`}
-                      className="flex-1 cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-sm">
-                            {issue.chave} - {issue.resumo}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {issue.responsavel} • {issue.storyPoints} SP
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                ))}
+            {/* Issue Selection Button */}
+            {sprintStart && sprintEnd && (
+              <div className="flex justify-between items-center pt-2 border-t border-border">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedIssues.length} issue(s) selecionada(s)
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setIsModalOpen(true)}
+                  disabled={loading}
+                  variant="outline"
+                >
+                  Selecionar Issues
+                </Button>
               </div>
             )}
           </CardContent>
@@ -340,8 +343,6 @@ export default function Planning() {
           </Card>
         )}
 
-
-
         {/* Save Button */}
         <div className="flex gap-4">
           <Button
@@ -354,6 +355,15 @@ export default function Planning() {
           </Button>
         </div>
       </main>
+
+      {/* Issue Selection Modal */}
+      <IssueSelectionModal
+        open={isModalOpen}
+        issues={issues}
+        selectedIssues={selectedIssues.map((i) => i.chave)}
+        onSelectionChange={handleModalConfirm}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }

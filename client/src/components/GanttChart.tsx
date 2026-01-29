@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { AlertCircle, Trash2 } from 'lucide-react';
 
 interface GanttIssue {
@@ -63,9 +63,12 @@ const getBarWidth = (startDate: string, endDate: string, sprintStart: string, sp
   
   const totalDays = (end - start) / (1000 * 60 * 60 * 24);
   const barDays = (barEnd - barStart) / (1000 * 60 * 60 * 24);
+  const pixelPerDay = chartWidth / totalDays;
   
-  return Math.max(20, (barDays / totalDays) * chartWidth);
-};
+  // Para SP 2-3 (0.5 dias), retornar 50% do tamanho de 1 dia
+  const calculatedWidth = (barDays / totalDays) * chartWidth;
+  return Math.max(pixelPerDay * 0.5, calculatedWidth);
+}
 
 /**
  * Converte posição em pixels para data
