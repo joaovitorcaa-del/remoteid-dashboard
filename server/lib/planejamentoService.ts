@@ -1,6 +1,6 @@
 /**
  * Serviço para ler dados da planilha "Planejamento" do Google Sheets
- * Usa a API pública do Google Sheets (não requer autenticação para planilhas públicas)
+ * Usa URL de exportação CSV direta
  */
 
 const SHEET_ID = '1Hd286KdhsA91kDQX7zevHkOPKReTkFianZD7ZT6hWYc';
@@ -20,18 +20,25 @@ export interface PlanejamentoIssue {
  */
 export async function fetchPlanejamentoData(): Promise<PlanejamentoIssue[]> {
   try {
-    // URL da API do Google Sheets para exportar como CSV
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+    // URL de exportação CSV da Google Sheets (funciona mesmo com planilhas públicas)
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 
     console.log('[Planejamento] Buscando dados de:', url);
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
 
     if (!response.ok) {
+      console.error('[Planejamento] Erro HTTP:', response.status, response.statusText);
       throw new Error(`Erro ao buscar planilha: ${response.statusText}`);
     }
 
     const csvText = await response.text();
+
+    console.log('[Planejamento] CSV recebido, tamanho:', csvText.length);
 
     // Parse CSV
     const rows = parseCSV(csvText);
@@ -68,7 +75,10 @@ function parseCSV(csvText: string): PlanejamentoIssue[] {
   const rows: PlanejamentoIssue[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const values = parseCSVLine(line);
 
     if (values.length === 0) continue;
 
@@ -89,6 +99,7 @@ function parseCSV(csvText: string): PlanejamentoIssue[] {
 
     // Apenas adicionar se tiver chave
     if (issue.chave) {
+      console.log('[Planejamento] Issue adicionada:', issue.chave);
       rows.push(issue);
     }
   }
