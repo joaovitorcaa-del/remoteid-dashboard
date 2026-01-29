@@ -81,7 +81,7 @@ export function IssueSelectionModal({
 
   return (
     <Dialog open={open} onOpenChange={handleCancel}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-96">
         <DialogHeader>
           <DialogTitle>Selecionar Issues para a Sprint</DialogTitle>
           <DialogDescription>
@@ -116,8 +116,8 @@ export function IssueSelectionModal({
         </div>
 
         {/* Issues List */}
-        <ScrollArea className="h-96 border border-border rounded-lg">
-          <div className="space-y-2 p-4 pr-3">
+        <ScrollArea className="h-80 border border-border rounded-lg">
+          <div className="space-y-2 p-4 pr-2">
             {filteredIssues.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 Nenhuma issue encontrada
@@ -126,19 +126,22 @@ export function IssueSelectionModal({
               filteredIssues.map((issue) => (
                 <div
                   key={issue.chave}
-                  className="flex items-start gap-3 p-3 border border-border rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                  className="flex items-start gap-3 p-2 border border-border rounded-lg hover:bg-muted transition-colors cursor-pointer overflow-hidden"
                   onClick={() => handleToggle(issue.chave)}
                 >
                   <Checkbox
                     checked={localSelected.has(issue.chave)}
                     onChange={() => handleToggle(issue.chave)}
-                    className="mt-1"
+                    className="mt-1 flex-shrink-0"
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{issue.chave}</span>
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded flex-shrink-0">
                         {issue.storyPoints} SP
+                      </span>
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded flex-shrink-0">
+                        {issue.tipo || 'N/A'}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground truncate">

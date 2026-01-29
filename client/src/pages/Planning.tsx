@@ -51,31 +51,21 @@ export default function Planning() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [savedSprint, setSavedSprint] = useState<{ nome: string; dataInicio: string; dataFim: string; issues: SelectedIssue[] } | null>(null);
 
-  // Fetch issues from Planejamento sheet
   const { data: planejamentoIssues, refetch: refetchIssues } = trpc.issues.getPlanejamento.useQuery();
-
-  // Fetch active sprint
   const { data: activeSprint } = trpc.sprints.getActive.useQuery();
-
-  // Fetch all sprints
   const { data: allSprints } = trpc.sprints.list.useQuery();
 
-  // Create sprint mutation
   const createSprintMutation = trpc.sprints.create.useMutation({
     onSuccess: () => {
       toast.success('Sprint criada com sucesso!');
-      setSprintName('');
-      setSprintStart('');
-      setSprintEnd('');
-      setSelectedIssues([]);
     },
     onError: (error) => {
       toast.error(`Erro ao criar sprint: ${error.message}`);
     },
   });
 
-  // Save issues mutation
   const saveIssuesMutation = trpc.sprints.saveIssues.useMutation({
     onSuccess: () => {
       toast.success('Plano salvo com sucesso!');
@@ -94,57 +84,39 @@ export default function Planning() {
 
   const handleIssueSelect = (issue: Issue, selected: boolean) => {
     if (selected) {
-      // Validar se data de início foi preenchida
       if (!sprintStart) {
         toast.error('Preencha a data de início da Sprint primeiro');
         return;
       }
-      // Add issue to selected
-      const days = storyPointsToDays(issue.storyPoints);
-      const endDate = calculateEndDate(sprintStart, days);
-      if (!endDate) {
-        toast.error('Data de início inválida');
-        return;
-      }
+
       const newIssue: SelectedIssue = {
         ...issue,
         dataInicio: sprintStart,
-        dataFim: endDate,
+        dataFim: calculateEndDate(sprintStart, storyPointsToDays(issue.storyPoints)),
         ordem: selectedIssues.length,
       };
+
       setSelectedIssues([...selectedIssues, newIssue]);
     } else {
-      // Remove issue from selected
       setSelectedIssues(selectedIssues.filter((i) => i.chave !== issue.chave));
     }
   };
 
   const handleModalConfirm = (selectedChaves: string[]) => {
-    // Validar se data de início foi preenchida
-    if (!sprintStart) {
-      toast.error('Preencha a data de início da Sprint primeiro');
-      setIsModalOpen(false);
-      return;
-    }
+    const newSelectedIssues: SelectedIssue[] = selectedChaves.map((chave) => {
+      const existing = selectedIssues.find((i) => i.chave === chave);
+      if (existing) return existing;
 
-    // Construir lista de issues selecionadas
-    const newSelectedIssues: SelectedIssue[] = selectedChaves
-      .map((chave) => {
-        const issue = issues.find((i) => i.chave === chave);
-        if (!issue) return null;
+      const issue = issues.find((i) => i.chave === chave);
+      if (!issue) return null as any;
 
-        const days = storyPointsToDays(issue.storyPoints);
-        const endDate = calculateEndDate(sprintStart, days);
-        if (!endDate) return null;
-
-        return {
-          ...issue,
-          dataInicio: sprintStart,
-          dataFim: endDate,
-          ordem: selectedChaves.indexOf(chave),
-        };
-      })
-      .filter((issue) => issue !== null) as SelectedIssue[];
+      return {
+        ...issue,
+        dataInicio: sprintStart,
+        dataFim: calculateEndDate(sprintStart, storyPointsToDays(issue.storyPoints)),
+        ordem: selectedIssues.length,
+      };
+    }).filter(Boolean);
 
     setSelectedIssues(newSelectedIssues);
   };
@@ -188,17 +160,34 @@ export default function Planning() {
     }
 
     try {
-      // Create sprint first
-      await createSprintMutation.mutateAsync({
+      const response = await createSprintMutation.mutateAsync({
         nome: sprintName,
         dataInicio: sprintStart,
         dataFim: sprintEnd,
       });
 
-      // TODO: Get the created sprint ID and save issues
-      // For now, we'll just show success
+      if (response && response.id) {
+        await saveIssuesMutation.mutateAsync({
+          sprintId: response.id,
+          issues: selectedIssues.map((issue) => ({
+            chave: issue.chave,
+            dataInicio: issue.dataInicio,
+            dataFim: issue.dataFim,
+          })),
+        });
+
+        setSavedSprint({
+          nome: sprintName,
+          dataInicio: sprintStart,
+          dataFim: sprintEnd,
+          issues: selectedIssues,
+        });
+
+        toast.success('Plano salvo com sucesso!');
+      }
     } catch (error) {
       console.error('Error saving plan:', error);
+      toast.error('Erro ao salvar plano');
     }
   };
 
@@ -207,7 +196,6 @@ export default function Planning() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="container py-6">
           <div className="flex items-center justify-between">
@@ -238,10 +226,31 @@ export default function Planning() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container py-8">
-        {/* Active Sprint Display */}
-        {activeSprint && (
+        {/* Sprint Ativa Salva */}
+        {savedSprint && (
+          <Card className="mb-8 border-green-500 bg-green-50 dark:bg-green-950">
+            <CardHeader>
+              <CardTitle className="text-green-700 dark:text-green-300">
+                ✅ Sprint Ativa: {savedSprint.nome}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-green-600 dark:text-green-400">
+                {savedSprint.dataInicio} a {savedSprint.dataFim}
+              </p>
+              <GanttChart
+                issues={savedSprint.issues}
+                sprintStart={savedSprint.dataInicio}
+                sprintEnd={savedSprint.dataFim}
+                onIssueUpdate={handleIssueUpdate}
+                onIssueRemove={() => {}}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {activeSprint && !savedSprint && (
           <Card className="mb-8 border-green-500 bg-green-50 dark:bg-green-950">
             <CardHeader>
               <CardTitle className="text-green-700 dark:text-green-300">
@@ -257,106 +266,104 @@ export default function Planning() {
         )}
 
         {/* Sprint Configuration */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Configurar Nova Sprint</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="max-w-xs">
-              <Label htmlFor="sprint-name" className="text-sm">Nome da Sprint</Label>
-              <Input
-                id="sprint-name"
-                placeholder="Ex: Sprint 1"
-                value={sprintName}
-                onChange={(e) => setSprintName(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
+        {!savedSprint && (
+          <>
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Configurar Nova Sprint</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="max-w-xs">
+                  <Label htmlFor="sprint-name" className="text-sm">Nome da Sprint</Label>
+                  <Input
+                    id="sprint-name"
+                    placeholder="Ex: Sprint 1"
+                    value={sprintName}
+                    onChange={(e) => setSprintName(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
 
-            <div className="grid grid-cols-2 gap-3 max-w-md">
-              <div>
-                <Label htmlFor="sprint-start" className="text-sm">Data de Início</Label>
-                <Input
-                  id="sprint-start"
-                  type="date"
-                  value={sprintStart}
-                  onChange={(e) => setSprintStart(e.target.value)}
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div>
-                <Label htmlFor="sprint-end" className="text-sm">Data de Fim</Label>
-                <Input
-                  id="sprint-end"
-                  type="date"
-                  value={sprintEnd}
-                  onChange={(e) => setSprintEnd(e.target.value)}
-                  className="h-8 text-sm"
-                />
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-3 max-w-md">
+                  <div>
+                    <Label htmlFor="sprint-start" className="text-sm">Data de Início</Label>
+                    <Input
+                      id="sprint-start"
+                      type="date"
+                      value={sprintStart}
+                      onChange={(e) => setSprintStart(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sprint-end" className="text-sm">Data de Fim</Label>
+                    <Input
+                      id="sprint-end"
+                      type="date"
+                      value={sprintEnd}
+                      onChange={(e) => setSprintEnd(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
 
-            {!isDateRangeValid && sprintStart && sprintEnd && (
-              <div className="flex items-center gap-2 text-red-600 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                <span>Data de fim deve ser maior ou igual à data de início</span>
-              </div>
+                {!isDateRangeValid && sprintStart && sprintEnd && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    Data de fim deve ser maior ou igual à data de início
+                  </div>
+                )}
+
+                <div>
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    disabled={!isSelectButtonEnabled}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isSelectButtonEnabled
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Selecionar Issues
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Gantt Chart */}
+            {selectedIssues.length > 0 && sprintStart && sprintEnd && (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle>Cronograma da Sprint</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <GanttChart
+                    issues={selectedIssues}
+                    sprintStart={sprintStart}
+                    sprintEnd={sprintEnd}
+                    onIssueUpdate={handleIssueUpdate}
+                    onIssueRemove={(chave) => handleIssueSelect(
+                      selectedIssues.find(i => i.chave === chave)!,
+                      false
+                    )}
+                  />
+                </CardContent>
+              </Card>
             )}
 
-            {/* Issue Selection Button - Always Visible */}
-            <div className="flex justify-between items-center pt-2 border-t border-border">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {selectedIssues.length} issue(s) selecionada(s)
-                </p>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                disabled={loading || !isSelectButtonEnabled}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                  isSelectButtonEnabled
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
-                }`}
+            {/* Save Button */}
+            <div className="flex gap-4">
+              <Button
+                onClick={handleSavePlan}
+                disabled={!isDateRangeValid || selectedIssues.length === 0}
+                size="lg"
               >
-                Selecionar Issues
-              </button>
+                <Plus className="w-4 h-4 mr-2" />
+                Salvar Plano
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Gantt Chart */}
-        {selectedIssues.length > 0 && sprintStart && sprintEnd && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Cronograma da Sprint</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <GanttChart
-                issues={selectedIssues}
-                sprintStart={sprintStart}
-                sprintEnd={sprintEnd}
-                onIssueUpdate={handleIssueUpdate}
-                onIssueRemove={(chave) => handleIssueSelect(
-                  selectedIssues.find(i => i.chave === chave)!,
-                  false
-                )}
-              />
-            </CardContent>
-          </Card>
+          </>
         )}
-
-        {/* Save Button */}
-        <div className="flex gap-4">
-          <Button
-            onClick={handleSavePlan}
-            disabled={!isDateRangeValid || selectedIssues.length === 0}
-            size="lg"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Salvar Plano
-          </Button>
-        </div>
       </main>
 
       {/* Issue Selection Modal */}

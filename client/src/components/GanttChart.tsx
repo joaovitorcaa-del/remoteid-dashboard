@@ -6,6 +6,7 @@ interface GanttIssue {
   resumo: string;
   storyPoints: number;
   responsavel: string;
+  tipo?: string;
   dataInicio: string;
   dataFim: string;
 }
@@ -250,7 +251,16 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
             <div key={issue.chave} className="flex gap-0">
               <div className="w-48 flex-shrink-0 pr-4">
                 <p className="text-sm font-medium text-foreground">{issue.chave}</p>
-                <p className="text-xs text-muted-foreground">{issue.storyPoints} SP</p>
+                <div className="flex gap-2 mb-1 flex-wrap">
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                    {issue.storyPoints} SP
+                  </span>
+                  {issue.tipo && (
+                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                      {issue.tipo}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground truncate" title={issue.resumo}>
                   {issue.resumo}
                 </p>
