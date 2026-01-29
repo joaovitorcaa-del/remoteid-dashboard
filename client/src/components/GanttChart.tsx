@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Trash2 } from 'lucide-react';
 
 interface GanttIssue {
   chave: string;
@@ -15,14 +15,11 @@ interface GanttChartProps {
   sprintStart: string;
   sprintEnd: string;
   onIssueUpdate: (chave: string, dataInicio: string, dataFim: string) => void;
+  onIssueRemove?: (chave: string) => void;
 }
 
 /**
  * Converte Story Points para duração em dias
- * 2-3 SP = 0.5 dias
- * 5 SP = 1 dia
- * 8 SP = 2 dias
- * 13 SP = 3 dias
  */
 const storyPointsToDays = (sp: number): number => {
   if (sp <= 3) return 0.5;
@@ -84,7 +81,31 @@ const pixelToDate = (pixel: number, sprintStart: string, sprintEnd: string, char
   return newDate.toISOString().split('T')[0];
 };
 
-export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate }: GanttChartProps) {
+/**
+ * Gera array de datas do período da Sprint
+ */
+const generateSprintDates = (sprintStart: string, sprintEnd: string): string[] => {
+  const dates: string[] = [];
+  const current = new Date(sprintStart);
+  const end = new Date(sprintEnd);
+  
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return dates;
+};
+
+/**
+ * Formata data para exibição (DD/MM)
+ */
+const formatDateDisplay = (dateString: string): string => {
+  const date = new Date(dateString + 'T00:00:00');
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+};
+
+export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIssueRemove }: GanttChartProps) {
   const [draggingIssue, setDraggingIssue] = useState<string | null>(null);
   const [resizingIssue, setResizingIssue] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
@@ -162,7 +183,8 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate }: Ga
     setResizingIssue(null);
   };
 
-  const sprintDays = Math.ceil((new Date(sprintEnd).getTime() - new Date(sprintStart).getTime()) / (1000 * 60 * 60 * 24));
+  const sprintDates = generateSprintDates(sprintStart, sprintEnd);
+  const sprintDays = sprintDates.length - 1;
 
   return (
     <div
@@ -177,7 +199,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate }: Ga
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">Cronograma da Sprint</h3>
           <span className="text-sm text-muted-foreground">
-            {sprintDays} dias ({sprintStart} a {sprintEnd})
+            {sprintDays} dias
           </span>
         </div>
 
@@ -192,16 +214,19 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate }: Ga
           </div>
         )}
 
-        {/* Timeline Grid */}
-        <div className="relative h-8 bg-muted rounded border border-border overflow-x-auto">
-          <div className="flex h-full">
-            {Array.from({ length: sprintDays + 1 }).map((_, i) => (
+        {/* Timeline Grid com Datas */}
+        <div className="relative h-12 bg-muted rounded border border-border overflow-x-auto">
+          <div className="flex h-full relative">
+            {sprintDates.map((date, i) => (
               <div
                 key={i}
                 className="flex-1 border-r border-border text-xs text-muted-foreground flex items-center justify-center"
                 style={{ minWidth: `${chartWidth / sprintDays}px` }}
               >
-                {i}d
+                <div className="text-center">
+                  <div className="font-semibold">{formatDateDisplay(date)}</div>
+                  <div className="text-xs">{i}d</div>
+                </div>
               </div>
             ))}
           </div>
@@ -209,7 +234,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate }: Ga
       </div>
 
       {/* Issues Bars */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {issues.map((issue) => {
           const startPixel = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
           const barWidth = getBarWidth(issue.dataInicio, issue.dataFim, sprintStart, sprintEnd, chartWidth);
@@ -219,17 +244,28 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate }: Ga
 
           return (
             <div key={issue.chave} className="flex items-center gap-4">
-              {/* Issue Info */}
-              <div className="w-32 flex-shrink-0">
+              {/* Issue Info - Chave e Story Points */}
+              <div className="w-24 flex-shrink-0">
                 <p className="text-sm font-medium text-foreground">{issue.chave}</p>
                 <p className="text-xs text-muted-foreground">{issue.storyPoints} SP</p>
               </div>
 
-              {/* Bar Container */}
-              <div className="flex-1 relative h-10 bg-muted rounded border border-border">
+              {/* Bar Container com Linhas Pontilhadas */}
+              <div className="flex-1 relative h-12 bg-white rounded border border-border" style={{ position: 'relative' }}>
+                {/* Linhas pontilhadas verticais para cada dia */}
+                <div className="absolute inset-0 flex pointer-events-none">
+                  {Array.from({ length: sprintDays + 1 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 border-r border-dashed border-gray-300"
+                      style={{ minWidth: `${chartWidth / sprintDays}px` }}
+                    />
+                  ))}
+                </div>
+
                 {/* Bar */}
                 <div
-                  className={`absolute h-full rounded flex items-center px-2 cursor-move transition-all ${
+                  className={`absolute h-full rounded flex items-center px-3 cursor-move transition-all ${
                     isViolation
                       ? 'bg-red-400 hover:bg-red-500'
                       : 'bg-blue-500 hover:bg-blue-600'
@@ -237,9 +273,23 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate }: Ga
                   style={{
                     left: `${startPixel}px`,
                     width: `${barWidth}px`,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
                   }}
                   onMouseDown={(e) => handleMouseDown(e, issue.chave, 'drag')}
                 >
+                  {/* Conteúdo da Barra */}
+                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    {/* Responsável */}
+                    <span className="text-xs text-white font-medium truncate">
+                      {issue.responsavel || 'Sem responsável'}
+                    </span>
+                    {/* Resumo em fonte pequena */}
+                    <span className="text-xs text-white opacity-90 truncate">
+                      {issue.resumo}
+                    </span>
+                  </div>
+
                   {/* Resize Handle */}
                   <div
                     className={`absolute right-0 top-0 bottom-0 w-1 bg-white cursor-col-resize hover:w-2 transition-all ${
@@ -247,19 +297,16 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate }: Ga
                     }`}
                     onMouseDown={(e) => handleMouseDown(e, issue.chave, 'resize')}
                   />
-
-                  {/* Label */}
-                  <span className="text-xs text-white font-medium truncate">
-                    {issue.chave}
-                  </span>
                 </div>
-              </div>
 
-              {/* Dates */}
-              <div className="w-40 flex-shrink-0 text-right">
-                <p className="text-xs text-muted-foreground">
-                  {issue.dataInicio} → {issue.dataFim}
-                </p>
+                {/* Botão de Lixeira */}
+                <button
+                  onClick={() => onIssueRemove?.(issue.chave)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Remover issue"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           );

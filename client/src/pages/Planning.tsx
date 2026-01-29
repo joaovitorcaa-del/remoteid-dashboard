@@ -331,6 +331,10 @@ export default function Planning() {
                 sprintStart={sprintStart}
                 sprintEnd={sprintEnd}
                 onIssueUpdate={handleIssueUpdate}
+                onIssueRemove={(chave) => handleIssueSelect(
+                  selectedIssues.find(i => i.chave === chave)!,
+                  false
+                )}
               />
             </CardContent>
           </Card>
