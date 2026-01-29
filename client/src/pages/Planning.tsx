@@ -34,7 +34,9 @@ const storyPointsToDays = (sp: number): number => {
 };
 
 const calculateEndDate = (startDate: string, days: number): string => {
+  if (!startDate) return '';
   const start = new Date(startDate);
+  if (isNaN(start.getTime())) return '';
   const end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
   return end.toISOString().split('T')[0];
 };
@@ -91,9 +93,18 @@ export default function Planning() {
 
   const handleIssueSelect = (issue: Issue, selected: boolean) => {
     if (selected) {
+      // Validar se data de início foi preenchida
+      if (!sprintStart) {
+        toast.error('Preencha a data de início da Sprint primeiro');
+        return;
+      }
       // Add issue to selected
       const days = storyPointsToDays(issue.storyPoints);
       const endDate = calculateEndDate(sprintStart, days);
+      if (!endDate) {
+        toast.error('Data de início inválida');
+        return;
+      }
       const newIssue: SelectedIssue = {
         ...issue,
         dataInicio: sprintStart,
