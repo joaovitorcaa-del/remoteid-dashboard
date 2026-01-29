@@ -340,40 +340,7 @@ export default function Planning() {
           </Card>
         )}
 
-        {/* Selected Issues Preview */}
-        {selectedIssues.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Issues Selecionadas ({selectedIssues.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {selectedIssues.map((issue) => (
-                  <div
-                    key={issue.chave}
-                    className="flex items-center justify-between p-3 border border-border rounded-lg bg-muted"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{issue.chave}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {issue.storyPoints} SP • {issue.dataInicio} → {issue.dataFim}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        handleIssueSelect(issue, false)
-                      }
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
 
         {/* Save Button */}
         <div className="flex gap-4">

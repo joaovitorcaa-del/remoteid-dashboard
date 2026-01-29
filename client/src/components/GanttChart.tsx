@@ -116,7 +116,8 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
   // Calcular largura do gráfico
   useEffect(() => {
     if (chartRef.current) {
-      setChartWidth(chartRef.current.offsetWidth - 40);
+      // Subtrair 200px para a coluna de informações à esquerda
+      setChartWidth(chartRef.current.offsetWidth - 200);
     }
   }, []);
 
@@ -151,7 +152,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
     if (!chartRef.current) return;
 
     const rect = chartRef.current.getBoundingClientRect();
-    const relativeX = e.clientX - rect.left - 20;
+    const relativeX = e.clientX - rect.left - 200;
 
     if (draggingIssue) {
       const issue = issues.find((i) => i.chave === draggingIssue);
@@ -214,21 +215,27 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
           </div>
         )}
 
-        {/* Timeline Grid com Datas */}
-        <div className="relative h-12 bg-muted rounded border border-border overflow-x-auto">
-          <div className="flex h-full relative">
-            {sprintDates.map((date, i) => (
-              <div
-                key={i}
-                className="flex-1 border-r border-border text-xs text-muted-foreground flex items-center justify-center"
-                style={{ minWidth: `${chartWidth / sprintDays}px` }}
-              >
-                <div className="text-center">
-                  <div className="font-semibold">{formatDateDisplay(date)}</div>
-                  <div className="text-xs">{i}d</div>
+        {/* Container para alinhar cabeçalho com barras */}
+        <div className="flex gap-0">
+          {/* Espaço vazio para alinhar com coluna de informações */}
+          <div className="w-48 flex-shrink-0" />
+          
+          {/* Timeline Grid com Datas */}
+          <div className="flex-1 relative h-12 bg-muted rounded border border-border overflow-x-auto">
+            <div className="flex h-full relative">
+              {sprintDates.map((date, i) => (
+                <div
+                  key={i}
+                  className="flex-1 border-r border-border text-xs text-muted-foreground flex items-center justify-center"
+                  style={{ minWidth: `${chartWidth / sprintDays}px` }}
+                >
+                  <div className="text-center">
+                    <div className="font-semibold">{formatDateDisplay(date)}</div>
+                    <div className="text-xs">{i}d</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -243,15 +250,18 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
           const isResizing = resizingIssue === issue.chave;
 
           return (
-            <div key={issue.chave} className="flex items-center gap-4">
-              {/* Issue Info - Chave e Story Points */}
-              <div className="w-24 flex-shrink-0">
+            <div key={issue.chave} className="flex gap-0">
+              {/* Issue Info - Chave, Story Points e Resumo */}
+              <div className="w-48 flex-shrink-0 pr-4">
                 <p className="text-sm font-medium text-foreground">{issue.chave}</p>
                 <p className="text-xs text-muted-foreground">{issue.storyPoints} SP</p>
+                <p className="text-xs text-muted-foreground truncate" title={issue.resumo}>
+                  {issue.resumo}
+                </p>
               </div>
 
               {/* Bar Container com Linhas Pontilhadas */}
-              <div className="flex-1 relative h-12 bg-white rounded border border-border" style={{ position: 'relative' }}>
+              <div className="flex-1 relative h-10 bg-white rounded border border-border" style={{ position: 'relative' }}>
                 {/* Linhas pontilhadas verticais para cada dia */}
                 <div className="absolute inset-0 flex pointer-events-none">
                   {Array.from({ length: sprintDays + 1 }).map((_, i) => (
@@ -278,17 +288,10 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
                   }}
                   onMouseDown={(e) => handleMouseDown(e, issue.chave, 'drag')}
                 >
-                  {/* Conteúdo da Barra */}
-                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                    {/* Responsável */}
-                    <span className="text-xs text-white font-medium truncate">
-                      {issue.responsavel || 'Sem responsável'}
-                    </span>
-                    {/* Resumo em fonte pequena */}
-                    <span className="text-xs text-white opacity-90 truncate">
-                      {issue.resumo}
-                    </span>
-                  </div>
+                  {/* Conteúdo da Barra - Apenas Responsável */}
+                  <span className="text-xs text-white font-medium truncate">
+                    {issue.responsavel || 'Sem responsável'}
+                  </span>
 
                   {/* Resize Handle */}
                   <div
