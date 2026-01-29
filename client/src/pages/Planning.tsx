@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, Plus, Trash2, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useState, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { GanttChart } from '@/components/GanttChart';
@@ -218,34 +218,37 @@ export default function Planning() {
           <CardHeader>
             <CardTitle>Configurar Nova Sprint</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="sprint-name">Nome da Sprint</Label>
+          <CardContent className="space-y-3">
+            <div className="max-w-xs">
+              <Label htmlFor="sprint-name" className="text-sm">Nome da Sprint</Label>
               <Input
                 id="sprint-name"
                 placeholder="Ex: Sprint 1"
                 value={sprintName}
                 onChange={(e) => setSprintName(e.target.value)}
+                className="h-8 text-sm"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 max-w-md">
               <div>
-                <Label htmlFor="sprint-start">Data de Início</Label>
+                <Label htmlFor="sprint-start" className="text-sm">Data de Início</Label>
                 <Input
                   id="sprint-start"
                   type="date"
                   value={sprintStart}
                   onChange={(e) => setSprintStart(e.target.value)}
+                  className="h-8 text-sm"
                 />
               </div>
               <div>
-                <Label htmlFor="sprint-end">Data de Fim</Label>
+                <Label htmlFor="sprint-end" className="text-sm">Data de Fim</Label>
                 <Input
                   id="sprint-end"
                   type="date"
                   value={sprintEnd}
                   onChange={(e) => setSprintEnd(e.target.value)}
+                  className="h-8 text-sm"
                 />
               </div>
             </div>
