@@ -203,6 +203,7 @@ export default function Planning() {
   };
 
   const isDateRangeValid = sprintStart && sprintEnd && sprintStart <= sprintEnd;
+  const isSelectButtonEnabled = sprintStart && sprintEnd;
 
   return (
     <div className="min-h-screen bg-background">
@@ -302,23 +303,25 @@ export default function Planning() {
               </div>
             )}
 
-            {/* Issue Selection Button */}
-            {sprintStart && sprintEnd && (
-              <div className="flex justify-between items-center pt-2 border-t border-border">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedIssues.length} issue(s) selecionada(s)
-                  </p>
-                </div>
-                <Button
-                  onClick={() => setIsModalOpen(true)}
-                  disabled={loading}
-                  variant="outline"
-                >
-                  Selecionar Issues
-                </Button>
+            {/* Issue Selection Button - Always Visible */}
+            <div className="flex justify-between items-center pt-2 border-t border-border">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {selectedIssues.length} issue(s) selecionada(s)
+                </p>
               </div>
-            )}
+              <button
+                onClick={() => setIsModalOpen(true)}
+                disabled={loading || !isSelectButtonEnabled}
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  isSelectButtonEnabled
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                }`}
+              >
+                Selecionar Issues
+              </button>
+            </div>
           </CardContent>
         </Card>
 
