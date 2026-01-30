@@ -98,7 +98,7 @@ export const sprintsRouter = router({
         nome: input.nome,
         dataInicio: input.dataInicio,
         dataFim: input.dataFim,
-        ativo: 0,
+        ativo: 1,
       };
 
       await db.insert(sprints).values(newSprint);

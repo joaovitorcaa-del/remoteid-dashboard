@@ -267,7 +267,7 @@ export default function Planning() {
 
       <main className="container py-8 space-y-8">
         {/* Sprint Ativa Salva - TOPO */}
-        {activeSprint || !activeSprint ? (
+        {allSprints && allSprints.length > 0 ? (
           <Card className={activeSprint ? "border-green-500 bg-green-50 dark:bg-green-950" : "border-gray-300 bg-gray-50 dark:bg-gray-900"}>
             <CardHeader>
               <CardTitle className={activeSprint ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}>

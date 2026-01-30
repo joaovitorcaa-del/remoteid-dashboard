@@ -40,3 +40,9 @@
 - [x] Carregar Gantt da Sprint ativa automaticamente
 - [x] Adicionar mensagem "Sem Sprint Ativa" quando não houver Sprint ativa
 - [x] Testar fluxo completo de salvamento e visualização
+
+### Planning Page - Correção de Lógica de Sprint Ativa
+- [x] Marcar Sprint como ativo (ativo: 1) ao salvar no banco
+- [x] Exibir Sprint ativa no topo sempre que houver uma criada
+- [x] Mostrar "Sem Sprint Ativa" apenas quando não houver nenhuma Sprint criada
+- [x] Testar fluxo completo de salvamento e visualizaçãoento e visualiza\u00e7\u00e3o
