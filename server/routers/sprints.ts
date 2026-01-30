@@ -214,6 +214,35 @@ export const sprintsRouter = router({
     }),
 
   /**
+   * Finish a sprint (mark as inactive)
+   */
+  finish: protectedProcedure
+    .input(z.object({ sprintId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+      await db.update(sprints).set({ ativo: 0 }).where(eq(sprints.id, input.sprintId));
+      return { success: true };
+    }),
+
+  /**
+   * Finish active sprint and activate new one
+   */
+  finishAndActivate: protectedProcedure
+    .input(z.object({ oldSprintId: z.number(), newSprintId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+      await db.update(sprints).set({ ativo: 0 }).where(eq(sprints.id, input.oldSprintId));
+      await db.update(sprints).set({ ativo: 1 }).where(eq(sprints.id, input.newSprintId));
+      return { success: true };
+    }),
+
+  /**
    * Reactivate a sprint (mark as active)
    */
   reactivate: protectedProcedure

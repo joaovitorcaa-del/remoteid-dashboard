@@ -108,6 +108,28 @@ export default function Planning() {
     },
   });
 
+  const finishAndActivateSprintMutation = trpc.sprints.finishAndActivate.useMutation({
+    onSuccess: () => {
+      toast.success('Sprint encerrada e nova Sprint ativada!');
+      refetchAllSprints();
+      refetchActiveSprint();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao encerrar e ativar sprint: ${error.message}`);
+    },
+  });
+
+  const finishSprintMutation = trpc.sprints.finish.useMutation({
+    onSuccess: () => {
+      toast.success('Sprint encerrada com sucesso!');
+      refetchAllSprints();
+      refetchActiveSprint();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao encerrar sprint: ${error.message}`);
+    },
+  });
+
   const reactivateSprintMutation = trpc.sprints.reactivate.useMutation({
     onSuccess: () => {
       toast.success('Sprint reativada com sucesso!');
@@ -214,6 +236,19 @@ export default function Planning() {
           })),
         });
 
+        // Se existe Sprint ativa, perguntar se quer encerrar
+        if (activeSprint && activeSprint.id !== sprintResponse.id) {
+          const shouldFinish = confirm(
+            `Deseja encerrar a Sprint "${activeSprint.nome}" e ativar a nova Sprint "${sprintName}"?`
+          );
+          if (shouldFinish) {
+            await finishAndActivateSprintMutation.mutateAsync({
+              oldSprintId: activeSprint.id,
+              newSprintId: sprintResponse.id,
+            });
+          }
+        }
+
         setSprintName('');
         setSprintStart('');
         setSprintEnd('');
@@ -221,6 +256,7 @@ export default function Planning() {
 
         await refetchActiveSprint();
         await refetchAllSprints();
+        toast.success('Sprint salva com sucesso!')
       }
     } catch (error) {
       console.error('Erro ao salvar plano:', error);
@@ -269,10 +305,23 @@ export default function Planning() {
         {/* Sprint Ativa Salva - TOPO */}
         {allSprints && allSprints.length > 0 ? (
           <Card className={activeSprint ? "border-green-500 bg-green-50 dark:bg-green-950" : "border-gray-300 bg-gray-50 dark:bg-gray-900"}>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className={activeSprint ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}>
                 {activeSprint ? `✅ ${activeSprint.nome}-Ativa` : "📋 Sem Sprint Ativa"}
               </CardTitle>
+              {activeSprint && (
+                <Button
+                  onClick={() => {
+                    if (confirm(`Tem certeza que deseja encerrar a Sprint "${activeSprint.nome}"?`)) {
+                      finishSprintMutation.mutate({ sprintId: activeSprint.id });
+                    }
+                  }}
+                  variant="destructive"
+                  size="sm"
+                >
+                  Encerrar Sprint
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {activeSprint ? (
