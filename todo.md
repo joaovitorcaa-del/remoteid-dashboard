@@ -35,3 +35,8 @@
 - [x] Atualizar título em Home.tsx
 - [x] Atualizar nome do projeto em package.json
 - [x] Atualizar descrição em index.html
+
+## Planning Page - Correções Imediatas
+- [x] SP 2-3 deve ocupar 50% da coluna (não 100%)
+- [x] Drag & drop inconsistente - debugar handlers de mouse
+- [x] Remover função de resize (remover resize handle)
