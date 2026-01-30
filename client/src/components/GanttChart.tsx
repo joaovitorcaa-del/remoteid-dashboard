@@ -73,8 +73,9 @@ const generateSprintDates = (sprintStart: string, sprintEnd: string): string[] =
   const dates: string[] = [];
   const current = new Date(sprintStart);
   const end = new Date(sprintEnd);
+  const maxDays = 10; // Máximo de 10 dias úteis
   
-  while (current <= end) {
+  while (current <= end && dates.length < maxDays) {
     const dayOfWeek = current.getDay();
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       dates.push(current.toISOString().split('T')[0]);
@@ -220,7 +221,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
         <div className="flex gap-0">
           <div className="w-48 flex-shrink-0" />
           
-          <div className="flex-1 relative h-12 bg-muted rounded border border-border overflow-x-auto">
+          <div className="flex-1 relative h-12 bg-muted rounded border border-border">
             <div className="flex h-full relative">
               {sprintDates.map((date, i) => (
                 <div

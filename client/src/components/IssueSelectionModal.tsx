@@ -81,7 +81,7 @@ export function IssueSelectionModal({
 
   return (
     <Dialog open={open} onOpenChange={handleCancel}>
-      <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Selecionar Issues para a Sprint</DialogTitle>
           <DialogDescription>
@@ -144,7 +144,7 @@ export function IssueSelectionModal({
                         {issue.tipo || 'N/A'}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">
+                    <p className="text-sm text-muted-foreground break-words whitespace-normal">
                       {issue.resumo}
                     </p>
                     <p className="text-xs text-muted-foreground">
