@@ -52,3 +52,11 @@
 - [x] Corrigir server/routers.ts para aceitar payload correto
 - [x] Validar que sprintId é obtido corretamente após criar Sprint
 - [x] Testar salvamento completo de Sprint com issues
+
+## Planning Page - Manutenção de Formulário e Histórico
+- [x] Manter formulário de nova Sprint visível após salvar
+- [x] Implementar componente de histórico de Sprints
+- [x] Adicionar funcionalidade de deletar Sprint
+- [x] Adicionar funcionalidade de reativar Sprint
+- [x] Testar fluxo completo de CRUD
+- [x] Corrigir formatação de datas no histórico

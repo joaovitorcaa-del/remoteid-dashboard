@@ -150,7 +150,7 @@ export const sprintsRouter = router({
    * Delete sprint
    */
   delete: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ sprintId: z.number() }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) {
@@ -158,10 +158,10 @@ export const sprintsRouter = router({
       }
 
       // Delete associated issues first
-      await db.delete(sprintIssues).where(eq(sprintIssues.sprintId, input.id));
+      await db.delete(sprintIssues).where(eq(sprintIssues.sprintId, input.sprintId));
 
       // Delete sprint
-      await db.delete(sprints).where(eq(sprints.id, input.id));
+      await db.delete(sprints).where(eq(sprints.id, input.sprintId));
       return { success: true };
     }),
 
@@ -212,4 +212,25 @@ export const sprintsRouter = router({
 
       return { success: true };
     }),
+
+  /**
+   * Reactivate a sprint (mark as active)
+   */
+  reactivate: protectedProcedure
+    .input(z.object({ sprintId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+
+      // Deactivate all other sprints
+      await db.update(sprints).set({ ativo: 0 });
+
+      // Activate the selected sprint
+      await db.update(sprints).set({ ativo: 1 }).where(eq(sprints.id, input.sprintId));
+
+      return { success: true };
+    }),
 });
+

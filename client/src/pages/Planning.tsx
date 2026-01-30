@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Plus, ArrowLeft, RefreshCw } from 'lucide-react';
+import { AlertCircle, Plus, ArrowLeft, RefreshCw, Edit2, Trash2, RotateCcw } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useState, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
@@ -25,6 +25,15 @@ interface SelectedIssue extends Issue {
   ordem: number;
 }
 
+interface Sprint {
+  id: number;
+  nome: string;
+  dataInicio: string;
+  dataFim: string;
+  ativo: number;
+  issues?: SelectedIssue[];
+}
+
 const storyPointsToDays = (sp: number): number => {
   if (sp <= 3) return 0.5;
   if (sp <= 5) return 1;
@@ -41,6 +50,15 @@ const calculateEndDate = (startDate: string, days: number): string => {
   return end.toISOString().split('T')[0];
 };
 
+const formatDate = (date: string | Date): string => {
+  if (!date) return '';
+  if (typeof date === 'string') return date;
+  if (date instanceof Date) {
+    return date.toISOString().split('T')[0];
+  }
+  return String(date);
+};
+
 export default function Planning() {
   const [, navigate] = useLocation();
   const [sprintName, setSprintName] = useState('');
@@ -51,7 +69,8 @@ export default function Planning() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [savedSprint, setSavedSprint] = useState<{ nome: string; dataInicio: string; dataFim: string; issues: SelectedIssue[] } | null>(null);
+  const [savedSprint, setSavedSprint] = useState<Sprint | null>(null);
+  const [editingSprintId, setEditingSprintId] = useState<number | null>(null);
 
   const { data: planejamentoIssues, refetch: refetchIssues } = trpc.issues.getPlanejamento.useQuery();
   const { data: activeSprint, refetch: refetchActiveSprint } = trpc.sprints.getActive.useQuery();
@@ -73,6 +92,27 @@ export default function Planning() {
     onError: (error) => {
       console.error('Erro ao salvar issues:', error);
       toast.error(`Erro ao salvar issues: ${error.message}`);
+    },
+  });
+
+  const deleteSprintMutation = trpc.sprints.delete.useMutation({
+    onSuccess: () => {
+      toast.success('Sprint deletada com sucesso!');
+      refetchAllSprints();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao deletar sprint: ${error.message}`);
+    },
+  });
+
+  const reactivateSprintMutation = trpc.sprints.reactivate.useMutation({
+    onSuccess: () => {
+      toast.success('Sprint reativada com sucesso!');
+      refetchActiveSprint();
+      refetchAllSprints();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao reativar sprint: ${error.message}`);
     },
   });
 
@@ -175,7 +215,7 @@ export default function Planning() {
         dataFim: sprintEnd,
       });
 
-      // Obter o ID da Sprint criada - buscar a Sprint mais recente
+      // Obter o ID da Sprint criada
       const allSprintsData = await refetchAllSprints();
       const createdSprint = allSprintsData.data?.[allSprintsData.data.length - 1];
       
@@ -200,9 +240,11 @@ export default function Planning() {
 
       // Atualizar estado com Sprint salva
       setSavedSprint({
+        id: createdSprint.id,
         nome: sprintName,
         dataInicio: sprintStart,
         dataFim: sprintEnd,
+        ativo: 0,
         issues: selectedIssues,
       });
 
@@ -210,7 +252,7 @@ export default function Planning() {
       await refetchActiveSprint();
       await refetchAllSprints();
 
-      // Limpar formulário
+      // Limpar formulário para nova Sprint
       setSprintName('');
       setSprintStart('');
       setSprintEnd('');
@@ -220,6 +262,24 @@ export default function Planning() {
     } catch (error) {
       console.error('Error saving plan:', error);
       toast.error('Erro ao salvar plano');
+    }
+  };
+
+  const handleDeleteSprint = async (sprintId: number) => {
+    if (confirm('Tem certeza que deseja deletar esta Sprint?')) {
+      try {
+        await deleteSprintMutation.mutateAsync({ sprintId });
+      } catch (error) {
+        console.error('Error deleting sprint:', error);
+      }
+    }
+  };
+
+  const handleReactivateSprint = async (sprintId: number) => {
+    try {
+      await reactivateSprintMutation.mutateAsync({ sprintId });
+    } catch (error) {
+      console.error('Error reactivating sprint:', error);
     }
   };
 
@@ -258,23 +318,23 @@ export default function Planning() {
         </div>
       </header>
 
-      <main className="container py-8">
+      <main className="container py-8 space-y-8">
         {/* Sprint Ativa Salva - TOPO */}
-        {savedSprint && (
-          <Card className="mb-8 border-green-500 bg-green-50 dark:bg-green-950">
+        {(savedSprint || activeSprint) && (
+          <Card className="border-green-500 bg-green-50 dark:bg-green-950">
             <CardHeader>
               <CardTitle className="text-green-700 dark:text-green-300">
-                ✅ {savedSprint.nome}-Ativa
+                ✅ {(savedSprint || activeSprint)?.nome}-Ativa
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-green-600 dark:text-green-400">
-                {savedSprint.dataInicio} a {savedSprint.dataFim}
+                {(savedSprint || activeSprint)?.dataInicio} a {(savedSprint || activeSprint)?.dataFim}
               </p>
               <GanttChart
-                issues={savedSprint.issues}
-                sprintStart={savedSprint.dataInicio}
-                sprintEnd={savedSprint.dataFim}
+                issues={(savedSprint || activeSprint)?.issues || []}
+                sprintStart={(savedSprint || activeSprint)?.dataInicio || ''}
+                sprintEnd={(savedSprint || activeSprint)?.dataFim || ''}
                 onIssueUpdate={handleIssueUpdate}
                 onIssueRemove={() => {}}
               />
@@ -282,126 +342,156 @@ export default function Planning() {
           </Card>
         )}
 
-        {activeSprint && !savedSprint && (
-          <Card className="mb-8 border-green-500 bg-green-50 dark:bg-green-950">
-            <CardHeader>
-              <CardTitle className="text-green-700 dark:text-green-300">
-                ✅ {activeSprint.nome}-Ativa
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-green-600 dark:text-green-400">
-                {activeSprint.dataInicio} a {activeSprint.dataFim}
-              </p>
-              <GanttChart
-                issues={activeSprint.issues || []}
-                sprintStart={activeSprint.dataInicio}
-                sprintEnd={activeSprint.dataFim}
-                onIssueUpdate={handleIssueUpdate}
-                onIssueRemove={() => {}}
+        {/* Sprint Configuration - SEMPRE VISÍVEL */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Configurar Nova Sprint</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="max-w-xs">
+              <Label htmlFor="sprint-name" className="text-sm">Nome da Sprint</Label>
+              <Input
+                id="sprint-name"
+                placeholder="Ex: Sprint 1"
+                value={sprintName}
+                onChange={(e) => setSprintName(e.target.value)}
+                className="h-8 text-sm"
               />
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {/* Sprint Configuration */}
-        {!savedSprint && (
-          <>
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Configurar Nova Sprint</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="max-w-xs">
-                  <Label htmlFor="sprint-name" className="text-sm">Nome da Sprint</Label>
-                  <Input
-                    id="sprint-name"
-                    placeholder="Ex: Sprint 1"
-                    value={sprintName}
-                    onChange={(e) => setSprintName(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-3 max-w-md">
+              <div>
+                <Label htmlFor="sprint-start" className="text-sm">Data de Início</Label>
+                <Input
+                  id="sprint-start"
+                  type="date"
+                  value={sprintStart}
+                  onChange={(e) => setSprintStart(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label htmlFor="sprint-end" className="text-sm">Data de Fim</Label>
+                <Input
+                  id="sprint-end"
+                  type="date"
+                  value={sprintEnd}
+                  onChange={(e) => setSprintEnd(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-2 gap-3 max-w-md">
-                  <div>
-                    <Label htmlFor="sprint-start" className="text-sm">Data de Início</Label>
-                    <Input
-                      id="sprint-start"
-                      type="date"
-                      value={sprintStart}
-                      onChange={(e) => setSprintStart(e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="sprint-end" className="text-sm">Data de Fim</Label>
-                    <Input
-                      id="sprint-end"
-                      type="date"
-                      value={sprintEnd}
-                      onChange={(e) => setSprintEnd(e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-
-                {!isDateRangeValid && sprintStart && sprintEnd && (
-                  <div className="flex items-center gap-2 text-red-600 text-sm">
-                    <AlertCircle className="w-4 h-4" />
-                    Data de fim deve ser maior ou igual à data de início
-                  </div>
-                )}
-
-                <div>
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    disabled={!isSelectButtonEnabled}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isSelectButtonEnabled
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Selecionar Issues
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Gantt Chart */}
-            {selectedIssues.length > 0 && sprintStart && sprintEnd && (
-              <Card className="mb-8">
-                <CardHeader>
-                  <CardTitle>Cronograma da Sprint</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <GanttChart
-                    issues={selectedIssues}
-                    sprintStart={sprintStart}
-                    sprintEnd={sprintEnd}
-                    onIssueUpdate={handleIssueUpdate}
-                    onIssueRemove={(chave) => handleIssueSelect(
-                      selectedIssues.find(i => i.chave === chave)!,
-                      false
-                    )}
-                  />
-                </CardContent>
-              </Card>
+            {!isDateRangeValid && sprintStart && sprintEnd && (
+              <div className="flex items-center gap-2 text-red-600 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                Data de fim deve ser maior ou igual à data de início
+              </div>
             )}
 
-            {/* Save Button */}
-            <div className="flex gap-4">
-              <Button
-                onClick={handleSavePlan}
-                disabled={!isDateRangeValid || selectedIssues.length === 0}
-                size="lg"
+            <div>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                disabled={!isSelectButtonEnabled}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isSelectButtonEnabled
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Salvar Plano
-              </Button>
+                Selecionar Issues
+              </button>
             </div>
-          </>
+          </CardContent>
+        </Card>
+
+        {/* Gantt Chart para Nova Sprint */}
+        {selectedIssues.length > 0 && sprintStart && sprintEnd && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Cronograma da Sprint</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GanttChart
+                issues={selectedIssues}
+                sprintStart={sprintStart}
+                sprintEnd={sprintEnd}
+                onIssueUpdate={handleIssueUpdate}
+                onIssueRemove={(chave) => handleIssueSelect(
+                  selectedIssues.find(i => i.chave === chave)!,
+                  false
+                )}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Save Button */}
+        <div className="flex gap-4">
+          <Button
+            onClick={handleSavePlan}
+            disabled={!isDateRangeValid || selectedIssues.length === 0}
+            size="lg"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Salvar Plano
+          </Button>
+        </div>
+
+        {/* Histórico de Sprints */}
+        {allSprints && allSprints.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de Sprints</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {allSprints.map((sprint) => (
+                  <div
+                    key={sprint.id}
+                    className={`p-4 border rounded-lg flex items-center justify-between ${
+                      sprint.ativo
+                        ? 'border-green-500 bg-green-50 dark:bg-green-950'
+                        : 'border-gray-300 bg-gray-50 dark:bg-gray-900'
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-sm">
+                        {sprint.nome}
+                        {sprint.ativo && <span className="ml-2 text-xs text-green-600 dark:text-green-400">(Ativa)</span>}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(sprint.dataInicio)} a {formatDate(sprint.dataFim)}
+                      </p>
+                      {sprint.issues && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {sprint.issues.length} issue(ns)
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      {!sprint.ativo && (
+                        <button
+                          onClick={() => handleReactivateSprint(sprint.id)}
+                          className="flex items-center gap-1 px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700 transition-colors"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          Reativar
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteSprint(sprint.id)}
+                        className="flex items-center gap-1 px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700 transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Deletar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </main>
 
