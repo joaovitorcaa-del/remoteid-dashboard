@@ -75,7 +75,7 @@ export default function Planning() {
   const [selectedHistorySprint, setSelectedHistorySprint] = useState<Sprint | null>(null);
 
   const { data: planejamentoIssues, refetch: refetchIssues } = trpc.issues.getPlanejamento.useQuery();
-  const { data: activeSprint, refetch: refetchActiveSprint } = trpc.sprints.getActive.useQuery();
+  const { data: activeSprint, refetch: refetchActiveSprint } = trpc.sprints.getActiveWithIssues.useQuery();
   const { data: allSprints, refetch: refetchAllSprints } = trpc.sprints.list.useQuery();
 
   const createSprintMutation = trpc.sprints.create.useMutation({

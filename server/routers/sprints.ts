@@ -19,7 +19,7 @@ export const sprintsRouter = router({
   }),
 
   /**
-   * Get active sprint (current date is within sprint date range)
+   * Get active sprint (marked as ativo: 1 in database)
    */
   getActive: publicProcedure.query(async () => {
     const db = await getDb();
@@ -27,21 +27,44 @@ export const sprintsRouter = router({
       return null;
     }
 
-    const today = new Date();
-    const todayString = today.toISOString().split("T")[0]; // YYYY-MM-DD
+    const activeSprint = await db
+      .select()
+      .from(sprints)
+      .where(eq(sprints.ativo, 1))
+      .limit(1);
+
+    return activeSprint.length > 0 ? activeSprint[0] : null;
+  }),
+
+  /**
+   * Get active sprint with its issues
+   */
+  getActiveWithIssues: publicProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) {
+      return null;
+    }
 
     const activeSprint = await db
       .select()
       .from(sprints)
-      .where(
-        and(
-          lte(sprints.dataInicio, todayString),
-          gte(sprints.dataFim, todayString)
-        )
-      )
+      .where(eq(sprints.ativo, 1))
       .limit(1);
 
-    return activeSprint.length > 0 ? activeSprint[0] : null;
+    if (activeSprint.length === 0) {
+      return null;
+    }
+
+    const issues = await db
+      .select()
+      .from(sprintIssues)
+      .where(eq(sprintIssues.sprintId, activeSprint[0].id))
+      .orderBy(sprintIssues.ordem);
+
+    return {
+      ...activeSprint[0],
+      issues,
+    };
   }),
 
   /**
