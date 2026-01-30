@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+'use client';
+
 import { AlertCircle, Trash2, Flag } from 'lucide-react';
 
 interface GanttIssue {
@@ -104,34 +105,39 @@ const getTodayPosition = (sprintStart: string, sprintEnd: string, chartWidth: nu
     return null;
   }
   
-  return getPixelPosition(today, sprintStart, sprintEnd, chartWidth);
+  const totalDays = (sprintEndTime - sprintStartTime) / (1000 * 60 * 60 * 24);
+  const daysPassed = (todayTime - sprintStartTime) / (1000 * 60 * 60 * 24);
+  
+  return (daysPassed / totalDays) * chartWidth;
 };
 
-export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIssueRemove }: GanttChartProps) {
-  const [draggingIssue, setDraggingIssue] = useState<string | null>(null);
-  const [resizingIssue, setResizingIssue] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState(0);
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [chartWidth, setChartWidth] = useState(800);
-  const [violations, setViolations] = useState<Set<string>>(new Set());
+export function GanttChart({
+  issues,
+  sprintStart,
+  sprintEnd,
+  onIssueUpdate,
+  onIssueRemove,
+}: GanttChartProps) {
+  const [draggingIssue, setDraggingIssue] = React.useState<string | null>(null);
+  const [resizingIssue, setResizingIssue] = React.useState<string | null>(null);
+  const [dragStartX, setDragStartX] = React.useState(0);
+  const [violations, setViolations] = React.useState<Set<string>>(new Set());
+  const chartRef = React.useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (chartRef.current) {
-      // Calcular largura para 10 colunas com ~80px cada (800px total)
-      const availableWidth = chartRef.current.offsetWidth - 200;
-      // Garantir mínimo de 800px para 10 colunas
-      setChartWidth(Math.max(800, availableWidth));
-    }
-  }, []);
+  const chartWidth = 800;
+  const sprintDates = generateSprintDates(sprintStart, sprintEnd);
+  const sprintDays = sprintDates.length;
+  const columnWidth = chartWidth / sprintDays;
+  const todayPosition = getTodayPosition(sprintStart, sprintEnd, chartWidth);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const newViolations = new Set<string>();
     issues.forEach((issue) => {
       const issueStart = new Date(issue.dataInicio).getTime();
       const issueEnd = new Date(issue.dataFim).getTime();
       const sprintStartTime = new Date(sprintStart).getTime();
       const sprintEndTime = new Date(sprintEnd).getTime();
-
+      
       if (issueStart < sprintStartTime || issueEnd > sprintEndTime) {
         newViolations.add(issue.chave);
       }
@@ -139,64 +145,44 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
     setViolations(newViolations);
   }, [issues, sprintStart, sprintEnd]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent, issueChave: string, mode: 'drag' | 'resize') => {
-    e.preventDefault();
-    
-    if (mode === 'drag') {
-      setDraggingIssue(issueChave);
-      setDragOffset(e.clientX);
+  const handleMouseDown = React.useCallback((e: React.MouseEvent, chave: string, isResize: boolean) => {
+    if (isResize) {
+      setResizingIssue(chave);
     } else {
-      setResizingIssue(issueChave);
+      setDraggingIssue(chave);
     }
+    setDragStartX(e.clientX);
   }, []);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
     if (!chartRef.current) return;
+    if (!draggingIssue && !resizingIssue) return;
 
-    const rect = chartRef.current.getBoundingClientRect();
-    const relativeX = e.clientX - rect.left - 200;
+    const deltaX = e.clientX - dragStartX;
+    const deltaPixels = deltaX;
 
-    setDraggingIssue((prevDragging) => {
-      if (prevDragging) {
-        const issue = issues.find((i) => i.chave === prevDragging);
-        if (!issue) return prevDragging;
+    const issue = issues.find((i) => i.chave === draggingIssue || i.chave === resizingIssue);
+    if (!issue) return;
 
-        const startPixel = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
-        const endPixel = getPixelPosition(issue.dataFim, sprintStart, sprintEnd, chartWidth);
-        const barWidth = endPixel - startPixel;
+    if (draggingIssue) {
+      const newStart = pixelToDate(getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth) + deltaPixels, sprintStart, sprintEnd, chartWidth);
+      const days = storyPointsToDays(issue.storyPoints);
+      const newEnd = calculateEndDate(newStart, days);
+      onIssueUpdate(issue.chave, newStart, newEnd);
+      setDragStartX(e.clientX);
+    } else if (resizingIssue) {
+      const currentWidth = getBarWidth(issue.dataInicio, issue.dataFim, sprintStart, sprintEnd, chartWidth);
+      const newWidth = Math.max(columnWidth * 0.5, currentWidth + deltaPixels);
+      const newEnd = pixelToDate(getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth) + newWidth, sprintStart, sprintEnd, chartWidth);
+      onIssueUpdate(issue.chave, issue.dataInicio, newEnd);
+      setDragStartX(e.clientX);
+    }
+  }, [draggingIssue, resizingIssue, dragStartX, issues, sprintStart, sprintEnd, chartWidth, onIssueUpdate]);
 
-        const newStartPixel = Math.max(0, Math.min(chartWidth - barWidth, relativeX - dragOffset / 2));
-        const newStartDate = pixelToDate(newStartPixel, sprintStart, sprintEnd, chartWidth);
-        const newEndDate = calculateEndDate(newStartDate, (issue.dataFim.localeCompare(issue.dataInicio) === 0 ? 1 : Math.ceil((new Date(issue.dataFim).getTime() - new Date(issue.dataInicio).getTime()) / (1000 * 60 * 60 * 24))));
-
-        onIssueUpdate(prevDragging, newStartDate, newEndDate);
-      }
-      return prevDragging;
-    });
-
-    setResizingIssue((prevResizing) => {
-      if (prevResizing) {
-        const issue = issues.find((i) => i.chave === prevResizing);
-        if (!issue) return prevResizing;
-
-        const startPixel = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
-        const newEndPixel = Math.max(startPixel + 20, Math.min(chartWidth, relativeX));
-        const newEndDate = pixelToDate(newEndPixel, sprintStart, sprintEnd, chartWidth);
-
-        onIssueUpdate(prevResizing, issue.dataInicio, newEndDate);
-      }
-      return prevResizing;
-    });
-  }, [chartWidth, dragOffset, issues, onIssueUpdate, sprintEnd, sprintStart]);
-
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = React.useCallback(() => {
     setDraggingIssue(null);
     setResizingIssue(null);
   }, []);
-
-  const sprintDates = generateSprintDates(sprintStart, sprintEnd);
-  const sprintDays = sprintDates.length; // Usar length direto, não -1
-  const todayPosition = getTodayPosition(sprintStart, sprintEnd, chartWidth);
 
   return (
     <div
@@ -224,130 +210,142 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
           </div>
         )}
 
-        <div className="flex gap-0">
-          <div className="w-48 flex-shrink-0" />
-          
-          <div className="flex-1 relative h-12 bg-muted rounded border border-border">
-            <div className="flex h-full relative">
-              {sprintDates.map((date, i) => (
-                <div
-                  key={i}
-                  className="border-r border-border text-xs text-muted-foreground flex items-center justify-center"
-                  style={{ width: `${chartWidth / sprintDays}px` }}
-                >
-                  <div className="text-center">
-                    <div className="font-semibold">{formatDateDisplay(date)}</div>
-                    <div className="text-xs">{i}d</div>
+        {/* Grid com cabeçalho e linhas de issues */}
+        <div className="overflow-x-auto">
+          <div style={{ display: 'grid', gridTemplateColumns: `192px ${chartWidth}px`, gap: 0 }}>
+            {/* Header - Coluna de labels */}
+            <div className="h-12 flex items-center pr-4 border-r border-border" />
+            
+            {/* Header - Cabeçalho de datas */}
+            <div className="relative h-12 bg-muted rounded-t border border-border border-b-0">
+              <div className="flex h-full">
+                {sprintDates.map((date, i) => (
+                  <div
+                    key={i}
+                    className="border-r border-border text-xs text-muted-foreground flex items-center justify-center"
+                    style={{ width: `${columnWidth}px` }}
+                  >
+                    <div className="text-center">
+                      <div className="font-semibold">{formatDateDisplay(date)}</div>
+                      <div className="text-xs">{i}d</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {/* Issues rows */}
+            {issues.map((issue) => {
+              const startPixel = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
+              const barWidth = getBarWidth(issue.dataInicio, issue.dataFim, sprintStart, sprintEnd, chartWidth);
+              const isViolation = violations.has(issue.chave);
+              const isDragging = draggingIssue === issue.chave;
+              const isResizing = resizingIssue === issue.chave;
+
+              return (
+                <React.Fragment key={issue.chave}>
+                  {/* Coluna de labels */}
+                  <div className="flex flex-col justify-center pr-4 border-r border-border py-2">
+                    <p className="text-sm font-medium text-foreground">{issue.chave}</p>
+                    <div className="flex gap-2 mb-1 flex-wrap">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                        {issue.storyPoints} SP
+                      </span>
+                      {issue.tipo && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                          {issue.tipo}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate" title={issue.resumo}>
+                      {issue.resumo}
+                    </p>
+                  </div>
+
+                  {/* Barra de progresso */}
+                  <div className="relative h-10 bg-white border border-border border-t-0 flex items-center">
+                    {/* Grid de colunas de fundo */}
+                    <div className="absolute inset-0 flex pointer-events-none">
+                      {Array.from({ length: sprintDays }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="border-r border-dashed border-gray-300"
+                          style={{ width: `${columnWidth}px` }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Marcador do dia atual */}
+                    {todayPosition !== null && (
+                      <div
+                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 flex items-start justify-center pointer-events-none"
+                        style={{ left: `${todayPosition}px` }}
+                      >
+                        <Flag className="w-3 h-3 text-red-500 -mt-1" fill="currentColor" />
+                      </div>
+                    )}
+
+                    {/* Barra da issue */}
+                    <div
+                      className={`absolute h-full rounded flex items-center px-3 cursor-move transition-all ${
+                        isViolation
+                          ? 'bg-red-400 hover:bg-red-500'
+                          : 'bg-blue-500 hover:bg-blue-600'
+                      } ${isDragging ? 'opacity-75' : ''}`}
+                      style={{
+                        left: `${startPixel}px`,
+                        width: `${barWidth}px`,
+                        zIndex: isDragging ? 10 : 1,
+                      }}
+                      onMouseDown={(e) => handleMouseDown(e, issue.chave, false)}
+                    >
+                      <span className="text-white text-xs font-medium truncate">
+                        {issue.responsavel}
+                      </span>
+
+                      {/* Resize handle */}
+                      <div
+                        className="absolute right-0 top-0 bottom-0 w-1 bg-blue-700 hover:bg-blue-800 cursor-col-resize"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          handleMouseDown(e, issue.chave, true);
+                        }}
+                      />
+                    </div>
+
+                    {/* Botão de remover */}
+                    <button
+                      onClick={() => onIssueRemove?.(issue.chave)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded transition-colors z-20"
+                      title="Remover issue"
+                    >
+                      <Trash2 className="w-4 h-4 text-gray-600 hover:text-red-600" />
+                    </button>
+                  </div>
+                </React.Fragment>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      <div className="space-y-3">
-        {issues.map((issue) => {
-          const startPixel = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
-          const barWidth = getBarWidth(issue.dataInicio, issue.dataFim, sprintStart, sprintEnd, chartWidth);
-          const isViolation = violations.has(issue.chave);
-          const isDragging = draggingIssue === issue.chave;
-          const isResizing = resizingIssue === issue.chave;
-
-          return (
-            <div key={issue.chave} className="flex gap-0">
-              <div className="w-48 flex-shrink-0 pr-4">
-                <p className="text-sm font-medium text-foreground">{issue.chave}</p>
-                <div className="flex gap-2 mb-1 flex-wrap">
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                    {issue.storyPoints} SP
-                  </span>
-                  {issue.tipo && (
-                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
-                      {issue.tipo}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground truncate" title={issue.resumo}>
-                  {issue.resumo}
-                </p>
-              </div>
-
-              <div className="flex-1 relative h-10 bg-white rounded border border-border" style={{ position: 'relative' }}>
-                <div className="absolute inset-0 flex pointer-events-none">
-                  {Array.from({ length: sprintDays }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="border-r border-dashed border-gray-300"
-                      style={{ width: `${chartWidth / sprintDays}px` }}
-                    />
-                  ))}
-                </div>
-
-                {todayPosition !== null && (
-                  <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 flex items-start justify-center pointer-events-none"
-                    style={{ left: `${todayPosition}px` }}
-                  >
-                    <Flag className="w-3 h-3 text-red-500 -mt-1" fill="currentColor" />
-                  </div>
-                )}
-
-                <div
-                  className={`absolute h-full rounded flex items-center px-3 cursor-move transition-all ${
-                    isViolation
-                      ? 'bg-red-400 hover:bg-red-500'
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  } ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
-                  style={{
-                    left: `${startPixel}px`,
-                    width: `${barWidth}px`,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                  }}
-                  onMouseDown={(e) => handleMouseDown(e, issue.chave, 'drag')}
-                >
-                  <span className="text-xs text-white font-medium truncate">
-                    {issue.responsavel || 'Sem responsável'}
-                  </span>
-
-                  <div
-                    className={`absolute right-0 top-0 bottom-0 w-1 bg-white cursor-col-resize hover:w-2 transition-all ${
-                      isResizing ? 'w-2' : ''
-                    }`}
-                    onMouseDown={(e) => handleMouseDown(e, issue.chave, 'resize')}
-                  />
-                </div>
-
-                <button
-                  onClick={() => onIssueRemove?.(issue.chave)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                  title="Remover issue"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 pt-4 border-t border-border">
-        <div className="flex gap-6 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-500 rounded" />
-            <span>Dentro do período</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-400 rounded" />
-            <span>Fora do período</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Flag className="w-4 h-4 text-red-500" fill="currentColor" />
-            <span>Dia atual</span>
-          </div>
+      {/* Legenda */}
+      <div className="flex gap-4 text-xs text-muted-foreground mt-4 pt-4 border-t border-border">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-blue-500 rounded" />
+          <span>Dentro do período</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-red-400 rounded" />
+          <span>Fora do período</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Flag className="w-4 h-4 text-red-500" fill="currentColor" />
+          <span>Dia atual</span>
         </div>
       </div>
     </div>
   );
 }
+
+import React from 'react';
