@@ -1,5 +1,4 @@
-'use client';
-
+import React from 'react';
 import { AlertCircle, Trash2, Flag } from 'lucide-react';
 
 interface GanttIssue {
@@ -34,42 +33,7 @@ const calculateEndDate = (startDate: string, days: number): string => {
   return end.toISOString().split('T')[0];
 };
 
-const getPixelPosition = (date: string, sprintStart: string, sprintEnd: string, chartWidth: number): number => {
-  const start = new Date(sprintStart).getTime();
-  const end = new Date(sprintEnd).getTime();
-  const current = new Date(date).getTime();
-  
-  const totalDays = (end - start) / (1000 * 60 * 60 * 24);
-  const daysPassed = (current - start) / (1000 * 60 * 60 * 24);
-  
-  return Math.max(0, Math.min(chartWidth, (daysPassed / totalDays) * chartWidth));
-};
-
-const getBarWidth = (startDate: string, endDate: string, sprintStart: string, sprintEnd: string, chartWidth: number): number => {
-  const start = new Date(sprintStart).getTime();
-  const end = new Date(sprintEnd).getTime();
-  const barStart = new Date(startDate).getTime();
-  const barEnd = new Date(endDate).getTime();
-  
-  const totalDays = (end - start) / (1000 * 60 * 60 * 24);
-  const barDays = (barEnd - barStart) / (1000 * 60 * 60 * 24);
-  const pixelPerDay = chartWidth / totalDays;
-  
-  const calculatedWidth = (barDays / totalDays) * chartWidth;
-  return Math.max(pixelPerDay * 0.5, calculatedWidth);
-};
-
-const pixelToDate = (pixel: number, sprintStart: string, sprintEnd: string, chartWidth: number): string => {
-  const start = new Date(sprintStart).getTime();
-  const end = new Date(sprintEnd).getTime();
-  
-  const totalDays = (end - start) / (1000 * 60 * 60 * 24);
-  const daysPassed = (pixel / chartWidth) * totalDays;
-  
-  const newDate = new Date(start + daysPassed * 24 * 60 * 60 * 1000);
-  return newDate.toISOString().split('T')[0];
-};
-
+// Gera array de datas úteis (seg-sex)
 const generateSprintDates = (sprintStart: string, sprintEnd: string): string[] => {
   const dates: string[] = [];
   const current = new Date(sprintStart + 'T00:00:00Z');
@@ -90,25 +54,42 @@ const generateSprintDates = (sprintStart: string, sprintEnd: string): string[] =
   return dates;
 };
 
+// Encontra índice do dia útil para uma data
+const getBusinessDayIndex = (date: string, businessDays: string[]): number => {
+  return businessDays.findIndex(d => d === date);
+};
+
+// Calcula posição em pixels baseado no índice do dia útil
+const getPixelPositionFromDayIndex = (dayIndex: number, columnWidth: number): number => {
+  return dayIndex * columnWidth;
+};
+
+// Calcula largura da barra em pixels baseado em dias úteis
+const getBarWidthFromDays = (startDate: string, endDate: string, businessDays: string[], columnWidth: number): number => {
+  const startIndex = getBusinessDayIndex(startDate, businessDays);
+  const endIndex = getBusinessDayIndex(endDate, businessDays);
+  
+  if (startIndex === -1 || endIndex === -1) return columnWidth;
+  
+  const daysSpanned = Math.max(1, endIndex - startIndex + 1);
+  return daysSpanned * columnWidth;
+};
+
+// Converte pixel para data útil mais próxima
+const pixelToDayIndex = (pixel: number, columnWidth: number, businessDays: string[]): number => {
+  const index = Math.round(pixel / columnWidth);
+  return Math.max(0, Math.min(businessDays.length - 1, index));
+};
+
 const formatDateDisplay = (dateString: string): string => {
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
-const getTodayPosition = (sprintStart: string, sprintEnd: string, chartWidth: number): number | null => {
+const getTodayPosition = (businessDays: string[], columnWidth: number): number | null => {
   const today = new Date().toISOString().split('T')[0];
-  const sprintStartTime = new Date(sprintStart).getTime();
-  const sprintEndTime = new Date(sprintEnd).getTime();
-  const todayTime = new Date(today).getTime();
-  
-  if (todayTime < sprintStartTime || todayTime > sprintEndTime) {
-    return null;
-  }
-  
-  const totalDays = (sprintEndTime - sprintStartTime) / (1000 * 60 * 60 * 24);
-  const daysPassed = (todayTime - sprintStartTime) / (1000 * 60 * 60 * 24);
-  
-  return (daysPassed / totalDays) * chartWidth;
+  const index = businessDays.findIndex(d => d === today);
+  return index !== -1 ? index * columnWidth : null;
 };
 
 export function GanttChart({
@@ -124,28 +105,29 @@ export function GanttChart({
   const [violations, setViolations] = React.useState<Set<string>>(new Set());
   const chartRef = React.useRef<HTMLDivElement>(null);
 
-  const chartWidth = 1000; // Aumentado para melhor visualização
-  const sprintDates = generateSprintDates(sprintStart, sprintEnd);
-  const sprintDays = sprintDates.length;
-  const columnWidth = chartWidth / sprintDays;
-  const todayPosition = getTodayPosition(sprintStart, sprintEnd, chartWidth);
+  const businessDays = generateSprintDates(sprintStart, sprintEnd);
+  const columnWidth = 100; // Largura fixa por coluna (em pixels)
+  const chartWidth = businessDays.length * columnWidth;
+  const todayPosition = getTodayPosition(businessDays, columnWidth);
 
+  // Validar violações
   React.useEffect(() => {
     const newViolations = new Set<string>();
     issues.forEach((issue) => {
-      const issueStart = new Date(issue.dataInicio).getTime();
-      const issueEnd = new Date(issue.dataFim).getTime();
-      const sprintStartTime = new Date(sprintStart).getTime();
-      const sprintEndTime = new Date(sprintEnd).getTime();
+      const startIndex = getBusinessDayIndex(issue.dataInicio, businessDays);
+      const endIndex = getBusinessDayIndex(issue.dataFim, businessDays);
       
-      if (issueStart < sprintStartTime || issueEnd > sprintEndTime) {
+      if (startIndex === -1 || endIndex === -1) {
         newViolations.add(issue.chave);
       }
     });
     setViolations(newViolations);
-  }, [issues, sprintStart, sprintEnd]);
+  }, [issues, businessDays]);
 
-  const handleMouseDown = React.useCallback((e: React.MouseEvent, chave: string, isResize: boolean) => {
+  const handleBarMouseDown = React.useCallback((e: React.MouseEvent, chave: string, isResize: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (isResize) {
       setResizingIssue(chave);
     } else {
@@ -159,32 +141,41 @@ export function GanttChart({
     if (!draggingIssue && !resizingIssue) return;
 
     const deltaX = e.clientX - dragStartX;
-
     const issue = issues.find((i) => i.chave === draggingIssue || i.chave === resizingIssue);
+    
     if (!issue) return;
 
     try {
       if (draggingIssue) {
-        const currentPos = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
-        const newPos = Math.max(0, Math.min(chartWidth, currentPos + deltaX));
-        const newStart = pixelToDate(newPos, sprintStart, sprintEnd, chartWidth);
+        // Arrastar barra
+        const currentStartIndex = getBusinessDayIndex(issue.dataInicio, businessDays);
+        const currentPixel = getPixelPositionFromDayIndex(currentStartIndex, columnWidth);
+        const newPixel = Math.max(0, Math.min(chartWidth - columnWidth, currentPixel + deltaX));
+        const newStartIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
+        const newStart = businessDays[newStartIndex];
+        
+        // Manter duração original
         const days = storyPointsToDays(issue.storyPoints);
         const newEnd = calculateEndDate(newStart, days);
+        
         onIssueUpdate(issue.chave, newStart, newEnd);
         setDragStartX(e.clientX);
       } else if (resizingIssue) {
-        const currentWidth = getBarWidth(issue.dataInicio, issue.dataFim, sprintStart, sprintEnd, chartWidth);
-        const newWidth = Math.max(columnWidth * 0.5, currentWidth + deltaX);
-        const startPos = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
-        const endPos = Math.min(chartWidth, startPos + newWidth);
-        const newEnd = pixelToDate(endPos, sprintStart, sprintEnd, chartWidth);
+        // Redimensionar barra
+        const currentStartIndex = getBusinessDayIndex(issue.dataInicio, businessDays);
+        const currentEndIndex = getBusinessDayIndex(issue.dataFim, businessDays);
+        const currentPixel = getPixelPositionFromDayIndex(currentStartIndex, columnWidth);
+        const newEndPixel = Math.max(currentPixel + columnWidth, currentPixel + (currentEndIndex - currentStartIndex + 1) * columnWidth + deltaX);
+        const newEndIndex = pixelToDayIndex(newEndPixel, columnWidth, businessDays);
+        const newEnd = businessDays[Math.min(newEndIndex, businessDays.length - 1)];
+        
         onIssueUpdate(issue.chave, issue.dataInicio, newEnd);
         setDragStartX(e.clientX);
       }
     } catch (error) {
       console.error('Erro ao arrastar:', error);
     }
-  }, [draggingIssue, resizingIssue, dragStartX, issues, sprintStart, sprintEnd, chartWidth, columnWidth, onIssueUpdate]);
+  }, [draggingIssue, resizingIssue, dragStartX, issues, businessDays, columnWidth, chartWidth, onIssueUpdate]);
 
   const handleMouseUp = React.useCallback(() => {
     setDraggingIssue(null);
@@ -203,7 +194,7 @@ export function GanttChart({
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">Cronograma da Sprint</h3>
           <span className="text-sm text-muted-foreground">
-            {sprintDays} dias úteis
+            {businessDays.length} dias úteis
           </span>
         </div>
 
@@ -226,7 +217,7 @@ export function GanttChart({
             {/* Header - Cabeçalho de datas */}
             <div className="relative h-12 bg-muted rounded-t border border-border border-b-0">
               <div className="flex h-full">
-                {sprintDates.map((date, i) => (
+                {businessDays.map((date, i) => (
                   <div
                     key={i}
                     className="border-r border-border text-xs text-muted-foreground flex items-center justify-center"
@@ -243,8 +234,9 @@ export function GanttChart({
 
             {/* Issues rows */}
             {issues.map((issue) => {
-              const startPixel = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
-              const barWidth = getBarWidth(issue.dataInicio, issue.dataFim, sprintStart, sprintEnd, chartWidth);
+              const startIndex = getBusinessDayIndex(issue.dataInicio, businessDays);
+              const barWidth = getBarWidthFromDays(issue.dataInicio, issue.dataFim, businessDays, columnWidth);
+              const startPixel = startIndex !== -1 ? startIndex * columnWidth : 0;
               const isViolation = violations.has(issue.chave);
               const isDragging = draggingIssue === issue.chave;
               const isResizing = resizingIssue === issue.chave;
@@ -273,7 +265,7 @@ export function GanttChart({
                   <div className="relative min-h-12 bg-white border border-border border-t-0 flex items-center">
                     {/* Grid de colunas de fundo */}
                     <div className="absolute inset-0 flex pointer-events-none">
-                      {Array.from({ length: sprintDays }).map((_, i) => (
+                      {Array.from({ length: businessDays.length }).map((_, i) => (
                         <div
                           key={i}
                           className="border-r border-dashed border-gray-200"
@@ -285,44 +277,39 @@ export function GanttChart({
                     {/* Marcador do dia atual */}
                     {todayPosition !== null && (
                       <div
-                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 flex items-start justify-center pointer-events-none"
+                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-5"
                         style={{ left: `${todayPosition}px` }}
                       >
-                        <Flag className="w-3 h-3 text-red-500 -mt-1" fill="currentColor" />
+                        <Flag className="w-3 h-3 text-red-500 absolute -top-1 -left-1.5" />
                       </div>
                     )}
 
                     {/* Barra da issue */}
-                    <div
-                      className={`absolute h-full rounded flex items-center px-3 cursor-move transition-all user-select-none ${
-                        isViolation
-                          ? 'bg-red-400 hover:bg-red-500'
-                          : 'bg-blue-500 hover:bg-blue-600'
-                      } ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
-                      style={{
-                        left: `${startPixel}px`,
-                        width: `${barWidth}px`,
-                        zIndex: isDragging ? 10 : 1,
-                      }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleMouseDown(e, issue.chave, false);
-                      }}
-                    >
-                      <span className="text-white text-xs font-medium truncate pointer-events-none">
-                        {issue.responsavel}
-                      </span>
-
-                      {/* Resize handle */}
+                    {startIndex !== -1 && (
                       <div
-                        className="absolute right-0 top-0 bottom-0 w-1.5 bg-blue-700 hover:bg-blue-800 cursor-col-resize hover:w-2 transition-all"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleMouseDown(e, issue.chave, true);
+                        className={`absolute h-full rounded flex items-center px-3 cursor-move transition-all user-select-none ${
+                          isViolation
+                            ? 'bg-red-400 hover:bg-red-500'
+                            : 'bg-blue-500 hover:bg-blue-600'
+                        } ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
+                        style={{
+                          left: `${startPixel}px`,
+                          width: `${barWidth}px`,
+                          zIndex: isDragging ? 10 : 1,
                         }}
-                      />
-                    </div>
+                        onMouseDown={(e) => handleBarMouseDown(e, issue.chave, false)}
+                      >
+                        <span className="text-white text-xs font-medium truncate pointer-events-none">
+                          {issue.responsavel}
+                        </span>
+
+                        {/* Resize handle */}
+                        <div
+                          className="absolute right-0 top-0 bottom-0 w-1.5 bg-blue-700 hover:bg-blue-800 cursor-col-resize hover:w-2 transition-all"
+                          onMouseDown={(e) => handleBarMouseDown(e, issue.chave, true)}
+                        />
+                      </div>
+                    )}
 
                     {/* Botão de remover */}
                     <button
@@ -341,22 +328,20 @@ export function GanttChart({
       </div>
 
       {/* Legenda */}
-      <div className="flex gap-4 text-xs text-muted-foreground mt-4 pt-4 border-t border-border">
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-500 rounded" />
+          <div className="w-3 h-3 bg-blue-500 rounded" />
           <span>Dentro do período</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-400 rounded" />
+          <div className="w-3 h-3 bg-red-400 rounded" />
           <span>Fora do período</span>
         </div>
         <div className="flex items-center gap-2">
-          <Flag className="w-4 h-4 text-red-500" fill="currentColor" />
+          <Flag className="w-3 h-3 text-red-500" />
           <span>Dia atual</span>
         </div>
       </div>
     </div>
   );
 }
-
-import React from 'react';
