@@ -88,10 +88,10 @@ const formatDateDisplay = (dateString: string): string => {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
-const getTodayPosition = (businessDays: string[], columnWidth: number): number | null => {
+const getTodayPosition = (businessDays: string[], columnWidth: number): { index: number; pixel: number } | null => {
   const today = new Date().toISOString().split('T')[0];
   const index = businessDays.findIndex(d => d === today);
-  return index !== -1 ? index * columnWidth : null;
+  return index !== -1 ? { index, pixel: index * columnWidth } : null;
 };
 
 export function GanttChart({
@@ -185,7 +185,7 @@ export function GanttChart({
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">Cronograma da Sprint</h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Flag className="w-3 h-3 text-red-500" />
+            <div className="w-3 h-3 bg-orange-500 rounded-full" />
             <span>Dia atual</span>
           </div>
         </div>
@@ -221,6 +221,13 @@ export function GanttChart({
                   </div>
                 ))}
               </div>
+              {/* Linha do dia atual no header */}
+              {todayPosition !== null && (
+                <div
+                  className="absolute top-0 bottom-0 w-1 bg-orange-500 z-10 shadow-md"
+                  style={{ left: `${todayPosition.pixel}px`, transform: 'translateX(-50%)' }}
+                />
+              )}
             </div>
 
             {/* Issues rows */}
@@ -267,11 +274,9 @@ export function GanttChart({
                     {/* Marcador do dia atual */}
                     {todayPosition !== null && (
                       <div
-                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-5"
-                        style={{ left: `${todayPosition}px` }}
-                      >
-                        <Flag className="w-3 h-3 text-red-500 absolute -top-1 -left-1.5" />
-                      </div>
+                        className="absolute top-0 bottom-0 w-1 bg-orange-500 z-10 shadow-md"
+                        style={{ left: `${todayPosition.pixel}px`, transform: 'translateX(-50%)' }}
+                      />
                     )}
 
                     {/* Barra da issue */}

@@ -40,3 +40,9 @@
 - [x] SP 2-3 deve ocupar 50% da coluna (não 100%)
 - [x] Drag & drop inconsistente - debugar handlers de mouse
 - [x] Remover função de resize (remover resize handle)
+
+## Planning Page - Reorganização de Layout
+- [x] Mover Gráfico Gantt para o topo após salvar Sprint
+- [x] Renomear título do Gantt para "Nome da Sprint-Ativa"
+- [x] Adicionar linha vertical do dia atual (laranja) no Gráfico Gantt
+- [x] Testar reorganização e validar posicionamento

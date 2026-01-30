@@ -1,7 +1,7 @@
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { AlertCircle, Plus, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useState, useEffect } from 'react';
@@ -124,9 +124,7 @@ export default function Planning() {
   const handleIssueUpdate = (chave: string, dataInicio: string, dataFim: string) => {
     setSelectedIssues(
       selectedIssues.map((issue) =>
-        issue.chave === chave
-          ? { ...issue, dataInicio, dataFim }
-          : issue
+        issue.chave === chave ? { ...issue, dataInicio, dataFim } : issue
       )
     );
   };
@@ -138,7 +136,6 @@ export default function Planning() {
       toast.success('Dados atualizados com sucesso!');
     } catch (error) {
       toast.error('Erro ao atualizar dados');
-      console.error(error);
     } finally {
       setIsRefreshing(false);
     }
@@ -149,52 +146,54 @@ export default function Planning() {
   };
 
   const handleSavePlan = async () => {
-    if (!sprintName || !sprintStart || !sprintEnd) {
-      toast.error('Preencha todos os campos da Sprint');
-      return;
-    }
-
-    if (selectedIssues.length === 0) {
-      toast.error('Selecione pelo menos uma issue');
-      return;
-    }
-
     try {
-      const response = await createSprintMutation.mutateAsync({
+      if (!sprintName || !sprintStart || !sprintEnd || selectedIssues.length === 0) {
+        toast.error('Preencha todos os campos e selecione pelo menos uma issue');
+        return;
+      }
+
+      if (sprintStart > sprintEnd) {
+        toast.error('Data de fim deve ser maior ou igual à data de início');
+        return;
+      }
+
+      // Criar Sprint
+      await createSprintMutation.mutateAsync({
         nome: sprintName,
         dataInicio: sprintStart,
         dataFim: sprintEnd,
+        status: 'ativa',
       });
 
-      if (response && response.id) {
-        await saveIssuesMutation.mutateAsync({
-          sprintId: response.id,
-          issues: selectedIssues.map((issue) => ({
-            chave: issue.chave,
-            dataInicio: issue.dataInicio,
-            dataFim: issue.dataFim,
-          })),
-        });
+      // Salvar Issues
+      await saveIssuesMutation.mutateAsync({
+        sprintNome: sprintName,
+        issues: selectedIssues.map((issue) => ({
+          chave: issue.chave,
+          dataInicio: issue.dataInicio,
+          dataFim: issue.dataFim,
+        })),
+      });
 
-        setSavedSprint({
-          nome: sprintName,
-          dataInicio: sprintStart,
-          dataFim: sprintEnd,
-          issues: selectedIssues,
-        });
+      // Atualizar estado com Sprint salva
+      setSavedSprint({
+        nome: sprintName,
+        dataInicio: sprintStart,
+        dataFim: sprintEnd,
+        issues: selectedIssues,
+      });
 
-        // Refetch sprints para atualizar a lista
-        await refetchActiveSprint();
-        await refetchAllSprints();
+      // Refetch sprints para atualizar a lista
+      await refetchActiveSprint();
+      await refetchAllSprints();
 
-        // Limpar formulário
-        setSprintName('');
-        setSprintStart('');
-        setSprintEnd('');
-        setSelectedIssues([]);
+      // Limpar formulário
+      setSprintName('');
+      setSprintStart('');
+      setSprintEnd('');
+      setSelectedIssues([]);
 
-        toast.success('Plano salvo com sucesso!');
-      }
+      toast.success('Plano salvo com sucesso!');
     } catch (error) {
       console.error('Error saving plan:', error);
       toast.error('Erro ao salvar plano');
@@ -237,12 +236,12 @@ export default function Planning() {
       </header>
 
       <main className="container py-8">
-        {/* Sprint Ativa Salva */}
+        {/* Sprint Ativa Salva - TOPO */}
         {savedSprint && (
           <Card className="mb-8 border-green-500 bg-green-50 dark:bg-green-950">
             <CardHeader>
               <CardTitle className="text-green-700 dark:text-green-300">
-                ✅ Sprint Ativa: {savedSprint.nome}
+                ✅ {savedSprint.nome}-Ativa
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -264,13 +263,20 @@ export default function Planning() {
           <Card className="mb-8 border-green-500 bg-green-50 dark:bg-green-950">
             <CardHeader>
               <CardTitle className="text-green-700 dark:text-green-300">
-                Sprint Ativa: {activeSprint.nome}
+                ✅ {activeSprint.nome}-Ativa
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <p className="text-sm text-green-600 dark:text-green-400">
                 {activeSprint.dataInicio} a {activeSprint.dataFim}
               </p>
+              <GanttChart
+                issues={activeSprint.issues || []}
+                sprintStart={activeSprint.dataInicio}
+                sprintEnd={activeSprint.dataFim}
+                onIssueUpdate={handleIssueUpdate}
+                onIssueRemove={() => {}}
+              />
             </CardContent>
           </Card>
         )}
