@@ -1,0 +1,1 @@
+ALTER TABLE `sprints` ADD `status` enum('ativa','encerrada') DEFAULT 'ativa' NOT NULL;

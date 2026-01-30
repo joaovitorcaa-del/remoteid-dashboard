@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "0bbc1793-f0da-4194-ac1f-fd30d911901a",
-  "prevId": "3f449d0b-e22e-46e7-9f2f-aa487ec3fd2d",
+  "id": "ddd2b551-9abc-472c-9f59-9f41b3b3b97d",
+  "prevId": "0bbc1793-f0da-4194-ac1f-fd30d911901a",
   "tables": {
     "sprintIssues": {
       "name": "sprintIssues",
@@ -140,6 +140,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('ativa','encerrada')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ativa'"
         },
         "criadoEm": {
           "name": "criadoEm",

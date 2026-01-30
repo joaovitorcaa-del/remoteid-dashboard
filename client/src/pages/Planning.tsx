@@ -267,27 +267,36 @@ export default function Planning() {
 
       <main className="container py-8 space-y-8">
         {/* Sprint Ativa Salva - TOPO */}
-        {(savedSprint || activeSprint) && (
-          <Card className="border-green-500 bg-green-50 dark:bg-green-950">
+        {activeSprint || !activeSprint ? (
+          <Card className={activeSprint ? "border-green-500 bg-green-50 dark:bg-green-950" : "border-gray-300 bg-gray-50 dark:bg-gray-900"}>
             <CardHeader>
-              <CardTitle className="text-green-700 dark:text-green-300">
-                ✅ {(savedSprint || activeSprint)?.nome}-Ativa
+              <CardTitle className={activeSprint ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}>
+                {activeSprint ? `✅ ${activeSprint.nome}-Ativa` : "📋 Sem Sprint Ativa"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-green-600 dark:text-green-400">
-                {(savedSprint || activeSprint)?.dataInicio} a {(savedSprint || activeSprint)?.dataFim}
-              </p>
-              <GanttChart
-                issues={(savedSprint || activeSprint)?.issues || []}
-                sprintStart={(savedSprint || activeSprint)?.dataInicio || ''}
-                sprintEnd={(savedSprint || activeSprint)?.dataFim || ''}
-                onIssueUpdate={handleIssueUpdate}
-                onIssueRemove={() => {}}
-              />
+              {activeSprint ? (
+                <>
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    {formatDate(activeSprint.dataInicio)} a {formatDate(activeSprint.dataFim)}
+                    {activeSprint.issues && ` • ${activeSprint.issues.length} issue(ns)`}
+                  </p>
+                  <GanttChart
+                    issues={activeSprint.issues || []}
+                    sprintStart={activeSprint.dataInicio}
+                    sprintEnd={activeSprint.dataFim}
+                    onIssueUpdate={handleIssueUpdate}
+                    onIssueRemove={() => {}}
+                  />
+                </>
+              ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-400 py-8 text-center">
+                  Nenhuma Sprint ativa no momento. Crie uma nova Sprint abaixo.
+                </p>
+              )}
             </CardContent>
           </Card>
-        )}
+        ) : null}
 
         {/* Configurar Nova Sprint */}
         <Card>

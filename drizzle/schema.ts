@@ -32,6 +32,7 @@ export const sprints = mysqlTable("sprints", {
   dataInicio: date("dataInicio").notNull(),
   dataFim: date("dataFim").notNull(),
   ativo: int("ativo").default(0).notNull(), // 0 = false, 1 = true
+  status: mysqlEnum("status", ["ativa", "encerrada"]).default("ativa").notNull(),
   criadoEm: timestamp("criadoEm").defaultNow().notNull(),
   atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
 });
