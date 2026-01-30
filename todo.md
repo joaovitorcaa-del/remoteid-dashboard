@@ -60,3 +60,9 @@
 - [x] Adicionar funcionalidade de reativar Sprint
 - [x] Testar fluxo completo de CRUD
 - [x] Corrigir formatação de datas no histórico
+
+## Planning Page - Refatoração do Histórico
+- [x] Converter histórico em accordion expansível
+- [x] Implementar seletor de Sprints anteriores
+- [x] Visualizar Gantt da Sprint selecionada
+- [x] Remover listagem grande de Sprints
