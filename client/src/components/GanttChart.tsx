@@ -71,16 +71,19 @@ const pixelToDate = (pixel: number, sprintStart: string, sprintEnd: string, char
 
 const generateSprintDates = (sprintStart: string, sprintEnd: string): string[] => {
   const dates: string[] = [];
-  const current = new Date(sprintStart);
-  const end = new Date(sprintEnd);
-  const maxDays = 10; // Máximo de 10 dias úteis
+  const current = new Date(sprintStart + 'T00:00:00Z');
+  const end = new Date(sprintEnd + 'T00:00:00Z');
+  const maxDays = 10;
   
   while (current <= end && dates.length < maxDays) {
-    const dayOfWeek = current.getDay();
+    const dayOfWeek = current.getUTCDay();
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-      dates.push(current.toISOString().split('T')[0]);
+      const year = current.getUTCFullYear();
+      const month = String(current.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(current.getUTCDate()).padStart(2, '0');
+      dates.push(`${year}-${month}-${day}`);
     }
-    current.setDate(current.getDate() + 1);
+    current.setUTCDate(current.getUTCDate() + 1);
   }
   
   return dates;
@@ -192,7 +195,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
   }, []);
 
   const sprintDates = generateSprintDates(sprintStart, sprintEnd);
-  const sprintDays = sprintDates.length - 1;
+  const sprintDays = sprintDates.length; // Usar length direto, não -1
   const todayPosition = getTodayPosition(sprintStart, sprintEnd, chartWidth);
 
   return (
