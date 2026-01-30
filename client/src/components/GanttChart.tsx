@@ -105,7 +105,12 @@ export function GanttChart({
   const [violations, setViolations] = React.useState<Set<string>>(new Set());
   const chartRef = React.useRef<HTMLDivElement>(null);
 
-  const businessDays = generateSprintDates(sprintStart, sprintEnd);
+  // Memoizar businessDays para evitar re-renders infinitos
+  const businessDays = React.useMemo(
+    () => generateSprintDates(sprintStart, sprintEnd),
+    [sprintStart, sprintEnd]
+  );
+  
   const columnWidth = 100; // Largura fixa por coluna (em pixels)
   const chartWidth = businessDays.length * columnWidth;
   const todayPosition = getTodayPosition(businessDays, columnWidth);
