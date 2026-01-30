@@ -68,10 +68,11 @@ export default function Planning() {
 
   const saveIssuesMutation = trpc.sprints.saveIssues.useMutation({
     onSuccess: () => {
-      toast.success('Plano salvo com sucesso!');
+      toast.success('Issues salvas com sucesso!');
     },
     onError: (error) => {
-      toast.error(`Erro ao salvar plano: ${error.message}`);
+      console.error('Erro ao salvar issues:', error);
+      toast.error(`Erro ao salvar issues: ${error.message}`);
     },
   });
 
@@ -157,21 +158,43 @@ export default function Planning() {
         return;
       }
 
+      // Validar que todas as issues têm dados completos
+      const issuesWithAllData = selectedIssues.every(
+        (issue) => issue.chave && issue.resumo && issue.responsavel && issue.storyPoints
+      );
+
+      if (!issuesWithAllData) {
+        toast.error('Algumas issues estão com dados incompletos');
+        return;
+      }
+
       // Criar Sprint
       await createSprintMutation.mutateAsync({
         nome: sprintName,
         dataInicio: sprintStart,
         dataFim: sprintEnd,
-        status: 'ativa',
       });
 
-      // Salvar Issues
+      // Obter o ID da Sprint criada - buscar a Sprint mais recente
+      const allSprintsData = await refetchAllSprints();
+      const createdSprint = allSprintsData.data?.[allSprintsData.data.length - 1];
+      
+      if (!createdSprint || !createdSprint.id) {
+        toast.error('Erro ao obter ID da Sprint criada');
+        return;
+      }
+
+      // Salvar Issues com dados completos
       await saveIssuesMutation.mutateAsync({
-        sprintNome: sprintName,
-        issues: selectedIssues.map((issue) => ({
+        sprintId: createdSprint.id,
+        issues: selectedIssues.map((issue, index) => ({
           chave: issue.chave,
+          resumo: issue.resumo,
+          responsavel: issue.responsavel,
+          storyPoints: issue.storyPoints,
           dataInicio: issue.dataInicio,
           dataFim: issue.dataFim,
+          ordem: index,
         })),
       });
 

@@ -102,7 +102,19 @@ export const sprintsRouter = router({
       };
 
       await db.insert(sprints).values(newSprint);
-      return { success: true };
+      
+      // Buscar a Sprint criada para retornar seu ID
+      const createdSprint = await db
+        .select()
+        .from(sprints)
+        .where(eq(sprints.nome, input.nome))
+        .orderBy(sprints.id)
+        .limit(1);
+
+      return { 
+        success: true, 
+        id: createdSprint[0]?.id 
+      };
     }),
 
   /**

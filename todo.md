@@ -46,3 +46,9 @@
 - [x] Renomear título do Gantt para "Nome da Sprint-Ativa"
 - [x] Adicionar linha vertical do dia atual (laranja) no Gráfico Gantt
 - [x] Testar reorganização e validar posicionamento
+
+## Corre\u00e7\u00e3o de Erros## Correção de Erros de Validação
+- [x] Corrigir Planning.tsx para enviar dados completos das issues
+- [x] Corrigir server/routers.ts para aceitar payload correto
+- [x] Validar que sprintId é obtido corretamente após criar Sprint
+- [x] Testar salvamento completo de Sprint com issues
