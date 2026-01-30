@@ -54,8 +54,8 @@ export default function Planning() {
   const [savedSprint, setSavedSprint] = useState<{ nome: string; dataInicio: string; dataFim: string; issues: SelectedIssue[] } | null>(null);
 
   const { data: planejamentoIssues, refetch: refetchIssues } = trpc.issues.getPlanejamento.useQuery();
-  const { data: activeSprint } = trpc.sprints.getActive.useQuery();
-  const { data: allSprints } = trpc.sprints.list.useQuery();
+  const { data: activeSprint, refetch: refetchActiveSprint } = trpc.sprints.getActive.useQuery();
+  const { data: allSprints, refetch: refetchAllSprints } = trpc.sprints.list.useQuery();
 
   const createSprintMutation = trpc.sprints.create.useMutation({
     onSuccess: () => {
@@ -182,6 +182,16 @@ export default function Planning() {
           dataFim: sprintEnd,
           issues: selectedIssues,
         });
+
+        // Refetch sprints para atualizar a lista
+        await refetchActiveSprint();
+        await refetchAllSprints();
+
+        // Limpar formulário
+        setSprintName('');
+        setSprintStart('');
+        setSprintEnd('');
+        setSelectedIssues([]);
 
         toast.success('Plano salvo com sucesso!');
       }

@@ -81,7 +81,7 @@ export function IssueSelectionModal({
 
   return (
     <Dialog open={open} onOpenChange={handleCancel}>
-      <DialogContent className="max-w-2xl max-h-96">
+      <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Selecionar Issues para a Sprint</DialogTitle>
           <DialogDescription>
@@ -116,7 +116,7 @@ export function IssueSelectionModal({
         </div>
 
         {/* Issues List */}
-        <ScrollArea className="h-80 border border-border rounded-lg">
+        <ScrollArea className="h-64 w-full border border-border rounded-lg">
           <div className="space-y-2 p-4 pr-2">
             {filteredIssues.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -126,7 +126,7 @@ export function IssueSelectionModal({
               filteredIssues.map((issue) => (
                 <div
                   key={issue.chave}
-                  className="flex items-start gap-3 p-2 border border-border rounded-lg hover:bg-muted transition-colors cursor-pointer overflow-hidden"
+                  className="flex items-start gap-3 p-2 border border-border rounded-lg hover:bg-muted transition-colors cursor-pointer overflow-hidden w-full"
                   onClick={() => handleToggle(issue.chave)}
                 >
                   <Checkbox
