@@ -114,7 +114,10 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
 
   useEffect(() => {
     if (chartRef.current) {
-      setChartWidth(chartRef.current.offsetWidth - 200);
+      // Calcular largura para 10 colunas com ~80px cada (800px total)
+      const availableWidth = chartRef.current.offsetWidth - 200;
+      // Garantir mínimo de 800px para 10 colunas
+      setChartWidth(Math.max(800, availableWidth));
     }
   }, []);
 
@@ -226,8 +229,8 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
               {sprintDates.map((date, i) => (
                 <div
                   key={i}
-                  className="flex-1 border-r border-border text-xs text-muted-foreground flex items-center justify-center"
-                  style={{ minWidth: `${chartWidth / sprintDays}px` }}
+                  className="border-r border-border text-xs text-muted-foreground flex items-center justify-center"
+                  style={{ width: `${chartWidth / sprintDays}px` }}
                 >
                   <div className="text-center">
                     <div className="font-semibold">{formatDateDisplay(date)}</div>
@@ -269,11 +272,11 @@ export function GanttChart({ issues, sprintStart, sprintEnd, onIssueUpdate, onIs
 
               <div className="flex-1 relative h-10 bg-white rounded border border-border" style={{ position: 'relative' }}>
                 <div className="absolute inset-0 flex pointer-events-none">
-                  {Array.from({ length: sprintDays + 1 }).map((_, i) => (
+                  {Array.from({ length: sprintDays }).map((_, i) => (
                     <div
                       key={i}
-                      className="flex-1 border-r border-dashed border-gray-300"
-                      style={{ minWidth: `${chartWidth / sprintDays}px` }}
+                      className="border-r border-dashed border-gray-300"
+                      style={{ width: `${chartWidth / sprintDays}px` }}
                     />
                   ))}
                 </div>
