@@ -124,7 +124,7 @@ export function GanttChart({
   const [violations, setViolations] = React.useState<Set<string>>(new Set());
   const chartRef = React.useRef<HTMLDivElement>(null);
 
-  const chartWidth = 800;
+  const chartWidth = 1000; // Aumentado para melhor visualização
   const sprintDates = generateSprintDates(sprintStart, sprintEnd);
   const sprintDays = sprintDates.length;
   const columnWidth = chartWidth / sprintDays;
@@ -159,25 +159,32 @@ export function GanttChart({
     if (!draggingIssue && !resizingIssue) return;
 
     const deltaX = e.clientX - dragStartX;
-    const deltaPixels = deltaX;
 
     const issue = issues.find((i) => i.chave === draggingIssue || i.chave === resizingIssue);
     if (!issue) return;
 
-    if (draggingIssue) {
-      const newStart = pixelToDate(getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth) + deltaPixels, sprintStart, sprintEnd, chartWidth);
-      const days = storyPointsToDays(issue.storyPoints);
-      const newEnd = calculateEndDate(newStart, days);
-      onIssueUpdate(issue.chave, newStart, newEnd);
-      setDragStartX(e.clientX);
-    } else if (resizingIssue) {
-      const currentWidth = getBarWidth(issue.dataInicio, issue.dataFim, sprintStart, sprintEnd, chartWidth);
-      const newWidth = Math.max(columnWidth * 0.5, currentWidth + deltaPixels);
-      const newEnd = pixelToDate(getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth) + newWidth, sprintStart, sprintEnd, chartWidth);
-      onIssueUpdate(issue.chave, issue.dataInicio, newEnd);
-      setDragStartX(e.clientX);
+    try {
+      if (draggingIssue) {
+        const currentPos = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
+        const newPos = Math.max(0, Math.min(chartWidth, currentPos + deltaX));
+        const newStart = pixelToDate(newPos, sprintStart, sprintEnd, chartWidth);
+        const days = storyPointsToDays(issue.storyPoints);
+        const newEnd = calculateEndDate(newStart, days);
+        onIssueUpdate(issue.chave, newStart, newEnd);
+        setDragStartX(e.clientX);
+      } else if (resizingIssue) {
+        const currentWidth = getBarWidth(issue.dataInicio, issue.dataFim, sprintStart, sprintEnd, chartWidth);
+        const newWidth = Math.max(columnWidth * 0.5, currentWidth + deltaX);
+        const startPos = getPixelPosition(issue.dataInicio, sprintStart, sprintEnd, chartWidth);
+        const endPos = Math.min(chartWidth, startPos + newWidth);
+        const newEnd = pixelToDate(endPos, sprintStart, sprintEnd, chartWidth);
+        onIssueUpdate(issue.chave, issue.dataInicio, newEnd);
+        setDragStartX(e.clientX);
+      }
+    } catch (error) {
+      console.error('Erro ao arrastar:', error);
     }
-  }, [draggingIssue, resizingIssue, dragStartX, issues, sprintStart, sprintEnd, chartWidth, onIssueUpdate]);
+  }, [draggingIssue, resizingIssue, dragStartX, issues, sprintStart, sprintEnd, chartWidth, columnWidth, onIssueUpdate]);
 
   const handleMouseUp = React.useCallback(() => {
     setDraggingIssue(null);
@@ -245,19 +252,19 @@ export function GanttChart({
               return (
                 <React.Fragment key={issue.chave}>
                   {/* Coluna de labels */}
-                  <div className="flex flex-col justify-center pr-4 border-r border-border py-2">
-                    <p className="text-sm font-medium text-foreground">{issue.chave}</p>
-                    <div className="flex gap-2 mb-1 flex-wrap">
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                  <div className="flex flex-col justify-center pr-4 border-r border-border py-1">
+                    <p className="text-xs font-semibold text-foreground leading-tight">{issue.chave}</p>
+                    <div className="flex gap-1 mb-0.5 flex-wrap">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
                         {issue.storyPoints} SP
                       </span>
                       {issue.tipo && (
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
                           {issue.tipo}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate" title={issue.resumo}>
+                    <p className="text-xs text-muted-foreground truncate leading-tight" title={issue.resumo}>
                       {issue.resumo}
                     </p>
                   </div>
