@@ -320,3 +320,5 @@ export function GanttChart({
     </div>
   );
 }
+
+export default GanttChart;

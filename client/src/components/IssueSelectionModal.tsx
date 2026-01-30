@@ -170,3 +170,5 @@ export function IssueSelectionModal({
     </Dialog>
   );
 }
+
+export default IssueSelectionModal;

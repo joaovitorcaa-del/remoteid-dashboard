@@ -1,0 +1,8 @@
+{
+  "query": "DELETE FROM sprints; DELETE FROM sprint_issues;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2BqANL3ibNjmBV6.c742fa212ec3 --database nxXngtdn89K96fhSBqFM2N --execute DELETE FROM sprints; DELETE FROM sprint_issues;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'nxxngtdn89k96fhsbqfm2n.sprint_issues' doesn't exist"
+  ]
+}
