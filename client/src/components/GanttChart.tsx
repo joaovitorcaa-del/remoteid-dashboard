@@ -221,7 +221,7 @@ export function GanttChart({
         <div className="overflow-x-auto">
           <div style={{ display: 'grid', gridTemplateColumns: `192px ${chartWidth}px`, gap: 0 }}>
             {/* Header - Coluna de labels */}
-            <div className="h-12 flex items-center pr-4 border-r border-border" />
+            <div className="h-12 flex items-center pr-4 border-r border-dotted border-gray-300" />
             
             {/* Header - Cabeçalho de datas */}
             <div className="relative h-12 bg-muted rounded-t border border-border border-b-0">
@@ -252,7 +252,7 @@ export function GanttChart({
               return (
                 <React.Fragment key={issue.chave}>
                   {/* Coluna de labels */}
-                  <div className="flex flex-col justify-center pr-4 border-r border-border py-1">
+                  <div className="flex flex-col justify-center pr-4 border-r border-dotted border-gray-300 py-2 min-h-12">
                     <p className="text-xs font-semibold text-foreground leading-tight">{issue.chave}</p>
                     <div className="flex gap-1 mb-0.5 flex-wrap">
                       <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
@@ -270,13 +270,13 @@ export function GanttChart({
                   </div>
 
                   {/* Barra de progresso */}
-                  <div className="relative h-10 bg-white border border-border border-t-0 flex items-center">
+                  <div className="relative min-h-12 bg-white border border-border border-t-0 flex items-center">
                     {/* Grid de colunas de fundo */}
                     <div className="absolute inset-0 flex pointer-events-none">
                       {Array.from({ length: sprintDays }).map((_, i) => (
                         <div
                           key={i}
-                          className="border-r border-dashed border-gray-300"
+                          className="border-r border-dashed border-gray-200"
                           style={{ width: `${columnWidth}px` }}
                         />
                       ))}
@@ -294,26 +294,30 @@ export function GanttChart({
 
                     {/* Barra da issue */}
                     <div
-                      className={`absolute h-full rounded flex items-center px-3 cursor-move transition-all ${
+                      className={`absolute h-full rounded flex items-center px-3 cursor-move transition-all user-select-none ${
                         isViolation
                           ? 'bg-red-400 hover:bg-red-500'
                           : 'bg-blue-500 hover:bg-blue-600'
-                      } ${isDragging ? 'opacity-75' : ''}`}
+                      } ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
                       style={{
                         left: `${startPixel}px`,
                         width: `${barWidth}px`,
                         zIndex: isDragging ? 10 : 1,
                       }}
-                      onMouseDown={(e) => handleMouseDown(e, issue.chave, false)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleMouseDown(e, issue.chave, false);
+                      }}
                     >
-                      <span className="text-white text-xs font-medium truncate">
+                      <span className="text-white text-xs font-medium truncate pointer-events-none">
                         {issue.responsavel}
                       </span>
 
                       {/* Resize handle */}
                       <div
-                        className="absolute right-0 top-0 bottom-0 w-1 bg-blue-700 hover:bg-blue-800 cursor-col-resize"
+                        className="absolute right-0 top-0 bottom-0 w-1.5 bg-blue-700 hover:bg-blue-800 cursor-col-resize hover:w-2 transition-all"
                         onMouseDown={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
                           handleMouseDown(e, issue.chave, true);
                         }}
