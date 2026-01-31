@@ -53,3 +53,10 @@
 - [x] Corrigir query de carregamento - trazer issues com datas corretas
 - [x] Corrigir renderização do Gantt - exibir datas, colunas e barras de progresso
 - [x] Testar fluxo completo de salvamento e visualizaçãoalvamento e visualiza\u00e7\u00e3o
+
+## Planning Page - Reorganização de Layout e UX (Iteração 2)
+- [x] Corrigir conversão de Date objects para strings YYYY-MM-DD no GanttChart
+- [x] Mover dropdown de Sprint anterior para fora do quadro verde
+- [x] Remover botão "Reativar Sprint"
+- [x] Remover lista de issues do formulário de planejamento
+- [x] Testar renderização completa com Sprint ativa e anterior

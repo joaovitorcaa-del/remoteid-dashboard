@@ -7,8 +7,8 @@ interface GanttIssue {
   storyPoints: number;
   responsavel: string;
   tipo?: string;
-  dataInicio: string;
-  dataFim: string;
+  dataInicio: string | Date;
+  dataFim: string | Date;
 }
 
 interface GanttChartProps {
@@ -83,8 +83,21 @@ const pixelToDayIndex = (pixel: number, columnWidth: number, businessDays: strin
   return Math.max(0, Math.min(businessDays.length - 1, index));
 };
 
-const formatDateDisplay = (dateString: string): string => {
-  const date = new Date(dateString + 'T00:00:00');
+// Converte Date ou string para formato YYYY-MM-DD
+const toDateString = (date: string | Date): string => {
+  if (typeof date === 'string') return date;
+  if (date instanceof Date) {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return String(date);
+};
+
+const formatDateDisplay = (dateString: string | Date): string => {
+  const dateStr = toDateString(dateString);
+  const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
@@ -120,8 +133,10 @@ export function GanttChart({
   React.useEffect(() => {
     const newViolations = new Set<string>();
     issues.forEach((issue) => {
-      const startIndex = getBusinessDayIndex(issue.dataInicio, businessDays);
-      const endIndex = getBusinessDayIndex(issue.dataFim, businessDays);
+      const startStr = toDateString(issue.dataInicio);
+      const endStr = toDateString(issue.dataFim);
+      const startIndex = getBusinessDayIndex(startStr, businessDays);
+      const endIndex = getBusinessDayIndex(endStr, businessDays);
       
       if (startIndex === -1 || endIndex === -1) {
         newViolations.add(issue.chave);
@@ -151,7 +166,8 @@ export function GanttChart({
 
     try {
       // Arrastar barra mantendo duração original
-      const currentStartIndex = getBusinessDayIndex(issue.dataInicio, businessDays);
+      const startStr = toDateString(issue.dataInicio);
+      const currentStartIndex = getBusinessDayIndex(startStr, businessDays);
       const currentPixel = currentStartIndex * columnWidth;
       const newPixel = Math.max(0, Math.min(chartWidth - columnWidth, currentPixel + deltaX));
       const newStartIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
@@ -232,7 +248,8 @@ export function GanttChart({
 
             {/* Issues rows */}
             {issues.map((issue) => {
-              const startIndex = getBusinessDayIndex(issue.dataInicio, businessDays);
+              const startStr = toDateString(issue.dataInicio);
+              const startIndex = getBusinessDayIndex(startStr, businessDays);
               const barWidth = getBarWidthFromStoryPoints(issue.storyPoints, columnWidth);
               const startPixel = startIndex !== -1 ? startIndex * columnWidth : 0;
               const isViolation = violations.has(issue.chave);

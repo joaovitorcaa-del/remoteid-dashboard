@@ -265,50 +265,22 @@ export default function Planning() {
         {/* Sprint Ativa Salva - TOPO */}
         {allSprints && allSprints.length > 0 ? (
           <Card className={activeSprint ? "border-green-500 bg-green-50 dark:bg-green-950" : "border-gray-300 bg-gray-50 dark:bg-gray-900"}>
-            <CardHeader className="flex flex-col gap-4">
-              <div className="flex flex-row items-center justify-between">
-                <CardTitle className={activeSprint ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}>
-                  {activeSprint ? `✅ ${activeSprint.nome}-Ativa` : "📋 Sem Sprint Ativa"}
-                </CardTitle>
-                {activeSprint && (
-                  <Button
-                    onClick={() => {
-                      if (confirm(`Tem certeza que deseja encerrar a Sprint "${activeSprint.nome}"?`)) {
-                        finishSprintMutation.mutate({ sprintId: activeSprint.id });
-                      }
-                    }}
-                    variant="destructive"
-                    size="sm"
-                  >
-                    Encerrar Sprint
-                  </Button>
-                )}
-              </div>
-              {/* Seletor de Sprints Anteriores */}
-              {allSprints.filter(s => !s.ativo).length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="sprint-history-select" className="text-xs font-medium">Visualizar Sprint anterior:</Label>
-                  <select
-                    id="sprint-history-select"
-                    onChange={(e) => {
-                      const sprintId = parseInt(e.target.value);
-                      const sprint = allSprints.find(s => s.id === sprintId);
-                      setSelectedHistorySprint(sprint || null);
-                    }}
-                    value={selectedHistorySprint?.id || ''}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm"
-                  >
-                    <option value="">-- Selecione uma Sprint encerrada --</option>
-                    {allSprints
-                      .filter(s => !s.ativo)
-                      .sort((a, b) => new Date(b.dataInicio).getTime() - new Date(a.dataInicio).getTime())
-                      .map((sprint) => (
-                        <option key={sprint.id} value={sprint.id}>
-                          {sprint.nome}-Encerrada ({formatDate(sprint.dataInicio)} a {formatDate(sprint.dataFim)})
-                        </option>
-                      ))}
-                  </select>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className={activeSprint ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}>
+                {activeSprint ? `✅ ${activeSprint.nome}-Ativa` : "📋 Sem Sprint Ativa"}
+              </CardTitle>
+              {activeSprint && (
+                <Button
+                  onClick={() => {
+                    if (confirm(`Tem certeza que deseja encerrar a Sprint "${activeSprint.nome}"?`)) {
+                      finishSprintMutation.mutate({ sprintId: activeSprint.id });
+                    }
+                  }}
+                  variant="destructive"
+                  size="sm"
+                >
+                  Encerrar Sprint
+                </Button>
               )}
             </CardHeader>
             <CardContent className="space-y-4">
@@ -320,8 +292,8 @@ export default function Planning() {
                   </p>
                   <GanttChart
                     issues={activeSprint.issues || []}
-                    sprintStart={activeSprint.dataInicio}
-                    sprintEnd={activeSprint.dataFim}
+                    sprintStart={formatDate(activeSprint.dataInicio)}
+                    sprintEnd={formatDate(activeSprint.dataFim)}
                     onIssueUpdate={handleIssueUpdate}
                     onIssueRemove={() => {}}
                   />
@@ -335,6 +307,40 @@ export default function Planning() {
           </Card>
         ) : null}
 
+        {/* Seletor de Sprints Anteriores */}
+        {allSprints && allSprints.filter(s => !s.ativo).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Visualizar Sprint Anterior</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="sprint-history-select" className="text-sm font-medium">Selecione uma Sprint encerrada:</Label>
+                <select
+                  id="sprint-history-select"
+                  onChange={(e) => {
+                    const sprintId = parseInt(e.target.value);
+                    const sprint = allSprints.find(s => s.id === sprintId);
+                    setSelectedHistorySprint(sprint || null);
+                  }}
+                  value={selectedHistorySprint?.id || ''}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm"
+                >
+                  <option value="">-- Selecione uma Sprint encerrada --</option>
+                  {allSprints
+                    .filter(s => !s.ativo)
+                    .sort((a, b) => new Date(b.dataInicio).getTime() - new Date(a.dataInicio).getTime())
+                    .map((sprint) => (
+                      <option key={sprint.id} value={sprint.id}>
+                        {sprint.nome}-Encerrada ({formatDate(sprint.dataInicio)} a {formatDate(sprint.dataFim)})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Exibir Gantt da Sprint Anterior Selecionada */}
         {selectedHistorySprint && (
           <Card className="border-gray-400 bg-gray-50 dark:bg-gray-900">
@@ -342,24 +348,14 @@ export default function Planning() {
               <CardTitle className="text-gray-700 dark:text-gray-300">
                 {selectedHistorySprint.nome}-Encerrada
               </CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleReactivateSprint(selectedHistorySprint.id)}
-                  variant="default"
-                  size="sm"
-                >
-                  <RotateCcw className="w-3 h-3 mr-2" />
-                  Reativar
-                </Button>
-                <Button
-                  onClick={() => handleDeleteSprint(selectedHistorySprint.id)}
-                  variant="destructive"
-                  size="sm"
-                >
-                  <Trash2 className="w-3 h-3 mr-2" />
-                  Deletar
-                </Button>
-              </div>
+              <Button
+                onClick={() => handleDeleteSprint(selectedHistorySprint.id)}
+                variant="destructive"
+                size="sm"
+              >
+                <Trash2 className="w-3 h-3 mr-2" />
+                Deletar
+              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -368,8 +364,8 @@ export default function Planning() {
               </p>
               <GanttChart
                 issues={selectedHistorySprint.issues || []}
-                sprintStart={selectedHistorySprint.dataInicio}
-                sprintEnd={selectedHistorySprint.dataFim}
+                sprintStart={formatDate(selectedHistorySprint.dataInicio)}
+                sprintEnd={formatDate(selectedHistorySprint.dataFim)}
                 onIssueUpdate={() => {}}
                 onIssueRemove={() => {}}
               />
@@ -423,35 +419,14 @@ export default function Planning() {
                 Selecionar Issues
               </Button>
             </div>
-
-            {selectedIssues.length > 0 && (
-              <div className="border-t pt-4">
-                <p className="text-sm font-semibold mb-3">Issues Selecionadas ({selectedIssues.length}):</p>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {selectedIssues.map((issue) => (
-                    <div key={issue.chave} className="flex items-center justify-between p-2 bg-muted rounded">
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-foreground leading-tight">{issue.chave}</p>
-                        <p className="text-xs text-muted-foreground">{issue.resumo}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
-                          {issue.storyPoints} SP
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Cronograma da Sprint */}
+        {/* Preview do Cronograma da Sprint */}
         {selectedIssues.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Cronograma da Sprint</CardTitle>
+              <CardTitle>Preview do Cronograma</CardTitle>
             </CardHeader>
             <CardContent>
               <GanttChart
