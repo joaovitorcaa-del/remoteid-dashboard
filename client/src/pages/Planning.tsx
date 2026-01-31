@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
@@ -60,6 +61,10 @@ export default function Planning() {
   const { data: planejamentoIssues, refetch: refetchIssues } = trpc.issues.getPlanejamento.useQuery();
   const { data: activeSprint, refetch: refetchActiveSprint } = trpc.sprints.getActiveWithIssues.useQuery();
   const { data: allSprints, refetch: refetchAllSprints } = trpc.sprints.list.useQuery();
+  const { data: selectedSprintWithIssues } = trpc.sprints.getById.useQuery(
+    { id: selectedHistorySprint?.id || 0 },
+    { enabled: !!selectedHistorySprint?.id }
+  );
 
   const createSprintMutation = trpc.sprints.create.useMutation({
     onSuccess: () => {
@@ -315,27 +320,33 @@ export default function Planning() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="sprint-history-select" className="text-sm font-medium">Selecione uma Sprint encerrada:</Label>
-                <select
-                  id="sprint-history-select"
-                  onChange={(e) => {
-                    const sprintId = parseInt(e.target.value);
-                    const sprint = allSprints.find(s => s.id === sprintId);
+                <Label className="text-sm font-medium">Selecione uma Sprint encerrada:</Label>
+                <Select
+                  value={selectedHistorySprint?.id?.toString() || ''}
+                  onValueChange={(value) => {
+                    if (!value) {
+                      setSelectedHistorySprint(null);
+                      return;
+                    }
+                    const sprintId = parseInt(value);
+                    const sprint = allSprints?.find(s => s.id === sprintId);
                     setSelectedHistorySprint(sprint || null);
                   }}
-                  value={selectedHistorySprint?.id || ''}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm"
                 >
-                  <option value="">-- Selecione uma Sprint encerrada --</option>
-                  {allSprints
-                    .filter(s => !s.ativo)
-                    .sort((a, b) => new Date(b.dataInicio).getTime() - new Date(a.dataInicio).getTime())
-                    .map((sprint) => (
-                      <option key={sprint.id} value={sprint.id}>
-                        {sprint.nome}-Encerrada ({formatDate(sprint.dataInicio)} a {formatDate(sprint.dataFim)})
-                      </option>
-                    ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="-- Selecione uma Sprint encerrada --" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allSprints
+                      ?.filter(s => !s.ativo)
+                      .sort((a, b) => new Date(b.dataInicio).getTime() - new Date(a.dataInicio).getTime())
+                      .map((sprint) => (
+                        <SelectItem key={sprint.id} value={sprint.id.toString()}>
+                          {sprint.nome}-Encerrada ({formatDate(sprint.dataInicio)} a {formatDate(sprint.dataFim)})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -360,15 +371,21 @@ export default function Planning() {
             <CardContent className="space-y-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {formatDate(selectedHistorySprint.dataInicio)} a {formatDate(selectedHistorySprint.dataFim)}
-                {selectedHistorySprint.issues && ` • ${selectedHistorySprint.issues.length} issue(ns)`}
+                {selectedSprintWithIssues?.issues && ` • ${selectedSprintWithIssues.issues.length} issue(ns)`}
               </p>
-              <GanttChart
-                issues={selectedHistorySprint.issues || []}
-                sprintStart={formatDate(selectedHistorySprint.dataInicio)}
-                sprintEnd={formatDate(selectedHistorySprint.dataFim)}
-                onIssueUpdate={() => {}}
-                onIssueRemove={() => {}}
-              />
+              {selectedSprintWithIssues ? (
+                <GanttChart
+                  issues={selectedSprintWithIssues.issues || []}
+                  sprintStart={formatDate(selectedHistorySprint.dataInicio)}
+                  sprintEnd={formatDate(selectedHistorySprint.dataFim)}
+                  onIssueUpdate={() => {}}
+                  onIssueRemove={() => {}}
+                />
+              ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-400 py-8 text-center">
+                  Carregando cronograma...
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
