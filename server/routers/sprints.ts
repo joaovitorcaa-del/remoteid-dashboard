@@ -251,17 +251,48 @@ export const sprintsRouter = router({
     }),
 
   /**
-   * Finish active sprint and activate new one
+   * Finish active sprint and activate new one with issues
    */
   finishAndActivate: protectedProcedure
-    .input(z.object({ oldSprintId: z.number(), newSprintId: z.number() }))
+    .input(z.object({ 
+      oldSprintId: z.number(), 
+      newSprintId: z.number(),
+      issues: z.array(z.object({
+        chave: z.string(),
+        resumo: z.string(),
+        responsavel: z.string(),
+        storyPoints: z.number(),
+        dataInicio: z.string(),
+        dataFim: z.string(),
+        ordem: z.number(),
+      }))
+    }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) {
         throw new Error("Database not available");
       }
+      
       await db.update(sprints).set({ ativo: 0 }).where(eq(sprints.id, input.oldSprintId));
       await db.update(sprints).set({ ativo: 1 }).where(eq(sprints.id, input.newSprintId));
+      
+      await db.delete(sprintIssues).where(eq(sprintIssues.sprintId, input.newSprintId));
+      
+      const newIssues: InsertSprintIssue[] = input.issues.map((issue) => ({
+        sprintId: input.newSprintId,
+        chave: issue.chave,
+        resumo: issue.resumo,
+        responsavel: issue.responsavel,
+        storyPoints: issue.storyPoints,
+        dataInicio: issue.dataInicio,
+        dataFim: issue.dataFim,
+        ordem: issue.ordem,
+      }));
+      
+      if (newIssues.length > 0) {
+        await db.insert(sprintIssues).values(newIssues);
+      }
+      
       return { success: true };
     }),
 

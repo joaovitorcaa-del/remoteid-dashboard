@@ -1,0 +1,8 @@
+{
+  "query": "SELECT s.id, s.nome, s.ativo, COUNT(si.id) as issue_count FROM sprints s LEFT JOIN sprint_issues si ON s.id = si.sprint_id GROUP BY s.id, s.nome, s.ativo ORDER BY s.id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2BqANL3ibNjmBV6.c742fa212ec3 --database nxXngtdn89K96fhSBqFM2N --execute SELECT s.id, s.nome, s.ativo, COUNT(si.id) as issue_count FROM sprints s LEFT JOIN sprint_issues si ON s.id = si.sprint_id GROUP BY s.id, s.nome, s.ativo ORDER BY s.id DESC LIMIT 10;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'nxxngtdn89k96fhsbqfm2n.sprint_issues' doesn't exist"
+  ]
+}

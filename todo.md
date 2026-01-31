@@ -46,3 +46,10 @@
 - [x] Exibir Sprint ativa no topo sempre que houver uma criada
 - [x] Mostrar "Sem Sprint Ativa" apenas quando não houver nenhuma Sprint criada
 - [x] Testar fluxo completo de salvamento e visualizaçãoento e visualiza\u00e7\u00e3o
+
+### Planning Page - Correções Críticas
+- [x] Debugar banco de dados - verificar dados em sprintIssues
+- [x] Corrigir salvamento de Sprint - criar registros em sprintIssues com dataInicio e dataFim
+- [x] Corrigir query de carregamento - trazer issues com datas corretas
+- [x] Corrigir renderização do Gantt - exibir datas, colunas e barras de progresso
+- [x] Testar fluxo completo de salvamento e visualizaçãoalvamento e visualiza\u00e7\u00e3o
