@@ -8,6 +8,11 @@ import { describe, it, expect } from 'vitest';
 // Calcula a data de fim baseada na data de início e duração em dias úteis
 // Retorna o ÚLTIMO dia útil ocupado (não o dia seguinte)
 const calculateEndDate = (startDate: string, days: number): string => {
+  // Se é menos de 1 dia (ex: 0.5), termina no mesmo dia
+  if (days < 1) {
+    return startDate;
+  }
+  
   const start = new Date(startDate + 'T00:00:00Z');
   let current = new Date(start);
   let daysAdded = 0;
@@ -119,3 +124,21 @@ describe('GanttChart - calculateEndDate - FIXED LOGIC', () => {
     expect(endDate).toBe('2026-02-06');
   });
 });
+
+  it('should return same day for 0.5 working days on Monday', () => {
+    // 2-3 SP = 0.5 dias
+    // Começa em segunda (2026-02-02)
+    // dataFim DEVE SER: 2026-02-02 (mesmo dia)
+    const startDate = '2026-02-02';
+    const endDate = calculateEndDate(startDate, 0.5);
+    expect(endDate).toBe('2026-02-02');
+  });
+
+  it('should return same day for 0.5 working days on Friday', () => {
+    // 2-3 SP = 0.5 dias
+    // Começa em sexta (2026-02-06)
+    // dataFim DEVE SER: 2026-02-06 (mesmo dia)
+    const startDate = '2026-02-06';
+    const endDate = calculateEndDate(startDate, 0.5);
+    expect(endDate).toBe('2026-02-06');
+  });

@@ -33,6 +33,11 @@ const storyPointsToDays = (sp: number): number => {
 
 // Calcula data de fim baseado em dias úteis
 const calculateEndDate = (startDate: string, days: number): string => {
+  // Se é menos de 1 dia (ex: 0.5), termina no mesmo dia
+  if (days < 1) {
+    return startDate;
+  }
+  
   const start = new Date(startDate + 'T00:00:00Z');
   let current = new Date(start);
   let daysAdded = 0;
