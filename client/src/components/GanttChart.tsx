@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Trash2, Flag } from 'lucide-react';
+import { AlertCircle, Trash2, ChevronDown } from 'lucide-react';
 
 interface GanttIssue {
   chave: string;
@@ -18,6 +18,8 @@ interface GanttChartProps {
   sprintEnd: string;
   onIssueUpdate: (chave: string, dataInicio: string, dataFim: string) => void;
   onIssueRemove?: (chave: string) => void;
+  onResponsavelChange?: (chave: string, novoResponsavel: string) => void;
+  showLegend?: boolean;
 }
 
 // Converte Story Points para dias úteis
@@ -75,7 +77,7 @@ const getBusinessDayIndex = (date: string, businessDays: string[]): number => {
 // Calcula largura da barra em pixels baseado em Story Points
 const getBarWidthFromStoryPoints = (sp: number, columnWidth: number): number => {
   const days = storyPointsToDays(sp);
-  return Math.max(columnWidth * days, columnWidth * 0.5); // Mínimo 50% de coluna
+  return Math.max(columnWidth * days, columnWidth * 0.5);
 };
 
 // Converte pixel para data útil mais próxima
@@ -135,7 +137,6 @@ const detectConflicts = (issues: GanttIssue[], businessDays: string[]): Set<stri
   return conflicts;
 };
 
-
 const getBarColor = (issue: GanttIssue, isConflict: boolean): string => {
   if (isConflict) return 'bg-red-500 hover:bg-red-600';
   
@@ -170,17 +171,112 @@ const getBarColor = (issue: GanttIssue, isConflict: boolean): string => {
   return 'bg-blue-500 hover:bg-blue-600';
 };
 
+// Componente de Legenda de Cores
+function ColorLegend() {
+  return (
+    <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-border">
+      <h4 className="text-sm font-semibold text-foreground mb-3">Legenda de Cores</h4>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-blue-500 rounded" />
+          <span className="text-xs text-muted-foreground">Ready/Dev To Do</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-green-500 rounded" />
+          <span className="text-xs text-muted-foreground">Em Progresso (no prazo)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-orange-500 rounded" />
+          <span className="text-xs text-muted-foreground">Vence hoje</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-red-500 rounded" />
+          <span className="text-xs text-muted-foreground">Atrasado / Conflito</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-purple-500 rounded" />
+          <span className="text-xs text-muted-foreground">Testes / Staging</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Componente de Dropdown de Responsáveis
+function ResponsavelDropdown({
+  isOpen,
+  position,
+  responsaveis,
+  onSelect,
+  onClose,
+}: {
+  isOpen: boolean;
+  position: { x: number; y: number };
+  responsaveis: string[];
+  onSelect: (responsavel: string) => void;
+  onClose: () => void;
+}) {
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      ref={dropdownRef}
+      className="fixed z-50 bg-white border border-border rounded-lg shadow-lg py-1 min-w-48"
+      style={{ left: `${position.x}px`, top: `${position.y}px` }}
+    >
+      {responsaveis.map((resp) => (
+        <button
+          key={resp}
+          onClick={() => {
+            onSelect(resp);
+            onClose();
+          }}
+          className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+        >
+          {resp}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function GanttChart({
   issues,
   sprintStart,
   sprintEnd,
   onIssueUpdate,
   onIssueRemove,
+  onResponsavelChange,
+  showLegend = true,
 }: GanttChartProps) {
   const [draggingIssue, setDraggingIssue] = React.useState<string | null>(null);
   const [dragStartX, setDragStartX] = React.useState(0);
   const [violations, setViolations] = React.useState<Set<string>>(new Set());
+  const [editingResponsavel, setEditingResponsavel] = React.useState<string | null>(null);
+  const [editingDropdownOpen, setEditingDropdownOpen] = React.useState(false);
+  const [editingDropdownPosition, setEditingDropdownPosition] = React.useState({ x: 0, y: 0 });
   const chartRef = React.useRef<HTMLDivElement>(null);
+  
+  // Extrair lista única de responsáveis
+  const responsaveis = React.useMemo(() => {
+    const unique = new Set(issues.map(i => i.responsavel).filter(Boolean));
+    return Array.from(unique).sort();
+  }, [issues]);
 
   // Memoizar businessDays para evitar re-renders infinitos
   const businessDays = React.useMemo(
@@ -188,7 +284,7 @@ export function GanttChart({
     [sprintStart, sprintEnd]
   );
   
-  const columnWidth = 100; // Largura fixa por coluna (em pixels)
+  const columnWidth = 100;
   const chartWidth = businessDays.length * columnWidth;
   const todayPosition = getTodayPosition(businessDays, columnWidth);
 
@@ -231,7 +327,6 @@ export function GanttChart({
     if (!issue) return;
 
     try {
-      // Arrastar barra mantendo duração original
       const startStr = toDateString(issue.dataInicio);
       const currentStartIndex = getBusinessDayIndex(startStr, businessDays);
       const currentPixel = currentStartIndex * columnWidth;
@@ -239,7 +334,6 @@ export function GanttChart({
       const newStartIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
       const newStart = businessDays[newStartIndex];
       
-      // Manter duração original baseada em Story Points
       const days = storyPointsToDays(issue.storyPoints);
       const newEnd = calculateEndDate(newStart, days);
       
@@ -255,6 +349,24 @@ export function GanttChart({
     setDraggingIssue(null);
   }, []);
 
+  // Handler para clicar na barra e editar responsável
+  const handleBarClick = React.useCallback((e: React.MouseEvent, chave: string) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setEditingResponsavel(chave);
+    setEditingDropdownOpen(true);
+    setEditingDropdownPosition({ x: rect.left, y: rect.bottom + 5 });
+  }, []);
+
+  // Handler para selecionar novo responsável
+  const handleResponsavelSelect = React.useCallback((novoResponsavel: string) => {
+    if (editingResponsavel) {
+      onResponsavelChange?.(editingResponsavel, novoResponsavel);
+      setEditingDropdownOpen(false);
+      setEditingResponsavel(null);
+    }
+  }, [editingResponsavel, onResponsavelChange]);
+
   return (
     <div
       ref={chartRef}
@@ -263,6 +375,8 @@ export function GanttChart({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
+      {showLegend && <ColorLegend />}
+
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">Cronograma da Sprint</h3>
@@ -303,7 +417,6 @@ export function GanttChart({
                   </div>
                 ))}
               </div>
-              {/* Linha do dia atual no header */}
               {todayPosition !== null && (
                 <div
                   className="absolute top-0 bottom-0 w-1 bg-orange-500 z-10 shadow-md"
@@ -370,7 +483,7 @@ export function GanttChart({
                     {/* Barra da issue */}
                     {startIndex !== -1 && (
                       <div
-                        className={`absolute h-8 rounded flex items-center px-3 cursor-move transition-all user-select-none ${
+                        className={`absolute h-8 rounded flex items-center px-3 cursor-pointer transition-all user-select-none ${
                           getBarColor(issue, isViolation)
                         } ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
                         style={{
@@ -381,10 +494,13 @@ export function GanttChart({
                           transform: 'translateY(-50%)',
                         }}
                         onMouseDown={(e) => handleBarMouseDown(e, issue.chave)}
+                        onClick={(e) => handleBarClick(e, issue.chave)}
+                        title="Clique para editar responsável"
                       >
-                        <span className="text-white text-xs font-medium truncate pointer-events-none">
+                        <span className="text-white text-xs font-medium truncate pointer-events-none flex-1">
                           {issue.responsavel}
                         </span>
+                        <ChevronDown className="w-3 h-3 text-white ml-1 flex-shrink-0 pointer-events-none" />
                       </div>
                     )}
 
@@ -403,6 +519,14 @@ export function GanttChart({
           </div>
         </div>
       )}
+
+      <ResponsavelDropdown
+        isOpen={editingDropdownOpen}
+        position={editingDropdownPosition}
+        responsaveis={responsaveis}
+        onSelect={handleResponsavelSelect}
+        onClose={() => setEditingDropdownOpen(false)}
+      />
     </div>
   );
 }

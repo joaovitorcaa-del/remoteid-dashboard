@@ -208,6 +208,15 @@ export default function Planning() {
     );
   };
 
+  const handleResponsavelChange = async (chave: string, novoResponsavel: string) => {
+    setSelectedIssues(
+      selectedIssues.map((issue) =>
+        issue.chave === chave ? { ...issue, responsavel: novoResponsavel } : issue
+      )
+    );
+    toast.success(`Responsável de ${chave} alterado para ${novoResponsavel}`);
+  };
+
   const handleSavePlan = async () => {
     if (!sprintName || !sprintStart || !sprintEnd || selectedIssues.length === 0) {
       toast.error('Preencha todos os campos e selecione pelo menos uma issue');
@@ -313,6 +322,8 @@ export default function Planning() {
                     sprintEnd={formatDate(activeSprint.dataFim)}
                     onIssueUpdate={handleIssueUpdate}
                     onIssueRemove={() => {}}
+                    onResponsavelChange={handleResponsavelChange}
+                    showLegend={true}
                   />
                 </>
               ) : (
@@ -392,6 +403,8 @@ export default function Planning() {
                   sprintEnd={formatDate(selectedHistorySprint.dataFim)}
                   onIssueUpdate={() => {}}
                   onIssueRemove={() => {}}
+                  onResponsavelChange={() => {}}
+                  showLegend={true}
                 />
               ) : (
                 <p className="text-sm text-gray-600 dark:text-gray-400 py-8 text-center">
@@ -467,6 +480,8 @@ export default function Planning() {
                   selectedIssues.find(i => i.chave === chave)!,
                   false
                 )}
+                onResponsavelChange={handleResponsavelChange}
+                showLegend={true}
               />
             </CardContent>
           </Card>
