@@ -150,27 +150,27 @@ export function GanttChart({ issues, sprintStart, sprintEnd }: GanttChartProps) 
       <Card className="p-4 mb-4">
         <h3 className="font-semibold mb-3">Legenda de Cores</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="flex items-center gap-2">
+          <div key="legend-ready" className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-500 rounded"></div>
             <span className="text-sm">Ready/Dev To Do</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div key="legend-code-doing" className="flex items-center gap-2">
             <div className="w-4 h-4 bg-yellow-500 rounded"></div>
             <span className="text-sm">Code Doing</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div key="legend-code-review" className="flex items-center gap-2">
             <div className="w-4 h-4 bg-orange-500 rounded"></div>
             <span className="text-sm">Code Review</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div key="legend-test" className="flex items-center gap-2">
             <div className="w-4 h-4 bg-purple-500 rounded"></div>
             <span className="text-sm">Test/Staging</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div key="legend-done" className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-500 rounded"></div>
             <span className="text-sm">Done</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div key="legend-conflict" className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-red-500 rounded"></div>
             <span className="text-sm">Conflito (borda)</span>
           </div>
