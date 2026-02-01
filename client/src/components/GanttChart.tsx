@@ -1,5 +1,7 @@
-import { AlertCircle, Trash2, ChevronDown, CheckCircle2 } from 'lucide-react';
+'use client';
+
 import React from 'react';
+import { AlertCircle, CheckCircle2, ChevronDown, Trash2 } from 'lucide-react';
 
 interface GanttIssue {
   chave: string;
@@ -103,19 +105,13 @@ const toDateString = (date: string | Date): string => {
     const day = String(date.getUTCDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  return String(date);
+  return '';
 };
 
-const formatDateDisplay = (dateString: string | Date): string => {
-  const dateStr = toDateString(dateString);
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-};
-
-const getTodayPosition = (businessDays: string[], columnWidth: number): { index: number; pixel: number } | null => {
-  const today = new Date().toISOString().split('T')[0];
-  const index = businessDays.findIndex(d => d === today);
-  return index !== -1 ? { index, pixel: index * columnWidth } : null;
+// Formata data para exibição
+const formatDateDisplay = (date: string): string => {
+  const [year, month, day] = date.split('-');
+  return `${day}/${month}`;
 };
 
 // Detecta conflitos entre issues
@@ -129,16 +125,15 @@ const detectConflicts = (issues: GanttIssue[], businessDays: string[]): Set<stri
       
       if (issue1.responsavel !== issue2.responsavel) continue;
       
-      const start1 = getBusinessDayIndex(toDateString(issue1.dataInicio), businessDays);
-      const end1 = getBusinessDayIndex(toDateString(issue1.dataFim), businessDays);
-      const start2 = getBusinessDayIndex(toDateString(issue2.dataInicio), businessDays);
-      const end2 = getBusinessDayIndex(toDateString(issue2.dataFim), businessDays);
+      const start1 = toDateString(issue1.dataInicio);
+      const end1 = toDateString(issue1.dataFim);
+      const start2 = toDateString(issue2.dataInicio);
+      const end2 = toDateString(issue2.dataFim);
       
-      if (start1 !== -1 && end1 !== -1 && start2 !== -1 && end2 !== -1) {
-        if (!(end1 < start2 || end2 < start1)) {
-          conflicts.add(issue1.chave);
-          conflicts.add(issue2.chave);
-        }
+      // Verifica sobreposição
+      if (start1 <= end2 && start2 <= end1) {
+        conflicts.add(issue1.chave);
+        conflicts.add(issue2.chave);
       }
     }
   }
@@ -146,52 +141,26 @@ const detectConflicts = (issues: GanttIssue[], businessDays: string[]): Set<stri
   return conflicts;
 };
 
-// Retorna cor baseada no status
+// Retorna cor baseada em status
 const getBarColorByStatus = (issue: GanttIssue): string => {
   const status = issue.status || '';
-  const today = new Date().toISOString().split('T')[0];
-  const dataFim = toDateString(issue.dataFim);
-  
-  const isAfterToday = dataFim > today;
-  const isToday = dataFim === today;
-  const isBeforeToday = dataFim < today;
-  
-  if (status === 'Ready to Sprint' || status === 'Dev to Do') {
-    return 'bg-blue-500 hover:bg-blue-600';
-  }
-  
-  if (status === 'Code Doing') {
-    if (isAfterToday) return 'bg-green-500 hover:bg-green-600';
-    if (isToday) return 'bg-orange-500 hover:bg-orange-600';
-    if (isBeforeToday) return 'bg-red-500 hover:bg-red-600';
-  }
-  
-  if (status === 'Code Review') {
-    if (isAfterToday) return 'bg-green-500 hover:bg-green-600';
-    if (isToday) return 'bg-orange-500 hover:bg-orange-600';
-    if (isBeforeToday) return 'bg-red-500 hover:bg-red-600';
-  }
-  
-  if (status === 'Test to Do' || status === 'Test Doing' || status === 'Staging') {
-    return 'bg-purple-500 hover:bg-purple-600';
-  }
-  
-  return 'bg-blue-500 hover:bg-blue-600';
+  if (status.includes('Ready') || status.includes('Dev To Do')) return 'bg-blue-500 hover:bg-blue-600';
+  if (status.includes('CODE DOING') || status.includes('Code Doing')) return 'bg-green-500 hover:bg-green-600';
+  if (status.includes('CODE REVIEW') || status.includes('Code Review')) return 'bg-orange-500 hover:bg-orange-600';
+  if (status.includes('Test')) return 'bg-purple-500 hover:bg-purple-600';
+  if (status.includes('Staging')) return 'bg-red-500 hover:bg-red-600';
+  return 'bg-gray-500 hover:bg-gray-600';
 };
 
-// Retorna classes adicionais para indicar conflito
+// Retorna indicador de conflito
 const getConflictIndicator = (isConflict: boolean): string => {
-  if (isConflict) {
-    return 'border-2 border-red-600 shadow-md shadow-red-500/50';
-  }
-  return '';
+  return isConflict ? 'border-2 border-red-600 shadow-md shadow-red-300' : 'border border-gray-300';
 };
 
-// Componente de Legenda de Cores
+// Componente de Legenda
 function ColorLegend() {
   return (
-    <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-border">
-      <h4 className="text-sm font-semibold text-foreground mb-3">Legenda de Cores</h4>
+    <div className="mb-4 p-3 bg-muted rounded-lg">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-blue-500 rounded" />
@@ -284,9 +253,10 @@ export function GanttChart({
   onResponsavelChange,
   showLegend = true,
 }: GanttChartProps) {
-  const [draggingIssue, setDraggingIssue] = React.useState<string | null>(null);
-  const dragStartXRef = React.useRef(0);
-  const [draggedPositions, setDraggedPositions] = React.useState<Map<string, { start: string; end: string }>>(new Map());
+  const [resizingIssue, setResizingIssue] = React.useState<string | null>(null);
+  const [resizeDirection, setResizeDirection] = React.useState<'left' | 'right' | null>(null);
+  const resizeStartXRef = React.useRef(0);
+  const [resizedPositions, setResizedPositions] = React.useState<Map<string, { start: string; end: string }>>(new Map());
   const [violations, setViolations] = React.useState<Set<string>>(new Set());
   const [editingResponsavel, setEditingResponsavel] = React.useState<string | null>(null);
   const [editingDropdownOpen, setEditingDropdownOpen] = React.useState(false);
@@ -299,63 +269,82 @@ export function GanttChart({
     return Array.from(unique).sort();
   }, [issues]);
 
-  // Memoizar businessDays
-  const businessDays = React.useMemo(
-    () => generateSprintDates(sprintStart, sprintEnd),
-    [sprintStart, sprintEnd]
-  );
-  
-  const columnWidth = 100;
+  const businessDays = React.useMemo(() => generateSprintDates(sprintStart, sprintEnd), [sprintStart, sprintEnd]);
+  const columnWidth = 80;
   const chartWidth = businessDays.length * columnWidth;
-  const todayPosition = getTodayPosition(businessDays, columnWidth);
 
-  // Validar conflitos apenas com dados do banco (não com posições temporárias)
+  const todayPosition = React.useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const index = getBusinessDayIndex(today, businessDays);
+    if (index === -1) return null;
+    return { index, pixel: index * columnWidth + columnWidth / 2 };
+  }, [businessDays]);
+
   React.useEffect(() => {
     const conflicts = detectConflicts(issues, businessDays);
     setViolations(conflicts);
   }, [issues, businessDays]);
 
-  // Handler para iniciar drag
-  const handleBarMouseDown = React.useCallback((e: React.MouseEvent, chave: string) => {
+  // Handler para iniciar resize
+  const handleResizeStart = React.useCallback((e: React.MouseEvent, chave: string, direction: 'left' | 'right') => {
     e.preventDefault();
     e.stopPropagation();
     
-    dragStartXRef.current = e.clientX;
-    setDraggingIssue(chave);
+    resizeStartXRef.current = e.clientX;
+    setResizingIssue(chave);
+    setResizeDirection(direction);
   }, []);
 
-  // Handler para movimento do mouse - SEM salvar no banco
+  // Handler para movimento do mouse durante resize
   const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
     if (!chartRef.current) return;
-    if (!draggingIssue) return;
+    if (!resizingIssue || !resizeDirection) return;
 
-    const deltaX = e.clientX - dragStartXRef.current;
-    const issue = issues.find((i) => i.chave === draggingIssue);
+    const deltaX = e.clientX - resizeStartXRef.current;
+    const issue = issues.find((i) => i.chave === resizingIssue);
     
     if (!issue) return;
 
     try {
       const startStr = toDateString(issue.dataInicio);
+      const endStr = toDateString(issue.dataFim);
       const currentStartIndex = getBusinessDayIndex(startStr, businessDays);
-      const currentPixel = currentStartIndex * columnWidth;
-      const newPixel = Math.max(0, Math.min(chartWidth - columnWidth, currentPixel + deltaX));
-      const newStartIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
-      const newStart = businessDays[newStartIndex];
+      const currentEndIndex = getBusinessDayIndex(endStr, businessDays);
       
-      const days = storyPointsToDays(issue.storyPoints);
-      const newEnd = calculateEndDate(newStart, days);
-      
-      // Armazenar posição temporária SEM salvar no banco
-      setDraggedPositions(prev => new Map(prev).set(draggingIssue, { start: newStart, end: newEnd }));
-      dragStartXRef.current = e.clientX;
+      if (resizeDirection === 'left') {
+        // Redimensionar a partir da esquerda
+        const currentPixel = currentStartIndex * columnWidth;
+        const newPixel = Math.max(0, Math.min(chartWidth - columnWidth, currentPixel + deltaX));
+        const newStartIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
+        const newStart = businessDays[newStartIndex];
+        
+        // Garantir que a data de início não ultrapasse a de fim
+        if (newStartIndex <= currentEndIndex) {
+          setResizedPositions(prev => new Map(prev).set(resizingIssue, { start: newStart, end: endStr }));
+          resizeStartXRef.current = e.clientX;
+        }
+      } else {
+        // Redimensionar a partir da direita
+        const currentPixel = (currentEndIndex + 1) * columnWidth;
+        const newPixel = Math.max(columnWidth, Math.min(chartWidth, currentPixel + deltaX));
+        const newEndIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
+        const newEnd = businessDays[newEndIndex];
+        
+        // Garantir que a data de fim não fique antes da de início
+        if (newEndIndex >= currentStartIndex) {
+          setResizedPositions(prev => new Map(prev).set(resizingIssue, { start: startStr, end: newEnd }));
+          resizeStartXRef.current = e.clientX;
+        }
+      }
     } catch (error) {
-      console.error('Erro ao arrastar:', error);
+      console.error('Erro ao redimensionar:', error);
     }
-  }, [draggingIssue, issues, businessDays, columnWidth, chartWidth]);
+  }, [resizingIssue, resizeDirection, issues, businessDays, columnWidth, chartWidth]);
 
   // Handler para soltar o mouse
   const handleMouseUp = React.useCallback(() => {
-    setDraggingIssue(null);
+    setResizingIssue(null);
+    setResizeDirection(null);
   }, []);
 
   // Handler para clicar na barra e editar responsável
@@ -378,47 +367,44 @@ export function GanttChart({
 
   // Handler para verificar conflitos e salvar
   const handleVerifyAndSave = React.useCallback(() => {
-    if (draggedPositions.size === 0) return;
+    const newViolations = detectConflicts(
+      issues.map(issue => {
+        const resized = resizedPositions.get(issue.chave);
+        if (resized) {
+          return { ...issue, dataInicio: resized.start, dataFim: resized.end };
+        }
+        return issue;
+      }),
+      businessDays
+    );
 
-    // Criar cópia das issues com as posições arrastadas
-    const updatedIssues = issues.map(issue => {
-      const draggedPos = draggedPositions.get(issue.chave);
-      if (draggedPos) {
-        return {
-          ...issue,
-          dataInicio: draggedPos.start,
-          dataFim: draggedPos.end,
-        };
-      }
-      return issue;
-    });
-
-    // Detectar conflitos com as novas posições
-    const conflicts = detectConflicts(updatedIssues, businessDays);
-    
-    if (conflicts.size > 0) {
-      // Mostrar alerta de conflito
-      const conflictingIssues = Array.from(conflicts).join(', ');
-      alert(`⚠️ Conflito detectado com as issues: ${conflictingIssues}\n\nAjuste as posições e tente novamente.`);
+    if (newViolations.size > 0) {
+      alert('Conflito detectado! Há issues com mesmo responsável em períodos sobrepostos.');
       return;
     }
 
-    // Sem conflitos - salvar todas as mudanças
-    draggedPositions.forEach((pos, chave) => {
-      onIssueUpdate(chave, pos.start, pos.end);
+    // Salvar todas as mudanças
+    resizedPositions.forEach((position, chave) => {
+      onIssueUpdate(chave, position.start, position.end);
     });
 
-    // Limpar posições arrastadas
-    setDraggedPositions(new Map());
-  }, [draggedPositions, issues, businessDays, onIssueUpdate]);
+    setResizedPositions(new Map());
+  }, [issues, resizedPositions, businessDays, onIssueUpdate]);
 
-  // Função para obter a posição visual de uma issue (considerando drag temporário)
   const getIssueVisualPosition = (issue: GanttIssue) => {
-    const draggedPos = draggedPositions.get(issue.chave);
-    const startStr = toDateString(draggedPos?.start || issue.dataInicio);
+    const resized = resizedPositions.get(issue.chave);
+    const startStr = resized ? resized.start : toDateString(issue.dataInicio);
+    const endStr = resized ? resized.end : toDateString(issue.dataFim);
+    
     const startIndex = getBusinessDayIndex(startStr, businessDays);
-    const barWidth = getBarWidthFromStoryPoints(issue.storyPoints, columnWidth);
-    const startPixel = startIndex !== -1 ? startIndex * columnWidth : 0;
+    const endIndex = getBusinessDayIndex(endStr, businessDays);
+    
+    if (startIndex === -1 || endIndex === -1) {
+      return { startIndex: -1, startPixel: 0, barWidth: 0 };
+    }
+    
+    const startPixel = startIndex * columnWidth;
+    const barWidth = (endIndex - startIndex + 1) * columnWidth;
     
     return { startIndex, startPixel, barWidth };
   };
@@ -437,13 +423,13 @@ export function GanttChart({
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">Cronograma da Sprint</h3>
           <div className="flex items-center gap-2">
-            {draggedPositions.size > 0 && (
+            {resizedPositions.size > 0 && (
               <button
                 onClick={handleVerifyAndSave}
                 className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                Verificar Conflito ({draggedPositions.size})
+                Verificar Conflito ({resizedPositions.size})
               </button>
             )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -496,8 +482,8 @@ export function GanttChart({
             {issues.map((issue) => {
               const { startIndex, startPixel, barWidth } = getIssueVisualPosition(issue);
               const isViolation = violations.has(issue.chave);
-              const isDragging = draggingIssue === issue.chave;
-              const isDragged = draggedPositions.has(issue.chave);
+              const isResizing = resizingIssue === issue.chave;
+              const isResized = resizedPositions.has(issue.chave);
 
               return (
                 <React.Fragment key={issue.chave}>
@@ -545,27 +531,41 @@ export function GanttChart({
                       />
                     )}
 
-                    {/* Barra da issue */}
+                    {/* Barra da issue com redimensionamento */}
                     {startIndex !== -1 && (
                       <div
                         className={`absolute h-8 rounded flex items-center px-3 cursor-pointer transition-all user-select-none ${
                           getBarColorByStatus(issue)
-                        } ${getConflictIndicator(isViolation)} ${isDragging ? 'opacity-75 shadow-lg' : ''} ${isDragged ? 'opacity-90' : ''}`}
+                        } ${getConflictIndicator(isViolation)} ${isResizing ? 'opacity-75 shadow-lg' : ''} ${isResized ? 'opacity-90' : ''}`}
                         style={{
                           left: `${startPixel}px`,
                           width: `${barWidth}px`,
-                          zIndex: isDragging ? 10 : 1,
+                          zIndex: isResizing ? 10 : 1,
                           top: '50%',
                           transform: 'translateY(-50%)',
                         }}
-                        onMouseDown={(e) => handleBarMouseDown(e, issue.chave)}
                         onClick={(e) => handleBarClick(e, issue.chave)}
-                        title="Clique para editar responsável"
+                        title="Clique para editar responsável. Arraste as bordas para redimensionar."
                       >
+                        {/* Borda esquerda redimensionável */}
+                        <div
+                          className="absolute left-0 top-0 bottom-0 w-1 bg-gray-600 hover:bg-gray-800 cursor-col-resize rounded-l"
+                          onMouseDown={(e) => handleResizeStart(e, issue.chave, 'left')}
+                          title="Arraste para ajustar data de início"
+                        />
+
+                        {/* Conteúdo da barra */}
                         <span className="text-white text-xs font-medium truncate pointer-events-none flex-1">
                           {issue.responsavel}
                         </span>
                         <ChevronDown className="w-3 h-3 text-white ml-1 flex-shrink-0 pointer-events-none" />
+
+                        {/* Borda direita redimensionável */}
+                        <div
+                          className="absolute right-0 top-0 bottom-0 w-1 bg-gray-600 hover:bg-gray-800 cursor-col-resize rounded-r"
+                          onMouseDown={(e) => handleResizeStart(e, issue.chave, 'right')}
+                          title="Arraste para ajustar data de fim"
+                        />
                       </div>
                     )}
 
