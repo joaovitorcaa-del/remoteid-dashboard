@@ -48,6 +48,7 @@ export const sprintIssues = mysqlTable("sprintIssues", {
   resumo: text("resumo").notNull(),
   responsavel: varchar("responsavel", { length: 255 }).notNull(),
   storyPoints: int("storyPoints").notNull(),
+  status: mysqlEnum("status", ["Ready to Sprint", "Dev to Do", "Code Doing", "Code Review", "Test to Do", "Test Doing", "Staging", "Done", "Cancelled"]).default("Ready to Sprint").notNull(),
   dataInicio: date("dataInicio").notNull(),
   dataFim: date("dataFim").notNull(),
   ordem: int("ordem").default(0).notNull(),

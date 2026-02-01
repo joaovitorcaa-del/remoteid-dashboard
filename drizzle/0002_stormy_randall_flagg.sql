@@ -1,0 +1,1 @@
+ALTER TABLE `sprintIssues` ADD `status` enum('Ready to Sprint','Dev to Do','Code Doing','Code Review','Test to Do','Test Doing','Staging','Done','Cancelled') DEFAULT 'Ready to Sprint' NOT NULL;

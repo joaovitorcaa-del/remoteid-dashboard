@@ -137,9 +137,8 @@ const detectConflicts = (issues: GanttIssue[], businessDays: string[]): Set<stri
   return conflicts;
 };
 
-const getBarColor = (issue: GanttIssue, isConflict: boolean): string => {
-  if (isConflict) return 'bg-red-500 hover:bg-red-600';
-  
+// Retorna cor baseada no status (ignorando conflitos)
+const getBarColorByStatus = (issue: GanttIssue): string => {
   const status = issue.status || '';
   const today = new Date().toISOString().split('T')[0];
   const dataFim = toDateString(issue.dataFim);
@@ -171,6 +170,18 @@ const getBarColor = (issue: GanttIssue, isConflict: boolean): string => {
   return 'bg-blue-500 hover:bg-blue-600';
 };
 
+// Retorna classes adicionais para indicar conflito (borda e padrão)
+const getConflictIndicator = (isConflict: boolean): string => {
+  if (isConflict) {
+    return 'border-2 border-red-600 shadow-md shadow-red-500/50';
+  }
+  return '';
+};
+
+const getBarColor = (issue: GanttIssue, isConflict: boolean): string => {
+  return getBarColorByStatus(issue);
+};
+
 // Componente de Legenda de Cores
 function ColorLegend() {
   return (
@@ -191,11 +202,15 @@ function ColorLegend() {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-red-500 rounded" />
-          <span className="text-xs text-muted-foreground">Atrasado / Conflito</span>
+          <span className="text-xs text-muted-foreground">Atrasado</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-purple-500 rounded" />
           <span className="text-xs text-muted-foreground">Testes / Staging</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-white border-2 border-red-600 rounded" />
+          <span className="text-xs text-muted-foreground">Conflito (borda)</span>
         </div>
       </div>
     </div>
@@ -485,7 +500,7 @@ export function GanttChart({
                       <div
                         className={`absolute h-8 rounded flex items-center px-3 cursor-pointer transition-all user-select-none ${
                           getBarColor(issue, isViolation)
-                        } ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
+                        } ${getConflictIndicator(isViolation)} ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
                         style={{
                           left: `${startPixel}px`,
                           width: `${barWidth}px`,
