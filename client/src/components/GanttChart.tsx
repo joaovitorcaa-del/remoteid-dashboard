@@ -212,7 +212,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, showLegend = true }
               <div className="w-40 flex-shrink-0 border-r p-2 font-semibold">
                 Issue
               </div>
-              {dates.map((date) => (
+              {dates && dates.length > 0 && dates.map((date) => (
                 <div
                   key={date}
                   className="w-16 flex-shrink-0 border-r p-2 text-center text-xs font-semibold"
@@ -226,7 +226,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, showLegend = true }
             </div>
 
             {/* Linhas de issues */}
-            {issues.map((issue) => {
+            {issues && issues.length > 0 && issues.map((issue) => {
               const startIndex = dates.indexOf(issue.dataInicio);
               const endIndex = dates.indexOf(issue.dataFim);
               const hasConflict = conflicts.has(issue.id);
