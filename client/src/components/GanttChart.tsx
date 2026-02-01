@@ -1,5 +1,5 @@
+import { AlertCircle, Trash2, ChevronDown, CheckCircle2 } from 'lucide-react';
 import React from 'react';
-import { AlertCircle, Trash2, ChevronDown } from 'lucide-react';
 
 interface GanttIssue {
   chave: string;
@@ -118,6 +118,7 @@ const getTodayPosition = (businessDays: string[], columnWidth: number): { index:
   return index !== -1 ? { index, pixel: index * columnWidth } : null;
 };
 
+// Detecta conflitos entre issues
 const detectConflicts = (issues: GanttIssue[], businessDays: string[]): Set<string> => {
   const conflicts = new Set<string>();
   
@@ -145,7 +146,7 @@ const detectConflicts = (issues: GanttIssue[], businessDays: string[]): Set<stri
   return conflicts;
 };
 
-// Retorna cor baseada no status (ignorando conflitos)
+// Retorna cor baseada no status
 const getBarColorByStatus = (issue: GanttIssue): string => {
   const status = issue.status || '';
   const today = new Date().toISOString().split('T')[0];
@@ -178,16 +179,12 @@ const getBarColorByStatus = (issue: GanttIssue): string => {
   return 'bg-blue-500 hover:bg-blue-600';
 };
 
-// Retorna classes adicionais para indicar conflito (borda e padrão)
+// Retorna classes adicionais para indicar conflito
 const getConflictIndicator = (isConflict: boolean): string => {
   if (isConflict) {
     return 'border-2 border-red-600 shadow-md shadow-red-500/50';
   }
   return '';
-};
-
-const getBarColor = (issue: GanttIssue, isConflict: boolean): string => {
-  return getBarColorByStatus(issue);
 };
 
 // Componente de Legenda de Cores
@@ -202,22 +199,22 @@ function ColorLegend() {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-green-500 rounded" />
-          <span className="text-xs text-muted-foreground">Em Progresso (no prazo)</span>
+          <span className="text-xs text-muted-foreground">Em Desenvolvimento</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-purple-500 rounded" />
+          <span className="text-xs text-muted-foreground">Em Teste</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-orange-500 rounded" />
-          <span className="text-xs text-muted-foreground">Vence hoje</span>
+          <span className="text-xs text-muted-foreground">Vence Hoje</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-red-500 rounded" />
           <span className="text-xs text-muted-foreground">Atrasado</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-purple-500 rounded" />
-          <span className="text-xs text-muted-foreground">Testes / Staging</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-white border-2 border-red-600 rounded" />
+          <div className="w-4 h-4 border-2 border-red-600 rounded" />
           <span className="text-xs text-muted-foreground">Conflito (borda)</span>
         </div>
       </div>
@@ -289,6 +286,7 @@ export function GanttChart({
 }: GanttChartProps) {
   const [draggingIssue, setDraggingIssue] = React.useState<string | null>(null);
   const [dragStartX, setDragStartX] = React.useState(0);
+  const [draggedPositions, setDraggedPositions] = React.useState<Map<string, { start: string; end: string }>>(new Map());
   const [violations, setViolations] = React.useState<Set<string>>(new Set());
   const [editingResponsavel, setEditingResponsavel] = React.useState<string | null>(null);
   const [editingDropdownOpen, setEditingDropdownOpen] = React.useState(false);
@@ -301,7 +299,7 @@ export function GanttChart({
     return Array.from(unique).sort();
   }, [issues]);
 
-  // Memoizar businessDays para evitar re-renders infinitos
+  // Memoizar businessDays
   const businessDays = React.useMemo(
     () => generateSprintDates(sprintStart, sprintEnd),
     [sprintStart, sprintEnd]
@@ -311,23 +309,10 @@ export function GanttChart({
   const chartWidth = businessDays.length * columnWidth;
   const todayPosition = getTodayPosition(businessDays, columnWidth);
 
-  // Validar violações e conflitos
+  // Validar conflitos apenas com dados do banco (não com posições temporárias)
   React.useEffect(() => {
-    const newViolations = new Set<string>();
-    issues.forEach((issue) => {
-      const startStr = toDateString(issue.dataInicio);
-      const endStr = toDateString(issue.dataFim);
-      const startIndex = getBusinessDayIndex(startStr, businessDays);
-      const endIndex = getBusinessDayIndex(endStr, businessDays);
-      
-      if (startIndex === -1 || endIndex === -1) {
-        newViolations.add(issue.chave);
-      }
-    });
     const conflicts = detectConflicts(issues, businessDays);
-    conflicts.forEach(chave => newViolations.add(chave));
-    
-    setViolations(newViolations);
+    setViolations(conflicts);
   }, [issues, businessDays]);
 
   // Handler para iniciar drag
@@ -339,7 +324,7 @@ export function GanttChart({
     setDragStartX(e.clientX);
   }, []);
 
-  // Handler para movimento do mouse
+  // Handler para movimento do mouse - SEM salvar no banco
   const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
     if (!chartRef.current) return;
     if (!draggingIssue) return;
@@ -360,12 +345,13 @@ export function GanttChart({
       const days = storyPointsToDays(issue.storyPoints);
       const newEnd = calculateEndDate(newStart, days);
       
-      onIssueUpdate(issue.chave, newStart, newEnd);
+      // Armazenar posição temporária SEM salvar no banco
+      setDraggedPositions(prev => new Map(prev).set(draggingIssue, { start: newStart, end: newEnd }));
       setDragStartX(e.clientX);
     } catch (error) {
       console.error('Erro ao arrastar:', error);
     }
-  }, [draggingIssue, dragStartX, issues, businessDays, columnWidth, chartWidth, onIssueUpdate]);
+  }, [draggingIssue, dragStartX, issues, businessDays, columnWidth, chartWidth]);
 
   // Handler para soltar o mouse
   const handleMouseUp = React.useCallback(() => {
@@ -390,6 +376,53 @@ export function GanttChart({
     }
   }, [editingResponsavel, onResponsavelChange]);
 
+  // Handler para verificar conflitos e salvar
+  const handleVerifyAndSave = React.useCallback(() => {
+    if (draggedPositions.size === 0) return;
+
+    // Criar cópia das issues com as posições arrastadas
+    const updatedIssues = issues.map(issue => {
+      const draggedPos = draggedPositions.get(issue.chave);
+      if (draggedPos) {
+        return {
+          ...issue,
+          dataInicio: draggedPos.start,
+          dataFim: draggedPos.end,
+        };
+      }
+      return issue;
+    });
+
+    // Detectar conflitos com as novas posições
+    const conflicts = detectConflicts(updatedIssues, businessDays);
+    
+    if (conflicts.size > 0) {
+      // Mostrar alerta de conflito
+      const conflictingIssues = Array.from(conflicts).join(', ');
+      alert(`⚠️ Conflito detectado com as issues: ${conflictingIssues}\n\nAjuste as posições e tente novamente.`);
+      return;
+    }
+
+    // Sem conflitos - salvar todas as mudanças
+    draggedPositions.forEach((pos, chave) => {
+      onIssueUpdate(chave, pos.start, pos.end);
+    });
+
+    // Limpar posições arrastadas
+    setDraggedPositions(new Map());
+  }, [draggedPositions, issues, businessDays, onIssueUpdate]);
+
+  // Função para obter a posição visual de uma issue (considerando drag temporário)
+  const getIssueVisualPosition = (issue: GanttIssue) => {
+    const draggedPos = draggedPositions.get(issue.chave);
+    const startStr = toDateString(draggedPos?.start || issue.dataInicio);
+    const startIndex = getBusinessDayIndex(startStr, businessDays);
+    const barWidth = getBarWidthFromStoryPoints(issue.storyPoints, columnWidth);
+    const startPixel = startIndex !== -1 ? startIndex * columnWidth : 0;
+    
+    return { startIndex, startPixel, barWidth };
+  };
+
   return (
     <div
       ref={chartRef}
@@ -403,9 +436,20 @@ export function GanttChart({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">Cronograma da Sprint</h3>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-3 h-3 bg-orange-500 rounded-full" />
-            <span>Dia atual</span>
+          <div className="flex items-center gap-2">
+            {draggedPositions.size > 0 && (
+              <button
+                onClick={handleVerifyAndSave}
+                className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Verificar Conflito ({draggedPositions.size})
+              </button>
+            )}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-3 h-3 bg-orange-500 rounded-full" />
+              <span>Dia atual</span>
+            </div>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -450,12 +494,10 @@ export function GanttChart({
 
             {/* Issues rows */}
             {issues.map((issue) => {
-              const startStr = toDateString(issue.dataInicio);
-              const startIndex = getBusinessDayIndex(startStr, businessDays);
-              const barWidth = getBarWidthFromStoryPoints(issue.storyPoints, columnWidth);
-              const startPixel = startIndex !== -1 ? startIndex * columnWidth : 0;
+              const { startIndex, startPixel, barWidth } = getIssueVisualPosition(issue);
               const isViolation = violations.has(issue.chave);
               const isDragging = draggingIssue === issue.chave;
+              const isDragged = draggedPositions.has(issue.chave);
 
               return (
                 <React.Fragment key={issue.chave}>
@@ -507,8 +549,8 @@ export function GanttChart({
                     {startIndex !== -1 && (
                       <div
                         className={`absolute h-8 rounded flex items-center px-3 cursor-pointer transition-all user-select-none ${
-                          getBarColor(issue, isViolation)
-                        } ${getConflictIndicator(isViolation)} ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
+                          getBarColorByStatus(issue)
+                        } ${getConflictIndicator(isViolation)} ${isDragging ? 'opacity-75 shadow-lg' : ''} ${isDragged ? 'opacity-90' : ''}`}
                         style={{
                           left: `${startPixel}px`,
                           width: `${barWidth}px`,
