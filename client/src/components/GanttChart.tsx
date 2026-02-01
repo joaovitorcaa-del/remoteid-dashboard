@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertCircle, CheckCircle2, ChevronDown, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, Trash2 } from 'lucide-react';
 
 interface GanttIssue {
   chave: string;
@@ -114,32 +114,7 @@ const formatDateDisplay = (date: string): string => {
   return `${day}/${month}`;
 };
 
-// Detecta conflitos entre issues
-const detectConflicts = (issues: GanttIssue[], businessDays: string[]): Set<string> => {
-  const conflicts = new Set<string>();
-  
-  for (let i = 0; i < issues.length; i++) {
-    for (let j = i + 1; j < issues.length; j++) {
-      const issue1 = issues[i];
-      const issue2 = issues[j];
-      
-      if (issue1.responsavel !== issue2.responsavel) continue;
-      
-      const start1 = toDateString(issue1.dataInicio);
-      const end1 = toDateString(issue1.dataFim);
-      const start2 = toDateString(issue2.dataInicio);
-      const end2 = toDateString(issue2.dataFim);
-      
-      // Verifica sobreposição
-      if (start1 <= end2 && start2 <= end1) {
-        conflicts.add(issue1.chave);
-        conflicts.add(issue2.chave);
-      }
-    }
-  }
-  
-  return conflicts;
-};
+
 
 // Retorna cor baseada em status
 const getBarColorByStatus = (issue: GanttIssue): string => {
@@ -152,10 +127,7 @@ const getBarColorByStatus = (issue: GanttIssue): string => {
   return 'bg-gray-500 hover:bg-gray-600';
 };
 
-// Retorna indicador de conflito
-const getConflictIndicator = (isConflict: boolean): string => {
-  return isConflict ? 'border-2 border-red-600 shadow-md shadow-red-300' : 'border border-gray-300';
-};
+
 
 // Componente de Legenda
 function ColorLegend() {
@@ -182,10 +154,7 @@ function ColorLegend() {
           <div className="w-4 h-4 bg-red-500 rounded" />
           <span className="text-xs text-muted-foreground">Atrasado</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 border-2 border-red-600 rounded" />
-          <span className="text-xs text-muted-foreground">Conflito (borda)</span>
-        </div>
+
       </div>
     </div>
   );
@@ -257,7 +226,6 @@ export function GanttChart({
   const [resizeDirection, setResizeDirection] = React.useState<'left' | 'right' | null>(null);
   const resizeStartXRef = React.useRef(0);
   const [resizedPositions, setResizedPositions] = React.useState<Map<string, { start: string; end: string }>>(new Map());
-  const [violations, setViolations] = React.useState<Set<string>>(new Set());
   const [editingResponsavel, setEditingResponsavel] = React.useState<string | null>(null);
   const [editingDropdownOpen, setEditingDropdownOpen] = React.useState(false);
   const [editingDropdownPosition, setEditingDropdownPosition] = React.useState({ x: 0, y: 0 });
@@ -280,10 +248,7 @@ export function GanttChart({
     return { index, pixel: index * columnWidth + columnWidth / 2 };
   }, [businessDays]);
 
-  React.useEffect(() => {
-    const conflicts = detectConflicts(issues, businessDays);
-    setViolations(conflicts);
-  }, [issues, businessDays]);
+
 
   // Handler para iniciar resize
   const handleResizeStart = React.useCallback((e: React.MouseEvent, chave: string, direction: 'left' | 'right') => {
@@ -422,20 +387,9 @@ export function GanttChart({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">Cronograma da Sprint</h3>
-          <div className="flex items-center gap-2">
-            {resizedPositions.size > 0 && (
-              <button
-                onClick={handleVerifyAndSave}
-                className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Verificar Conflito ({resizedPositions.size})
-              </button>
-            )}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="w-3 h-3 bg-orange-500 rounded-full" />
-              <span>Dia atual</span>
-            </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="w-3 h-3 bg-orange-500 rounded-full" />
+            <span>Dia atual</span>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -481,7 +435,6 @@ export function GanttChart({
             {/* Issues rows */}
             {issues.map((issue) => {
               const { startIndex, startPixel, barWidth } = getIssueVisualPosition(issue);
-              const isViolation = violations.has(issue.chave);
               const isResizing = resizingIssue === issue.chave;
               const isResized = resizedPositions.has(issue.chave);
 
@@ -534,9 +487,9 @@ export function GanttChart({
                     {/* Barra da issue com redimensionamento */}
                     {startIndex !== -1 && (
                       <div
-                        className={`absolute h-8 rounded flex items-center px-3 cursor-pointer transition-all user-select-none ${
+                        className={`absolute h-8 rounded flex items-center px-3 cursor-pointer transition-all user-select-none border border-gray-300 ${
                           getBarColorByStatus(issue)
-                        } ${getConflictIndicator(isViolation)} ${isResizing ? 'opacity-75 shadow-lg' : ''} ${isResized ? 'opacity-90' : ''}`}
+                        } ${isResizing ? 'opacity-75 shadow-lg' : ''} ${isResized ? 'opacity-90' : ''}`}
                         style={{
                           left: `${startPixel}px`,
                           width: `${barWidth}px`,
