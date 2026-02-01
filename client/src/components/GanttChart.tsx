@@ -196,7 +196,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, showLegend = true }
           <div className="min-w-max">
             {/* Header com datas */}
             <div className="flex border-b bg-gray-50">
-              <div className="w-40 flex-shrink-0 border-r p-2 font-semibold">
+              <div key="header-issue" className="w-40 flex-shrink-0 border-r p-2 font-semibold">
                 Issue
               </div>
               {dates && dates.length > 0 && dates.map((date) => (
