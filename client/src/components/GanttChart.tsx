@@ -38,11 +38,14 @@ const calculateEndDate = (startDate: string, days: number): string => {
   let daysAdded = 0;
   
   while (daysAdded < days) {
-    current.setUTCDate(current.getUTCDate() + 1);
     const dayOfWeek = current.getUTCDay();
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       daysAdded++;
+      if (daysAdded === days) {
+        return current.toISOString().split('T')[0];
+      }
     }
+    current.setUTCDate(current.getUTCDate() + 1);
   }
   
   return current.toISOString().split('T')[0];

@@ -1,0 +1,34 @@
+{
+  "query": "SELECT chave, storyPoints, dataInicio, dataFim FROM sprintIssues WHERE sprintId = (SELECT id FROM sprints WHERE ativo = 1 LIMIT 1) ORDER BY chave;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2BqANL3ibNjmBV6.c742fa212ec3 --database nxXngtdn89K96fhSBqFM2N --execute SELECT chave, storyPoints, dataInicio, dataFim FROM sprintIssues WHERE sprintId = (SELECT id FROM sprints WHERE ativo = 1 LIMIT 1) ORDER BY chave;",
+  "rows": [
+    {
+      "chave": "REM-3570",
+      "storyPoints": "8",
+      "dataInicio": "2026-01-27",
+      "dataFim": "2026-01-29"
+    },
+    {
+      "chave": "REM-3571",
+      "storyPoints": "8",
+      "dataInicio": "2026-01-30",
+      "dataFim": "2026-02-03"
+    },
+    {
+      "chave": "REM-3572",
+      "storyPoints": "5",
+      "dataInicio": "2026-01-29",
+      "dataFim": "2026-01-30"
+    },
+    {
+      "chave": "REM-3573",
+      "storyPoints": "3",
+      "dataInicio": "2026-01-26",
+      "dataFim": "2026-01-27"
+    }
+  ],
+  "messages": [],
+  "stdout": "chave\tstoryPoints\tdataInicio\tdataFim\nREM-3570\t8\t2026-01-27\t2026-01-29\nREM-3571\t8\t2026-01-30\t2026-02-03\nREM-3572\t5\t2026-01-29\t2026-01-30\nREM-3573\t3\t2026-01-26\t2026-01-27\n",
+  "stderr": "",
+  "execution_time_ms": 406
+}
