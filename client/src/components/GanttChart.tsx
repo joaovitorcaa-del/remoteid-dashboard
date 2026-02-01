@@ -285,7 +285,7 @@ export function GanttChart({
   showLegend = true,
 }: GanttChartProps) {
   const [draggingIssue, setDraggingIssue] = React.useState<string | null>(null);
-  const [dragStartX, setDragStartX] = React.useState(0);
+  const dragStartXRef = React.useRef(0);
   const [draggedPositions, setDraggedPositions] = React.useState<Map<string, { start: string; end: string }>>(new Map());
   const [violations, setViolations] = React.useState<Set<string>>(new Set());
   const [editingResponsavel, setEditingResponsavel] = React.useState<string | null>(null);
@@ -320,8 +320,8 @@ export function GanttChart({
     e.preventDefault();
     e.stopPropagation();
     
+    dragStartXRef.current = e.clientX;
     setDraggingIssue(chave);
-    setDragStartX(e.clientX);
   }, []);
 
   // Handler para movimento do mouse - SEM salvar no banco
@@ -329,7 +329,7 @@ export function GanttChart({
     if (!chartRef.current) return;
     if (!draggingIssue) return;
 
-    const deltaX = e.clientX - dragStartX;
+    const deltaX = e.clientX - dragStartXRef.current;
     const issue = issues.find((i) => i.chave === draggingIssue);
     
     if (!issue) return;
@@ -347,11 +347,11 @@ export function GanttChart({
       
       // Armazenar posição temporária SEM salvar no banco
       setDraggedPositions(prev => new Map(prev).set(draggingIssue, { start: newStart, end: newEnd }));
-      setDragStartX(e.clientX);
+      dragStartXRef.current = e.clientX;
     } catch (error) {
       console.error('Erro ao arrastar:', error);
     }
-  }, [draggingIssue, dragStartX, issues, businessDays, columnWidth, chartWidth]);
+  }, [draggingIssue, issues, businessDays, columnWidth, chartWidth]);
 
   // Handler para soltar o mouse
   const handleMouseUp = React.useCallback(() => {
