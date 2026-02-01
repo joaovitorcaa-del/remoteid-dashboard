@@ -218,6 +218,11 @@ export function GanttChart({ issues, sprintStart, sprintEnd, showLegend = true }
               const endIndex = dates.indexOf(issue.dataFim);
               const hasConflict = conflicts.has(issue.id);
 
+              // Filtrar datas que estão no range
+              const datesInRange = dates.filter((_, index) => 
+                index >= startIndex && index <= endIndex
+              );
+
               return (
                 <div key={issue.id} className="flex border-b hover:bg-gray-50">
                   {/* Coluna de informações */}
@@ -232,12 +237,7 @@ export function GanttChart({ issues, sprintStart, sprintEnd, showLegend = true }
                   </div>
 
                   {/* Colunas de datas com barras */}
-                  {dates.map((date, index) => {
-                    const isInRange =
-                      index >= startIndex && index <= endIndex;
-
-                    if (!isInRange) return null;
-
+                  {datesInRange.map((date) => {
                     const barColor = getBarColorByStatus(issue.status);
                     const conflictClass = getConflictIndicator(hasConflict);
                     const barClass = `h-8 rounded ${barColor} ${conflictClass} flex items-center justify-center text-xs font-semibold text-white truncate px-1`;
