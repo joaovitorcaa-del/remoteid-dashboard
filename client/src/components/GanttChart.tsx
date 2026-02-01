@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 interface SprintIssue {
   id: number;
@@ -34,11 +33,7 @@ const storyPointsToDays = (sp: number): number => {
 };
 
 // Calcula data de fim baseado em dias úteis
-// LÓGICA CORRIGIDA:
-// - Se days < 1 (ex: 0.5): termina no MESMO DIA
-// - Se days >= 1: conta dias úteis começando do dia de início
 const calculateEndDate = (startDate: string, days: number): string => {
-  // Se é menos de 1 dia (ex: 0.5), termina no mesmo dia
   if (days < 1) {
     return startDate;
   }
@@ -47,18 +42,14 @@ const calculateEndDate = (startDate: string, days: number): string => {
   let current = new Date(start);
   let daysAdded = 0;
   
-  // Contar dias úteis começando do dia de início
   while (daysAdded < days) {
     const dayOfWeek = current.getUTCDay();
-    // Se é dia útil (seg-sex)
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       daysAdded++;
-      // Se chegamos no último dia, retorna
       if (daysAdded === days) {
         return current.toISOString().split('T')[0];
       }
     }
-    // Avança para o próximo dia
     current.setUTCDate(current.getUTCDate() + 1);
   }
   
@@ -91,11 +82,8 @@ const detectConflicts = (issues: SprintIssue[]): Set<number> => {
       const issue1 = issues[i];
       const issue2 = issues[j];
       
-      // Mesmo responsável?
       if (issue1.responsavel !== issue2.responsavel) continue;
       
-      // Períodos se sobrepõem?
-      // Conflito se: fim1 >= início2 E fim2 >= início1
       if (issue1.dataFim >= issue2.dataInicio && issue2.dataFim >= issue1.dataInicio) {
         conflicts.add(issue1.id);
         conflicts.add(issue2.id);
@@ -136,7 +124,6 @@ const getConflictIndicator = (hasConflict: boolean): string => {
 };
 
 export function GanttChart({ issues, sprintStart, sprintEnd, showLegend = true }: GanttChartProps) {
-  const [scrollPosition, setScrollPosition] = useState(0);
   const dates = useMemo(() => generateSprintDates(sprintStart, sprintEnd), [sprintStart, sprintEnd]);
   const conflicts = useMemo(() => detectConflicts(issues), [issues]);
 
@@ -249,23 +236,23 @@ export function GanttChart({ issues, sprintStart, sprintEnd, showLegend = true }
                     const isInRange =
                       index >= startIndex && index <= endIndex;
 
+                    if (!isInRange) return null;
+
+                    const barColor = getBarColorByStatus(issue.status);
+                    const conflictClass = getConflictIndicator(hasConflict);
+                    const barClass = `h-8 rounded ${barColor} ${conflictClass} flex items-center justify-center text-xs font-semibold text-white truncate px-1`;
+
                     return (
                       <div
                         key={`${issue.id}-${date}`}
                         className="w-16 flex-shrink-0 border-r p-1"
                       >
-                        {isInRange && (
-                          <div
-                            className={`h-8 rounded ${getBarColorByStatus(
-                              issue.status
-                            )} ${getConflictIndicator(
-                              hasConflict
-                            )} flex items-center justify-center text-xs font-semibold text-white truncate px-1`}
-                            title={`${issue.chave} - ${issue.status}`}
-                          >
-                            {issue.storyPoints}
-                          </div>
-                        )}
+                        <div
+                          className={barClass}
+                          title={`${issue.chave} - ${issue.status}`}
+                        >
+                          {issue.storyPoints}
+                        </div>
                       </div>
                     );
                   })}
