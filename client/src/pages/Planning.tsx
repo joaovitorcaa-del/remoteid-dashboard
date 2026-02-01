@@ -19,6 +19,7 @@ interface SelectedIssue {
   ordem: number;
   dataInicio: string;
   dataFim: string;
+  status?: string;
 }
 
 interface Issue {
@@ -27,6 +28,7 @@ interface Issue {
   responsavel: string;
   storyPoints: number;
   tipo?: string;
+  status?: string;
 }
 
 interface Sprint {
@@ -181,6 +183,7 @@ export default function Planning() {
           ordem,
           dataInicio: sprintStart,
           dataFim: endDate.toISOString().split('T')[0],
+          status: issue.status || 'Dev to Do',
         };
       })
       .filter((item): item is SelectedIssue => item !== null);
