@@ -60,3 +60,11 @@
 - [x] Remover botão "Reativar Sprint"
 - [x] Remover lista de issues do formulário de planejamento
 - [x] Testar renderização completa com Sprint ativa e anterior
+
+
+## Planning Page - Novas Funcionalidades (Iteração 3)
+- [x] Adicionar botão de voltar para Dashboard no cabeçalho
+- [x] Implementar validação de conflitos de issues por responsável
+- [x] Implementar legenda de cores para barras de progresso baseado em Status + dataFim
+- [x] Destacar coluna do dia atual com fundo cinza claro
+- [x] Testar todas as funcionalidades e salvar checkpoint

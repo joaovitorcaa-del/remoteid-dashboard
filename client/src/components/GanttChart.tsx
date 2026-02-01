@@ -7,6 +7,7 @@ interface GanttIssue {
   storyPoints: number;
   responsavel: string;
   tipo?: string;
+  status?: string;
   dataInicio: string | Date;
   dataFim: string | Date;
 }
@@ -107,6 +108,68 @@ const getTodayPosition = (businessDays: string[], columnWidth: number): { index:
   return index !== -1 ? { index, pixel: index * columnWidth } : null;
 };
 
+const detectConflicts = (issues: GanttIssue[], businessDays: string[]): Set<string> => {
+  const conflicts = new Set<string>();
+  
+  for (let i = 0; i < issues.length; i++) {
+    for (let j = i + 1; j < issues.length; j++) {
+      const issue1 = issues[i];
+      const issue2 = issues[j];
+      
+      if (issue1.responsavel !== issue2.responsavel) continue;
+      
+      const start1 = getBusinessDayIndex(toDateString(issue1.dataInicio), businessDays);
+      const end1 = getBusinessDayIndex(toDateString(issue1.dataFim), businessDays);
+      const start2 = getBusinessDayIndex(toDateString(issue2.dataInicio), businessDays);
+      const end2 = getBusinessDayIndex(toDateString(issue2.dataFim), businessDays);
+      
+      if (start1 !== -1 && end1 !== -1 && start2 !== -1 && end2 !== -1) {
+        if (!(end1 < start2 || end2 < start1)) {
+          conflicts.add(issue1.chave);
+          conflicts.add(issue2.chave);
+        }
+      }
+    }
+  }
+  
+  return conflicts;
+};
+
+
+const getBarColor = (issue: GanttIssue, isConflict: boolean): string => {
+  if (isConflict) return 'bg-red-500 hover:bg-red-600';
+  
+  const status = issue.status || '';
+  const today = new Date().toISOString().split('T')[0];
+  const dataFim = toDateString(issue.dataFim);
+  
+  const isAfterToday = dataFim > today;
+  const isToday = dataFim === today;
+  const isBeforeToday = dataFim < today;
+  
+  if (status === 'Ready to Sprint' || status === 'Dev to Do') {
+    return 'bg-blue-500 hover:bg-blue-600';
+  }
+  
+  if (status === 'Code Doing') {
+    if (isAfterToday) return 'bg-green-500 hover:bg-green-600';
+    if (isToday) return 'bg-orange-500 hover:bg-orange-600';
+    if (isBeforeToday) return 'bg-red-500 hover:bg-red-600';
+  }
+  
+  if (status === 'Code Review') {
+    if (isAfterToday) return 'bg-green-500 hover:bg-green-600';
+    if (isToday) return 'bg-orange-500 hover:bg-orange-600';
+    if (isBeforeToday) return 'bg-red-500 hover:bg-red-600';
+  }
+  
+  if (status === 'Test to Do' || status === 'Test Doing' || status === 'Staging') {
+    return 'bg-purple-500 hover:bg-purple-600';
+  }
+  
+  return 'bg-blue-500 hover:bg-blue-600';
+};
+
 export function GanttChart({
   issues,
   sprintStart,
@@ -129,7 +192,7 @@ export function GanttChart({
   const chartWidth = businessDays.length * columnWidth;
   const todayPosition = getTodayPosition(businessDays, columnWidth);
 
-  // Validar violações
+  // Validar violações e conflitos
   React.useEffect(() => {
     const newViolations = new Set<string>();
     issues.forEach((issue) => {
@@ -142,6 +205,9 @@ export function GanttChart({
         newViolations.add(issue.chave);
       }
     });
+    const conflicts = detectConflicts(issues, businessDays);
+    conflicts.forEach(chave => newViolations.add(chave));
+    
     setViolations(newViolations);
   }, [issues, businessDays]);
 
@@ -279,13 +345,18 @@ export function GanttChart({
                   <div className="relative min-h-12 bg-white border border-border border-t-0 flex items-center">
                     {/* Grid de colunas de fundo */}
                     <div className="absolute inset-0 flex pointer-events-none">
-                      {Array.from({ length: businessDays.length }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="border-r border-dashed border-gray-200 flex-shrink-0"
-                          style={{ width: `${columnWidth}px` }}
-                        />
-                      ))}
+                      {Array.from({ length: businessDays.length }).map((_, i) => {
+                        const isToday = todayPosition !== null && i === todayPosition.index;
+                        return (
+                          <div
+                            key={i}
+                            className={`border-r border-dashed flex-shrink-0 ${
+                              isToday ? 'bg-gray-100 border-gray-300' : 'border-gray-200'
+                            }`}
+                            style={{ width: `${columnWidth}px` }}
+                          />
+                        );
+                      })}
                     </div>
 
                     {/* Marcador do dia atual */}
@@ -300,9 +371,7 @@ export function GanttChart({
                     {startIndex !== -1 && (
                       <div
                         className={`absolute h-8 rounded flex items-center px-3 cursor-move transition-all user-select-none ${
-                          isViolation
-                            ? 'bg-red-400 hover:bg-red-500'
-                            : 'bg-blue-500 hover:bg-blue-600'
+                          getBarColor(issue, isViolation)
                         } ${isDragging ? 'opacity-75 shadow-lg' : ''}`}
                         style={{
                           left: `${startPixel}px`,

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import GanttChart from '@/components/GanttChart';
@@ -263,6 +263,15 @@ export default function Planning() {
             <h1 className="text-3xl font-bold text-foreground">Planning</h1>
             <p className="text-sm text-muted-foreground">Planejamento de Sprints</p>
           </div>
+          <Button
+            onClick={() => navigate('/')}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar para Dashboard
+          </Button>
         </div>
       </header>
 
