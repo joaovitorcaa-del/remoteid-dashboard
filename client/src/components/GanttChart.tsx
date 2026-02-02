@@ -109,15 +109,21 @@ const formatDateDisplay = (date: string): string => {
 
 // Retorna cor baseada no status da issue e data de fim
 // Regra:
-// - Ready to Sprint/Dev To Do & dataFim > hoje = Azul
-// - Ready to Sprint/Dev To Do/Code Doing/Code Review & dataFim < hoje = Vermelho
-// - Ready to Sprint/Dev To Do/Code Doing/Code Review & dataFim > hoje = Verde
-// - Ready to Sprint/Dev To Do/Code Doing/Code Review & dataFim = hoje = Laranja
-// - Test ou Staging = Roxo
+// 1 = Ready/Dev To Do (Futuro) = Cinza
+// 2 = Done = Verde
+// 3 = Ready/Dev To Do/Code Doing/Code Review & dataFim < hoje = Vermelho
+// 4 = Ready/Dev To Do/Code Doing/Code Review & dataFim > hoje = Verde
+// 5 = Ready/Dev To Do/Code Doing/Code Review & dataFim = hoje = Laranja
+// 6 = Test ou Staging = Roxo
 const getBarColorByStatus = (issue: GanttIssue): string => {
   const status = issue.status || '';
   const today = new Date().toISOString().split('T')[0];
   const dataFim = typeof issue.dataFim === 'string' ? issue.dataFim : toDateString(issue.dataFim);
+  
+  // Done = Verde
+  if (status.includes('Done')) {
+    return 'bg-green-500 hover:bg-green-600';
+  }
   
   // Test ou Staging = Roxo
   if (status.includes('Test') || status.includes('Staging')) {
@@ -142,9 +148,9 @@ const getBarColorByStatus = (issue: GanttIssue): string => {
     }
   }
   
-  // Ready to Sprint ou Dev To Do & dataFim > hoje = Azul (caso especial)
+  // Ready/Dev To Do (Futuro) = Cinza
   if ((status.includes('Ready') || status.includes('Dev To Do')) && dataFim > today) {
-    return 'bg-blue-500 hover:bg-blue-600';
+    return 'bg-gray-500 hover:bg-gray-600';
   }
   
   // Padrão
@@ -157,16 +163,12 @@ function ColorLegend() {
     <div className="mb-4 p-3 bg-muted rounded-lg">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-500 rounded" />
+          <div className="w-4 h-4 bg-gray-500 rounded" />
           <span className="text-xs text-muted-foreground">Ready/Dev To Do (futuro)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-green-500 rounded" />
-          <span className="text-xs text-muted-foreground">No Prazo (dataFim &gt; hoje)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-purple-500 rounded" />
-          <span className="text-xs text-muted-foreground">Test/Staging</span>
+          <span className="text-xs text-muted-foreground">Done / No Prazo</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-orange-500 rounded" />
@@ -175,6 +177,10 @@ function ColorLegend() {
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-red-500 rounded" />
           <span className="text-xs text-muted-foreground">Atrasado (dataFim &lt; hoje)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-purple-500 rounded" />
+          <span className="text-xs text-muted-foreground">Test/Staging</span>
         </div>
       </div>
     </div>
