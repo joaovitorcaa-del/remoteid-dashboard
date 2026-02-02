@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, RotateCcw, Trash2, ArrowLeft, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import GanttChart from '@/components/GanttChart';
@@ -138,6 +138,17 @@ export default function Planning() {
     },
     onError: (error) => {
       toast.error(`Erro ao deletar Sprint: ${error.message}`);
+    },
+  });
+
+  const syncJiraMutation = trpc.jira.syncActiveSprintIssues.useMutation({
+    onSuccess: async (data) => {
+      toast.success(`Sincronizadas ${data.totalSynced} issues do Jira!`);
+      await refetchActiveSprint();
+      await refetchAllSprints();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao sincronizar com Jira: ${error.message}`);
     },
   });
 
@@ -296,6 +307,16 @@ export default function Planning() {
                 {activeSprint ? `✅ ${activeSprint.nome}-Ativa` : "📋 Sem Sprint Ativa"}
               </CardTitle>
               {activeSprint && (
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => syncJiraMutation.mutate()}
+                  variant="outline"
+                  size="sm"
+                  disabled={syncJiraMutation.isPending}
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  {syncJiraMutation.isPending ? 'Sincronizando...' : 'Sync com Jira'}
+                </Button>
                 <Button
                   onClick={() => {
                     if (confirm(`Tem certeza que deseja encerrar a Sprint "${activeSprint.nome}"?`)) {
@@ -307,6 +328,7 @@ export default function Planning() {
                 >
                   Encerrar Sprint
                 </Button>
+              </div>
               )}
             </CardHeader>
             <CardContent className="space-y-4">
