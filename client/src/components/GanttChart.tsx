@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import { AlertCircle, ChevronDown, Trash2 } from 'lucide-react';
@@ -114,8 +113,6 @@ const formatDateDisplay = (date: string): string => {
   return `${day}/${month}`;
 };
 
-
-
 // Retorna cor baseada em status
 const getBarColorByStatus = (issue: GanttIssue): string => {
   const status = issue.status || '';
@@ -126,8 +123,6 @@ const getBarColorByStatus = (issue: GanttIssue): string => {
   if (status.includes('Staging')) return 'bg-red-500 hover:bg-red-600';
   return 'bg-gray-500 hover:bg-gray-600';
 };
-
-
 
 // Componente de Legenda
 function ColorLegend() {
@@ -154,7 +149,6 @@ function ColorLegend() {
           <div className="w-4 h-4 bg-red-500 rounded" />
           <span className="text-xs text-muted-foreground">Atrasado</span>
         </div>
-
       </div>
     </div>
   );
@@ -224,12 +218,21 @@ export function GanttChart({
 }: GanttChartProps) {
   const [resizingIssue, setResizingIssue] = React.useState<string | null>(null);
   const [resizeDirection, setResizeDirection] = React.useState<'left' | 'right' | null>(null);
-  const resizeStartXRef = React.useRef(0);
   const [resizedPositions, setResizedPositions] = React.useState<Map<string, { start: string; end: string }>>(new Map());
   const [editingResponsavel, setEditingResponsavel] = React.useState<string | null>(null);
   const [editingDropdownOpen, setEditingDropdownOpen] = React.useState(false);
   const [editingDropdownPosition, setEditingDropdownPosition] = React.useState({ x: 0, y: 0 });
   const chartRef = React.useRef<HTMLDivElement>(null);
+  
+  // Refs para drag/resize sem re-renders
+  const dragStateRef = React.useRef({
+    isResizing: false,
+    resizingIssue: '',
+    resizeDirection: null as 'left' | 'right' | null,
+    startX: 0,
+    currentX: 0,
+  });
+  const rafIdRef = React.useRef<number | null>(null);
   
   // Extrair lista única de responsáveis
   const responsaveis = React.useMemo(() => {
@@ -248,24 +251,29 @@ export function GanttChart({
     return { index, pixel: index * columnWidth + columnWidth / 2 };
   }, [businessDays]);
 
-
-
   // Handler para iniciar resize
   const handleResizeStart = React.useCallback((e: React.MouseEvent, chave: string, direction: 'left' | 'right') => {
     e.preventDefault();
     e.stopPropagation();
     
-    resizeStartXRef.current = e.clientX;
+    dragStateRef.current = {
+      isResizing: true,
+      resizingIssue: chave,
+      resizeDirection: direction,
+      startX: e.clientX,
+      currentX: e.clientX,
+    };
+    
     setResizingIssue(chave);
     setResizeDirection(direction);
   }, []);
 
-  // Handler para movimento do mouse durante resize
-  const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
-    if (!chartRef.current) return;
-    if (!resizingIssue || !resizeDirection) return;
+  // Atualizar posição durante resize com requestAnimationFrame
+  const updateResizePosition = React.useCallback(() => {
+    if (!dragStateRef.current.isResizing || !chartRef.current) return;
 
-    const deltaX = e.clientX - resizeStartXRef.current;
+    const { resizingIssue, resizeDirection, startX, currentX } = dragStateRef.current;
+    const deltaX = currentX - startX;
     const issue = issues.find((i) => i.chave === resizingIssue);
     
     if (!issue) return;
@@ -277,39 +285,64 @@ export function GanttChart({
       const currentEndIndex = getBusinessDayIndex(endStr, businessDays);
       
       if (resizeDirection === 'left') {
-        // Redimensionar a partir da esquerda
         const currentPixel = currentStartIndex * columnWidth;
         const newPixel = Math.max(0, Math.min(chartWidth - columnWidth, currentPixel + deltaX));
         const newStartIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
         const newStart = businessDays[newStartIndex];
         
-        // Garantir que a data de início não ultrapasse a de fim
         if (newStartIndex <= currentEndIndex) {
           setResizedPositions(prev => new Map(prev).set(resizingIssue, { start: newStart, end: endStr }));
-          resizeStartXRef.current = e.clientX;
         }
-      } else {
-        // Redimensionar a partir da direita
+      } else if (resizeDirection === 'right') {
         const currentPixel = (currentEndIndex + 1) * columnWidth;
         const newPixel = Math.max(columnWidth, Math.min(chartWidth, currentPixel + deltaX));
         const newEndIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
         const newEnd = businessDays[newEndIndex];
         
-        // Garantir que a data de fim não fique antes da de início
         if (newEndIndex >= currentStartIndex) {
           setResizedPositions(prev => new Map(prev).set(resizingIssue, { start: startStr, end: newEnd }));
-          resizeStartXRef.current = e.clientX;
         }
       }
     } catch (error) {
       console.error('Erro ao redimensionar:', error);
     }
-  }, [resizingIssue, resizeDirection, issues, businessDays, columnWidth, chartWidth]);
+  }, [issues, businessDays, columnWidth, chartWidth]);
+
+  // Handler para movimento do mouse durante resize
+  const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
+    if (!dragStateRef.current.isResizing) return;
+
+    dragStateRef.current.currentX = e.clientX;
+
+    // Cancelar RAF anterior se existir
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+
+    // Agendar atualização com RAF
+    rafIdRef.current = requestAnimationFrame(updateResizePosition);
+  }, [updateResizePosition]);
 
   // Handler para soltar o mouse
   const handleMouseUp = React.useCallback(() => {
+    dragStateRef.current.isResizing = false;
+    
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+
     setResizingIssue(null);
     setResizeDirection(null);
+  }, []);
+
+  // Limpar RAF ao desmontar
+  React.useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
   }, []);
 
   // Handler para clicar na barra e editar responsável
@@ -329,32 +362,6 @@ export function GanttChart({
       setEditingResponsavel(null);
     }
   }, [editingResponsavel, onResponsavelChange]);
-
-  // Handler para verificar conflitos e salvar
-  const handleVerifyAndSave = React.useCallback(() => {
-    const newViolations = detectConflicts(
-      issues.map(issue => {
-        const resized = resizedPositions.get(issue.chave);
-        if (resized) {
-          return { ...issue, dataInicio: resized.start, dataFim: resized.end };
-        }
-        return issue;
-      }),
-      businessDays
-    );
-
-    if (newViolations.size > 0) {
-      alert('Conflito detectado! Há issues com mesmo responsável em períodos sobrepostos.');
-      return;
-    }
-
-    // Salvar todas as mudanças
-    resizedPositions.forEach((position, chave) => {
-      onIssueUpdate(chave, position.start, position.end);
-    });
-
-    setResizedPositions(new Map());
-  }, [issues, resizedPositions, businessDays, onIssueUpdate]);
 
   const getIssueVisualPosition = (issue: GanttIssue) => {
     const resized = resizedPositions.get(issue.chave);
