@@ -107,14 +107,47 @@ const formatDateDisplay = (date: string): string => {
   return `${day}/${month}`;
 };
 
-// Retorna cor baseada em status
+// Retorna cor baseada no status da issue e data de fim
+// Regra:
+// - Ready to Sprint/Dev To Do & dataFim > hoje = Azul
+// - Ready to Sprint/Dev To Do/Code Doing/Code Review & dataFim < hoje = Vermelho
+// - Ready to Sprint/Dev To Do/Code Doing/Code Review & dataFim > hoje = Verde
+// - Ready to Sprint/Dev To Do/Code Doing/Code Review & dataFim = hoje = Laranja
+// - Test ou Staging = Roxo
 const getBarColorByStatus = (issue: GanttIssue): string => {
   const status = issue.status || '';
-  if (status.includes('Ready') || status.includes('Dev To Do')) return 'bg-blue-500 hover:bg-blue-600';
-  if (status.includes('CODE DOING') || status.includes('Code Doing')) return 'bg-green-500 hover:bg-green-600';
-  if (status.includes('CODE REVIEW') || status.includes('Code Review')) return 'bg-orange-500 hover:bg-orange-600';
-  if (status.includes('Test')) return 'bg-purple-500 hover:bg-purple-600';
-  if (status.includes('Staging')) return 'bg-red-500 hover:bg-red-600';
+  const today = new Date().toISOString().split('T')[0];
+  const dataFim = typeof issue.dataFim === 'string' ? issue.dataFim : toDateString(issue.dataFim);
+  
+  // Test ou Staging = Roxo
+  if (status.includes('Test') || status.includes('Staging')) {
+    return 'bg-purple-500 hover:bg-purple-600';
+  }
+  
+  // Verifica se o status é um dos que considera data
+  const statusComData = status.includes('Ready') || status.includes('Dev To Do') || 
+                        status.includes('CODE DOING') || status.includes('Code Doing') ||
+                        status.includes('CODE REVIEW') || status.includes('Code Review');
+  
+  if (statusComData) {
+    if (dataFim < today) {
+      // dataFim < hoje = Vermelho (Atrasado)
+      return 'bg-red-500 hover:bg-red-600';
+    } else if (dataFim === today) {
+      // dataFim = hoje = Laranja (Vence Hoje)
+      return 'bg-orange-500 hover:bg-orange-600';
+    } else {
+      // dataFim > hoje = Verde (No prazo)
+      return 'bg-green-500 hover:bg-green-600';
+    }
+  }
+  
+  // Ready to Sprint ou Dev To Do & dataFim > hoje = Azul (caso especial)
+  if ((status.includes('Ready') || status.includes('Dev To Do')) && dataFim > today) {
+    return 'bg-blue-500 hover:bg-blue-600';
+  }
+  
+  // Padrão
   return 'bg-gray-500 hover:bg-gray-600';
 };
 
@@ -125,23 +158,23 @@ function ColorLegend() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-blue-500 rounded" />
-          <span className="text-xs text-muted-foreground">Ready/Dev To Do</span>
+          <span className="text-xs text-muted-foreground">Ready/Dev To Do (futuro)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-green-500 rounded" />
-          <span className="text-xs text-muted-foreground">Em Desenvolvimento</span>
+          <span className="text-xs text-muted-foreground">No Prazo (dataFim &gt; hoje)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-purple-500 rounded" />
-          <span className="text-xs text-muted-foreground">Em Teste</span>
+          <span className="text-xs text-muted-foreground">Test/Staging</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-orange-500 rounded" />
-          <span className="text-xs text-muted-foreground">Vence Hoje</span>
+          <span className="text-xs text-muted-foreground">Vence Hoje (dataFim = hoje)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-red-500 rounded" />
-          <span className="text-xs text-muted-foreground">Atrasado</span>
+          <span className="text-xs text-muted-foreground">Atrasado (dataFim &lt; hoje)</span>
         </div>
       </div>
     </div>

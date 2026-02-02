@@ -164,6 +164,65 @@ export default function Planning() {
 
   const isDateRangeValid = sprintStart && sprintEnd && new Date(sprintStart) < new Date(sprintEnd);
 
+  // Converte Story Points para dias úteis conforme a regra:
+  // 2-3 SP = 0.5 dias
+  // 5 SP = 1 dia
+  // 8 SP = 2 dias
+  // 13 SP = 3 dias
+  // Padrão: 6 SP = 1 dia
+  const storyPointsToDays = (sp: number): number => {
+    if (sp <= 3) return 0.5;  // 2-3 SP = 0.5 dias
+    if (sp <= 5) return 1;     // 4-5 SP = 1 dia
+    if (sp <= 8) return 2;     // 6-8 SP = 2 dias
+    if (sp <= 13) return 3;    // 9-13 SP = 3 dias
+    if (sp <= 20) return 4;    // 14-20 SP = 4 dias
+    return Math.ceil(sp / 5);  // Mais de 20 SP: 5 SP por dia
+  };
+
+  // Calcula a data de fim baseada na data de início e duração em dias úteis
+  // Retorna o ÚLTIMO dia útil ocupado (não o dia seguinte)
+  const calculateEndDate = (startDate: string, days: number): string => {
+    // Validar se startDate é válida
+    if (!startDate || startDate.trim() === '') {
+      console.error('calculateEndDate: startDate inválida', startDate);
+      return new Date().toISOString().split('T')[0];
+    }
+    
+    // Se é menos de 1 dia (ex: 0.5), termina no mesmo dia
+    if (days < 1) {
+      return startDate;
+    }
+    
+    try {
+      const start = new Date(startDate + 'T00:00:00Z');
+      
+      // Validar se a data é válida
+      if (isNaN(start.getTime())) {
+        console.error('calculateEndDate: data inválida após parsing', startDate, start);
+        return startDate;
+      }
+      
+      let current = new Date(start);
+      let daysAdded = 0;
+      
+      while (daysAdded < days) {
+        const dayOfWeek = current.getUTCDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          daysAdded++;
+          if (daysAdded === days) {
+            return current.toISOString().split('T')[0];
+          }
+        }
+        current.setUTCDate(current.getUTCDate() + 1);
+      }
+      
+      return current.toISOString().split('T')[0];
+    } catch (error) {
+      console.error('calculateEndDate: erro ao processar data', error, startDate);
+      return startDate;
+    }
+  };
+
   const handleModalConfirm = (selectedKeys: string[]) => {
     const selected: SelectedIssue[] = selectedKeys
       .map((key) => {
@@ -172,19 +231,8 @@ export default function Planning() {
 
         const ordem = selectedKeys.indexOf(key);
         const storyPoints = issue.storyPoints;
-        const daysForSP = storyPoints <= 3 ? 0.5 : storyPoints <= 5 ? 1 : storyPoints <= 8 ? 2 : storyPoints <= 13 ? 3 : Math.ceil(storyPoints / 5);
-
-        const startDate = new Date(sprintStart + 'T00:00:00Z');
-        let endDate = new Date(startDate);
-        let daysAdded = 0;
-
-        while (daysAdded < daysForSP) {
-          endDate.setUTCDate(endDate.getUTCDate() + 1);
-          const dayOfWeek = endDate.getUTCDay();
-          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-            daysAdded++;
-          }
-        }
+        const daysForSP = storyPointsToDays(storyPoints);
+        const dataFim = calculateEndDate(sprintStart, daysForSP);
 
         return {
           chave: key,
@@ -193,7 +241,7 @@ export default function Planning() {
           storyPoints: issue.storyPoints,
           ordem,
           dataInicio: sprintStart,
-          dataFim: endDate.toISOString().split('T')[0],
+          dataFim,
           status: issue.status || 'Dev to Do',
         };
       })
