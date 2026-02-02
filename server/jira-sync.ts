@@ -76,15 +76,17 @@ export async function fetchJiraActiveSprintIssues(): Promise<JiraIssue[]> {
  */
 export function mapJiraStatusToDashboard(jiraStatus: string): string {
   const statusMap: Record<string, string> = {
-    'To Do': 'Ready',
-    'In Progress': 'Dev Doing',
+    'To Do': 'Ready to Sprint',
+    'In Progress': 'Dev to Do',
     'In Review': 'Code Review',
-    'Testing': 'Test to do',
+    'Testing': 'Test to Do',
     'Done': 'Done',
-    'Backlog': 'Ready',
+    'Backlog': 'Ready to Sprint',
+    'Cancelled': 'Cancelled',
+    'Canceled': 'Cancelled',
   };
 
-  return statusMap[jiraStatus] || jiraStatus;
+  return statusMap[jiraStatus] || 'Ready to Sprint';
 }
 
 /**
@@ -99,7 +101,7 @@ export function convertJiraIssuesToDashboard(jiraIssues: JiraIssue[]): SyncedIss
       chave: issue.key,
       resumo: issue.fields.summary,
       status: mapJiraStatusToDashboard(issue.fields.status.name),
-      responsavel: issue.fields.assignee?.displayName,
+      responsavel: issue.fields.assignee?.displayName || 'Não Atribuído',
       dataInicio,
       dataFim,
       storyPoints: 5, // Valor padrão - será atualizado quando encontrar o campo correto
