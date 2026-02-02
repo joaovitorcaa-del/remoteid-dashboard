@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AlertCircle, ChevronDown, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, Trash2, Save, X } from 'lucide-react';
 
 interface GanttIssue {
   chave: string;
@@ -81,12 +81,6 @@ const generateSprintDates = (sprintStart: string, sprintEnd: string): string[] =
 // Encontra índice do dia útil para uma data
 const getBusinessDayIndex = (date: string, businessDays: string[]): number => {
   return businessDays.findIndex(d => d === date);
-};
-
-// Calcula largura da barra em pixels baseado em Story Points
-const getBarWidthFromStoryPoints = (sp: number, columnWidth: number): number => {
-  const days = storyPointsToDays(sp);
-  return Math.max(columnWidth * days, columnWidth * 0.5);
 };
 
 // Converte pixel para data útil mais próxima
@@ -216,21 +210,20 @@ export function GanttChart({
   onResponsavelChange,
   showLegend = true,
 }: GanttChartProps) {
-  const [resizingIssue, setResizingIssue] = React.useState<string | null>(null);
-  const [resizeDirection, setResizeDirection] = React.useState<'left' | 'right' | null>(null);
-  const [resizedPositions, setResizedPositions] = React.useState<Map<string, { start: string; end: string }>>(new Map());
+  const [draggingIssue, setDraggingIssue] = React.useState<string | null>(null);
+  const [draggedPositions, setDraggedPositions] = React.useState<Map<string, { start: string; end: string }>>(new Map());
   const [editingResponsavel, setEditingResponsavel] = React.useState<string | null>(null);
   const [editingDropdownOpen, setEditingDropdownOpen] = React.useState(false);
   const [editingDropdownPosition, setEditingDropdownPosition] = React.useState({ x: 0, y: 0 });
   const chartRef = React.useRef<HTMLDivElement>(null);
   
-  // Refs para drag/resize sem re-renders
+  // Refs para drag sem re-renders
   const dragStateRef = React.useRef({
-    isResizing: false,
-    resizingIssue: '',
-    resizeDirection: null as 'left' | 'right' | null,
+    isDragging: false,
+    draggingIssue: '',
     startX: 0,
     currentX: 0,
+    originalStartIndex: 0,
   });
   const rafIdRef = React.useRef<number | null>(null);
   
@@ -251,66 +244,58 @@ export function GanttChart({
     return { index, pixel: index * columnWidth + columnWidth / 2 };
   }, [businessDays]);
 
-  // Handler para iniciar resize
-  const handleResizeStart = React.useCallback((e: React.MouseEvent, chave: string, direction: 'left' | 'right') => {
+  // Handler para iniciar drag
+  const handleDragStart = React.useCallback((e: React.MouseEvent, chave: string) => {
     e.preventDefault();
     e.stopPropagation();
     
+    const issue = issues.find((i) => i.chave === chave);
+    if (!issue) return;
+
+    const startStr = toDateString(issue.dataInicio);
+    const startIndex = getBusinessDayIndex(startStr, businessDays);
+    
     dragStateRef.current = {
-      isResizing: true,
-      resizingIssue: chave,
-      resizeDirection: direction,
+      isDragging: true,
+      draggingIssue: chave,
       startX: e.clientX,
       currentX: e.clientX,
+      originalStartIndex: startIndex,
     };
     
-    setResizingIssue(chave);
-    setResizeDirection(direction);
-  }, []);
+    setDraggingIssue(chave);
+  }, [issues, businessDays]);
 
-  // Atualizar posição durante resize com requestAnimationFrame
-  const updateResizePosition = React.useCallback(() => {
-    if (!dragStateRef.current.isResizing || !chartRef.current) return;
+  // Atualizar posição durante drag com requestAnimationFrame
+  const updateDragPosition = React.useCallback(() => {
+    if (!dragStateRef.current.isDragging || !chartRef.current) return;
 
-    const { resizingIssue, resizeDirection, startX, currentX } = dragStateRef.current;
+    const { draggingIssue, startX, currentX, originalStartIndex } = dragStateRef.current;
     const deltaX = currentX - startX;
-    const issue = issues.find((i) => i.chave === resizingIssue);
+    const issue = issues.find((i) => i.chave === draggingIssue);
     
     if (!issue) return;
 
     try {
-      const startStr = toDateString(issue.dataInicio);
       const endStr = toDateString(issue.dataFim);
-      const currentStartIndex = getBusinessDayIndex(startStr, businessDays);
       const currentEndIndex = getBusinessDayIndex(endStr, businessDays);
+      const daysDuration = currentEndIndex - originalStartIndex;
       
-      if (resizeDirection === 'left') {
-        const currentPixel = currentStartIndex * columnWidth;
-        const newPixel = Math.max(0, Math.min(chartWidth - columnWidth, currentPixel + deltaX));
-        const newStartIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
-        const newStart = businessDays[newStartIndex];
-        
-        if (newStartIndex <= currentEndIndex) {
-          setResizedPositions(prev => new Map(prev).set(resizingIssue, { start: newStart, end: endStr }));
-        }
-      } else if (resizeDirection === 'right') {
-        const currentPixel = (currentEndIndex + 1) * columnWidth;
-        const newPixel = Math.max(columnWidth, Math.min(chartWidth, currentPixel + deltaX));
-        const newEndIndex = pixelToDayIndex(newPixel, columnWidth, businessDays);
-        const newEnd = businessDays[newEndIndex];
-        
-        if (newEndIndex >= currentStartIndex) {
-          setResizedPositions(prev => new Map(prev).set(resizingIssue, { start: startStr, end: newEnd }));
-        }
-      }
+      // Calcular novo índice de início
+      const deltaColumns = Math.round(deltaX / columnWidth);
+      const newStartIndex = Math.max(0, Math.min(businessDays.length - 1 - daysDuration, originalStartIndex + deltaColumns));
+      const newStart = businessDays[newStartIndex];
+      const newEnd = businessDays[Math.min(businessDays.length - 1, newStartIndex + daysDuration)];
+      
+      setDraggedPositions(prev => new Map(prev).set(draggingIssue, { start: newStart, end: newEnd }));
     } catch (error) {
-      console.error('Erro ao redimensionar:', error);
+      console.error('Erro ao arrastar:', error);
     }
-  }, [issues, businessDays, columnWidth, chartWidth]);
+  }, [issues, businessDays, columnWidth]);
 
-  // Handler para movimento do mouse durante resize
+  // Handler para movimento do mouse durante drag
   const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
-    if (!dragStateRef.current.isResizing) return;
+    if (!dragStateRef.current.isDragging) return;
 
     dragStateRef.current.currentX = e.clientX;
 
@@ -320,20 +305,19 @@ export function GanttChart({
     }
 
     // Agendar atualização com RAF
-    rafIdRef.current = requestAnimationFrame(updateResizePosition);
-  }, [updateResizePosition]);
+    rafIdRef.current = requestAnimationFrame(updateDragPosition);
+  }, [updateDragPosition]);
 
   // Handler para soltar o mouse
   const handleMouseUp = React.useCallback(() => {
-    dragStateRef.current.isResizing = false;
+    dragStateRef.current.isDragging = false;
     
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
 
-    setResizingIssue(null);
-    setResizeDirection(null);
+    setDraggingIssue(null);
   }, []);
 
   // Limpar RAF ao desmontar
@@ -363,10 +347,23 @@ export function GanttChart({
     }
   }, [editingResponsavel, onResponsavelChange]);
 
+  // Handler para salvar mudanças
+  const handleSaveChanges = React.useCallback(() => {
+    draggedPositions.forEach((position, chave) => {
+      onIssueUpdate(chave, position.start, position.end);
+    });
+    setDraggedPositions(new Map());
+  }, [draggedPositions, onIssueUpdate]);
+
+  // Handler para descartar mudanças
+  const handleDiscardChanges = React.useCallback(() => {
+    setDraggedPositions(new Map());
+  }, []);
+
   const getIssueVisualPosition = (issue: GanttIssue) => {
-    const resized = resizedPositions.get(issue.chave);
-    const startStr = resized ? resized.start : toDateString(issue.dataInicio);
-    const endStr = resized ? resized.end : toDateString(issue.dataFim);
+    const dragged = draggedPositions.get(issue.chave);
+    const startStr = dragged ? dragged.start : toDateString(issue.dataInicio);
+    const endStr = dragged ? dragged.end : toDateString(issue.dataFim);
     
     const startIndex = getBusinessDayIndex(startStr, businessDays);
     const endIndex = getBusinessDayIndex(endStr, businessDays);
@@ -381,6 +378,8 @@ export function GanttChart({
     return { startIndex, startPixel, barWidth };
   };
 
+  const hasChanges = draggedPositions.size > 0;
+
   return (
     <div
       ref={chartRef}
@@ -394,9 +393,29 @@ export function GanttChart({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-foreground">Cronograma da Sprint</h3>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-3 h-3 bg-orange-500 rounded-full" />
-            <span>Dia atual</span>
+          <div className="flex items-center gap-2">
+            {hasChanges && (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveChanges}
+                  className="flex items-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Salvar Plano
+                </button>
+                <button
+                  onClick={handleDiscardChanges}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  Descartar
+                </button>
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-3 h-3 bg-orange-500 rounded-full" />
+              <span>Dia atual</span>
+            </div>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -442,8 +461,8 @@ export function GanttChart({
             {/* Issues rows */}
             {issues.map((issue) => {
               const { startIndex, startPixel, barWidth } = getIssueVisualPosition(issue);
-              const isResizing = resizingIssue === issue.chave;
-              const isResized = resizedPositions.has(issue.chave);
+              const isDragging = draggingIssue === issue.chave;
+              const isDragged = draggedPositions.has(issue.chave);
 
               return (
                 <React.Fragment key={issue.chave}>
@@ -491,41 +510,28 @@ export function GanttChart({
                       />
                     )}
 
-                    {/* Barra da issue com redimensionamento */}
+                    {/* Barra da issue com drag */}
                     {startIndex !== -1 && (
                       <div
-                        className={`absolute h-8 rounded flex items-center px-3 cursor-pointer transition-all user-select-none border border-gray-300 ${
+                        className={`absolute h-8 rounded flex items-center px-3 cursor-grab active:cursor-grabbing transition-all user-select-none border border-gray-300 ${
                           getBarColorByStatus(issue)
-                        } ${isResizing ? 'opacity-75 shadow-lg' : ''} ${isResized ? 'opacity-90' : ''}`}
+                        } ${isDragging ? 'opacity-75 shadow-lg' : ''} ${isDragged ? 'opacity-90' : ''}`}
                         style={{
                           left: `${startPixel}px`,
                           width: `${barWidth}px`,
-                          zIndex: isResizing ? 10 : 1,
+                          zIndex: isDragging ? 10 : 1,
                           top: '50%',
                           transform: 'translateY(-50%)',
                         }}
-                        onClick={(e) => handleBarClick(e, issue.chave)}
-                        title="Clique para editar responsável. Arraste as bordas para redimensionar."
+                        onMouseDown={(e) => handleDragStart(e, issue.chave)}
+                        onClick={(e) => !isDragging && handleBarClick(e, issue.chave)}
+                        title="Arraste para mover. Clique para editar responsável."
                       >
-                        {/* Borda esquerda redimensionável */}
-                        <div
-                          className="absolute left-0 top-0 bottom-0 w-1 bg-gray-600 hover:bg-gray-800 cursor-col-resize rounded-l"
-                          onMouseDown={(e) => handleResizeStart(e, issue.chave, 'left')}
-                          title="Arraste para ajustar data de início"
-                        />
-
                         {/* Conteúdo da barra */}
                         <span className="text-white text-xs font-medium truncate pointer-events-none flex-1">
                           {issue.responsavel}
                         </span>
                         <ChevronDown className="w-3 h-3 text-white ml-1 flex-shrink-0 pointer-events-none" />
-
-                        {/* Borda direita redimensionável */}
-                        <div
-                          className="absolute right-0 top-0 bottom-0 w-1 bg-gray-600 hover:bg-gray-800 cursor-col-resize rounded-r"
-                          onMouseDown={(e) => handleResizeStart(e, issue.chave, 'right')}
-                          title="Arraste para ajustar data de fim"
-                        />
                       </div>
                     )}
 
