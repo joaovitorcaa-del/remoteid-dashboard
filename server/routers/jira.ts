@@ -6,16 +6,10 @@ import { eq } from "drizzle-orm";
 
 export const jiraRouter = router({
   /**
-   * Sincroniza issues da sprint ativa do Jira com o banco de dados
+   * Sincroniza apenas as issues já planejadas (salvas em sprintIssues) com dados do Jira
    */
   syncActiveSprintIssues: protectedProcedure.mutation(async ({ ctx }) => {
     try {
-      // Buscar issues do Jira
-      const jiraIssues = await fetchJiraActiveSprintIssues();
-      
-      // Converter para formato do dashboard
-      const syncedIssues = convertJiraIssuesToDashboard(jiraIssues);
-      
       // Obter banco de dados
       const db = await getDb();
       if (!db) {
@@ -35,17 +29,30 @@ export const jiraRouter = router({
 
       const activeSprint = activeSprints[0];
 
-      // Sincronizar issues
-      const insertedIssues = [];
-      for (const issue of syncedIssues) {
-        // Verificar se issue já existe
-        const existing = await db
-          .select()
-          .from(sprintIssues)
-          .where(eq(sprintIssues.chave, issue.chave));
+      // Buscar issues já planejadas na sprint ativa
+      const plannedIssues = await db
+        .select()
+        .from(sprintIssues)
+        .where(eq(sprintIssues.sprintId, activeSprint.id));
 
-        if (existing.length > 0) {
-          // Atualizar issue existente
+      if (plannedIssues.length === 0) {
+        throw new Error('Nenhuma issue planejada nesta sprint');
+      }
+
+      // Buscar issues do Jira
+      const jiraIssues = await fetchJiraActiveSprintIssues();
+      
+      // Converter para formato do dashboard
+      const syncedIssues = convertJiraIssuesToDashboard(jiraIssues);
+
+      // Sincronizar apenas as issues que estão planejadas
+      let updatedCount = 0;
+      const plannedChaves = plannedIssues.map(i => i.chave);
+      
+      for (const issue of syncedIssues) {
+        // Verificar se esta issue está planejada
+        if (plannedChaves.includes(issue.chave)) {
+          // Atualizar apenas status, responsável e datas
           await db
             .update(sprintIssues)
             .set({
@@ -56,28 +63,15 @@ export const jiraRouter = router({
               storyPoints: issue.storyPoints,
             })
             .where(eq(sprintIssues.chave, issue.chave));
-        } else {
-          // Inserir nova issue
-          const newIssue: InsertSprintIssue = {
-            sprintId: activeSprint.id,
-            chave: issue.chave,
-            resumo: issue.resumo,
-            status: issue.status,
-            responsavel: issue.responsavel,
-            dataInicio: issue.dataInicio,
-            dataFim: issue.dataFim,
-            storyPoints: issue.storyPoints,
-          };
-          await db.insert(sprintIssues).values(newIssue);
-          insertedIssues.push(newIssue);
+          updatedCount++;
         }
       }
 
       return {
         success: true,
-        totalSynced: syncedIssues.length,
-        newIssues: insertedIssues.length,
-        message: `Sincronizadas ${syncedIssues.length} issues (${insertedIssues.length} novas)`,
+        totalSynced: updatedCount,
+        plannedIssues: plannedIssues.length,
+        message: `Sincronizadas ${updatedCount} de ${plannedIssues.length} issues planejadas`,
       };
     } catch (error) {
       console.error('Erro ao sincronizar com Jira:', error);
