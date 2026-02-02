@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import GanttChart from '@/components/GanttChart';
 import IssueSelectionModal from '@/components/IssueSelectionModal';
+import { StatusDistributionChart } from '@/components/StatusDistributionChart';
 
 interface SelectedIssue {
   chave: string;
@@ -395,6 +396,19 @@ export default function Planning() {
                     onResponsavelChange={handleResponsavelChange}
                     showLegend={true}
                   />
+                  
+                  {/* Gráfico de Distribuição de Status */}
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <StatusDistributionChart
+                          issues={activeSprint.issues || []}
+                          title="Análise de Desempenho - Distribuição por Status"
+                          chartType="pie"
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
                 </>
               ) : (
                 <p className="text-sm text-gray-600 dark:text-gray-400 py-8 text-center">
