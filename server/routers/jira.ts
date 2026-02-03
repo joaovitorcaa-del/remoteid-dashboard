@@ -59,10 +59,17 @@ export const jiraRouter = router({
           const updateData: any = {
             status: issue.status,
             responsavel: issue.responsavel,
-            storyPoints: issue.storyPoints,
             epicKey: issue.epicKey,
             epicSummary: issue.epicSummary,
           };
+          
+          // Preservar Story Points planejados (não sobrescrever com dados do Jira)
+          // Isso garante que a distribuição de SP por desenvolvedor/épico seja mantida
+          if (plannedIssue?.storyPoints) {
+            updateData.storyPoints = plannedIssue.storyPoints;
+          } else {
+            updateData.storyPoints = issue.storyPoints;
+          }
           
           // Preservar dataInicio e dataFim planejadas (não sobrescrever com dados do Jira)
           // Isso garante que as barras do Gantt continuem visíveis após sync
