@@ -60,8 +60,6 @@ export const jiraRouter = router({
             status: issue.status,
             responsavel: issue.responsavel,
             storyPoints: issue.storyPoints,
-            epicKey: issue.epicKey,
-            epicSummary: issue.epicSummary,
           };
           
           // Preservar dataInicio e dataFim planejadas (não sobrescrever com dados do Jira)

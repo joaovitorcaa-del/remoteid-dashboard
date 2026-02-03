@@ -52,8 +52,6 @@ export const sprintIssues = mysqlTable("sprintIssues", {
   dataInicio: date("dataInicio").notNull(),
   dataFim: date("dataFim").notNull(),
   ordem: int("ordem").default(0).notNull(),
-  epicKey: varchar("epicKey", { length: 50 }),
-  epicSummary: text("epicSummary"),
   criadoEm: timestamp("criadoEm").defaultNow().notNull(),
   atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
 });

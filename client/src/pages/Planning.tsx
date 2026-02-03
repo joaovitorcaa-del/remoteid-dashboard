@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import GanttChart from '@/components/GanttChart';
 import IssueSelectionModal from '@/components/IssueSelectionModal';
-import { StoryPointsModal } from '@/components/StoryPointsModal';
 
 interface SelectedIssue {
   chave: string;
@@ -59,7 +58,6 @@ export default function Planning() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showStoryPointsModal, setShowStoryPointsModal] = useState(false);
   const [selectedHistorySprint, setSelectedHistorySprint] = useState<Sprint | null>(null);
 
   const { data: planejamentoIssues, refetch: refetchIssues } = trpc.issues.getPlanejamento.useQuery();
@@ -384,20 +382,10 @@ export default function Planning() {
             <CardContent className="space-y-4">
               {activeSprint ? (
                 <>
-                  <div className="space-y-2">
-                    <p className="text-sm text-green-600 dark:text-green-400">
-                      {formatDate(activeSprint.dataInicio)} a {formatDate(activeSprint.dataFim)}
-                      {activeSprint.issues && ` • ${activeSprint.issues.length} issue(ns)`}
-                    </p>
-                    {activeSprint.issues && activeSprint.issues.length > 0 && (
-                      <button
-                        onClick={() => setShowStoryPointsModal(true)}
-                        className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-semibold cursor-pointer"
-                      >
-                        📊 {activeSprint.issues.reduce((sum, issue) => sum + issue.storyPoints, 0)} Story Points
-                      </button>
-                    )}
-                  </div>
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    {formatDate(activeSprint.dataInicio)} a {formatDate(activeSprint.dataFim)}
+                    {activeSprint.issues && ` • ${activeSprint.issues.length} issue(ns)`}
+                  </p>
                   <GanttChart
                     issues={activeSprint.issues || []}
                     sprintStart={formatDate(activeSprint.dataInicio)}
@@ -590,16 +578,6 @@ export default function Planning() {
         onSelectionChange={handleModalConfirm}
         onClose={() => setIsModalOpen(false)}
       />
-
-      {/* Story Points Modal */}
-      {activeSprint && activeSprint.issues && (
-        <StoryPointsModal
-          isOpen={showStoryPointsModal}
-          onClose={() => setShowStoryPointsModal(false)}
-          issues={activeSprint.issues}
-          totalStoryPoints={activeSprint.issues.reduce((sum, issue) => sum + issue.storyPoints, 0)}
-        />
-      )}
     </div>
   );
 }

@@ -14,13 +14,6 @@ interface JiraIssue {
     };
     created: string;
     updated: string;
-    parent?: {
-      key: string;
-      fields: {
-        summary: string;
-      };
-    };
-    customfield_10016?: number; // Story Points
   };
 }
 
@@ -32,8 +25,6 @@ interface SyncedIssue {
   dataInicio: string;
   dataFim: string;
   storyPoints: number;
-  epicKey?: string;
-  epicSummary?: string;
 }
 
 /**
@@ -52,7 +43,7 @@ export async function fetchJiraActiveSprintIssues(): Promise<JiraIssue[]> {
   try {
     const jql = `sprint in openSprints() AND project = "${projectKey}"`;
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
-    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee,created,updated,parent,customfield_10016`;
+    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee,created,updated`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -113,9 +104,7 @@ export function convertJiraIssuesToDashboard(jiraIssues: JiraIssue[]): SyncedIss
       responsavel: issue.fields.assignee?.displayName || 'Não Atribuído',
       dataInicio,
       dataFim,
-      storyPoints: issue.fields.customfield_10016 || 5,
-      epicKey: issue.fields.parent?.key,
-      epicSummary: issue.fields.parent?.fields?.summary,
+      storyPoints: 5, // Valor padrão - será atualizado quando encontrar o campo correto
     };
   });
 }
