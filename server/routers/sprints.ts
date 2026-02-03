@@ -203,6 +203,7 @@ export const sprintsRouter = router({
             storyPoints: z.number(),
             dataInicio: z.string(), // YYYY-MM-DD
             dataFim: z.string(), // YYYY-MM-DD
+            status: z.string().optional(),
             ordem: z.number(),
           })
         ),
@@ -224,6 +225,7 @@ export const sprintsRouter = router({
         resumo: issue.resumo,
         responsavel: issue.responsavel,
         storyPoints: issue.storyPoints,
+        status: (issue.status || "Ready to Sprint") as any,
         dataInicio: issue.dataInicio,
         dataFim: issue.dataFim,
         ordem: issue.ordem,
