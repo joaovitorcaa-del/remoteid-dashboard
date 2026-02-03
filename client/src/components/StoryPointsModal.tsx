@@ -47,14 +47,14 @@ export function StoryPointsModal({ isOpen, onClose, issues, totalStoryPoints }: 
 
   // Agrupar por épico
   const epicStats = useMemo(() => {
-    const stats: Record<string, { count: number; storyPoints: number; key: string }> = {};
+    const stats: Record<string, { count: number; storyPoints: number; key: string; summary: string }> = {};
     
     issues.forEach(issue => {
       const epicKey = issue.epicKey || 'Sem Épico';
       const epicSummary = issue.epicSummary || 'Sem Épico';
       
       if (!stats[epicKey]) {
-        stats[epicKey] = { count: 0, storyPoints: 0, key: epicKey };
+        stats[epicKey] = { count: 0, storyPoints: 0, key: epicKey, summary: epicSummary };
       }
       stats[epicKey].count++;
       stats[epicKey].storyPoints += issue.storyPoints;
@@ -63,6 +63,7 @@ export function StoryPointsModal({ isOpen, onClose, issues, totalStoryPoints }: 
     return Object.entries(stats)
       .map(([key, data]) => ({
         name: data.key === 'Sem Épico' ? 'Sem Épico' : key,
+        summary: data.summary,
         ...data,
         percentage: ((data.storyPoints / totalStoryPoints) * 100).toFixed(1),
       }))
@@ -167,7 +168,7 @@ export function StoryPointsModal({ isOpen, onClose, issues, totalStoryPoints }: 
                       <div>
                         <span className="font-semibold">{epic.name}</span>
                         {epic.key !== 'Sem Épico' && (
-                          <p className="text-xs text-gray-500">{epic.key}</p>
+                          <p className="text-xs text-gray-500">{epic.key} - {epic.summary}</p>
                         )}
                       </div>
                       <span className="text-sm text-gray-600">{epic.count} issues</span>
@@ -203,7 +204,7 @@ export function StoryPointsModal({ isOpen, onClose, issues, totalStoryPoints }: 
                       </div>
                       <div className="flex gap-2 text-xs text-gray-600 mt-2">
                         <span>👤 {issue.responsavel}</span>
-                        {issue.epicKey && <span>📋 {issue.epicKey}</span>}
+                        {issue.epicKey && <span>📋 {issue.epicKey} - {issue.epicSummary}</span>}
                       </div>
                     </div>
                   ))
