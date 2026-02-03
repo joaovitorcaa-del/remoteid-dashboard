@@ -75,6 +75,3 @@
 - [x] Atualizar componente ColorLegend com as novas cores
 - [x] Testar renderização das cores no navegador
 - [x] Executar testes automatizados (32 testes passando)
-
-## Bugs Reportados
-- [x] Barras do Gantt desaparecem após clicar em "Sync com Jira" (após implementação dos novos status de cores) - CORRIGIDO: Problema era case-sensitivity na comparação de status

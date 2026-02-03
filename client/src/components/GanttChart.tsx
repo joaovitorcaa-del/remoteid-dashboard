@@ -116,34 +116,34 @@ const formatDateDisplay = (date: string): string => {
 // 5 = Ready/Dev To Do/Code Doing/Code Review & dataFim = hoje = Laranja
 // 6 = Test ou Staging = Roxo
 const getBarColorByStatus = (issue: GanttIssue): string => {
-  const status = (issue.status || '').toLowerCase();
+  const status = issue.status || '';
   const today = new Date().toISOString().split('T')[0];
   const dataFim = typeof issue.dataFim === 'string' ? issue.dataFim : toDateString(issue.dataFim);
   
   // Done = Verde
-  if (status.includes('done')) {
+  if (status.includes('Done')) {
     return 'bg-green-500 hover:bg-green-600';
   }
   
   // Test ou Staging = Roxo
-  if (status.includes('test') || status.includes('staging')) {
+  if (status.includes('Test') || status.includes('Staging')) {
     return 'bg-purple-500 hover:bg-purple-600';
   }
   
-  // Doing & dataFim > hoje = Amarelo (mas não "Dev To Do")
-  if ((status.includes('doing') && !status.includes('dev')) && dataFim > today) {
+  // Doing & dataFim > hoje = Amarelo
+  if ((status.includes('Doing') && !status.includes('Dev To Do')) && dataFim > today) {
     return 'bg-yellow-500 hover:bg-yellow-600';
   }
   
-  // Dev To Do & dataFim > hoje = Azul (case-insensitive)
-  if ((status.includes('dev') && status.includes('to do')) && dataFim > today) {
+  // Dev To Do & dataFim > hoje = Azul
+  if (status.includes('Dev To Do') && dataFim > today) {
     return 'bg-blue-500 hover:bg-blue-600';
   }
   
-  // Verifica se o status é um dos que considera data (case-insensitive)
-  const statusComData = status.includes('ready') || (status.includes('dev') && status.includes('to do')) || 
-                        status.includes('doing') || status.includes('code') ||
-                        status.includes('review');
+  // Verifica se o status é um dos que considera data
+  const statusComData = status.includes('Ready') || status.includes('Dev To Do') || 
+                        status.includes('CODE DOING') || status.includes('Code Doing') ||
+                        status.includes('CODE REVIEW') || status.includes('Code Review');
   
   if (statusComData) {
     if (dataFim < today) {
@@ -159,7 +159,7 @@ const getBarColorByStatus = (issue: GanttIssue): string => {
   }
   
   // Ready/Dev To Do (Futuro) = Cinza
-  if ((status.includes('ready') || (status.includes('dev') && status.includes('to do'))) && dataFim > today) {
+  if ((status.includes('Ready') || status.includes('Dev To Do')) && dataFim > today) {
     return 'bg-gray-500 hover:bg-gray-600';
   }
   
