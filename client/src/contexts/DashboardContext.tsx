@@ -59,7 +59,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         qaGargaloCount: processedData.qaGargaloCount,
         qaStatuses: processedData.qaStatuses,
         devAndCodeReviewCount: processedData.devAndCodeReviewCount,
-        readyToSprintCount: processedData.readyToSprintCount,
         backlogCount: processedData.backlogCount,
         totalIssues: processedData.totalIssues,
         doneIssues: processedData.doneIssues,

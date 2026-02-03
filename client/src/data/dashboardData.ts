@@ -6,7 +6,6 @@ export interface DashboardMetrics {
   qaGargaloCount: number;
   qaStatuses: string[];
   devAndCodeReviewCount: number;
-  readyToSprintCount?: number;
   backlogCount?: number;
   totalIssues: number;
   doneIssues: number;
