@@ -52,33 +52,12 @@ export const jiraRouter = router({
       for (const issue of syncedIssues) {
         // Verificar se esta issue está planejada
         if (plannedChaves.includes(issue.chave)) {
-          // Encontrar a issue planejada original
-          const plannedIssue = plannedIssues.find(p => p.chave === issue.chave);
-          
-          // Preparar dados para atualização
-          const updateData: any = {
-            status: issue.status,
-            responsavel: issue.responsavel,
-            storyPoints: issue.storyPoints,
-          };
-          
-          // Preservar dataInicio e dataFim planejadas (não sobrescrever com dados do Jira)
-          // Isso garante que as barras do Gantt continuem visíveis após sync
-          if (plannedIssue?.dataInicio) {
-            updateData.dataInicio = plannedIssue.dataInicio;
-          } else {
-            updateData.dataInicio = issue.dataInicio;
-          }
-          
-          if (plannedIssue?.dataFim) {
-            updateData.dataFim = plannedIssue.dataFim;
-          } else {
-            updateData.dataFim = issue.dataFim;
-          }
-          
+          // Atualizar APENAS o status do Jira
+          // Preservar todos os outros campos: responsavel, storyPoints, dataInicio, dataFim
+          // Isso garante que as datas planejadas e barras do Gantt continuem visíveis
           await db
             .update(sprintIssues)
-            .set(updateData)
+            .set({ status: issue.status })
             .where(eq(sprintIssues.chave, issue.chave));
           updatedCount++;
         }
