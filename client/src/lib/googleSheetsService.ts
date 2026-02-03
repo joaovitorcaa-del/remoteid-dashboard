@@ -127,6 +127,7 @@ export function processSheetData(rows: SheetRow[]) {
     qaGargaloCount: 0,
     qaStatuses: ['Test To Do', 'Test Doing', 'STAGING'] as string[],
     devAndCodeReviewCount: 0,
+    readyToSprintCount: 0,
     backlogCount: 0,
     projectHealth: 'green' as 'red' | 'yellow' | 'green',
     criticalIssues: [] as any[],
@@ -139,6 +140,7 @@ export function processSheetData(rows: SheetRow[]) {
   const canceledStatuses = ['Canceled', 'Cancelado', 'Cancelled'];
   const qaStatuses = ['Test To Do', 'Test Doing', 'STAGING'];
   const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW'];
+  const readyToSprintStatuses = ['Ready to Sprint', 'READY TO SPRINT', 'Dev To Do'];
   const backlogStatuses = ['READY TO SPRINT', 'OPENED'];
 
   // Contar issues por status
@@ -183,6 +185,11 @@ export function processSheetData(rows: SheetRow[]) {
     // Contar Dev/Code Review
     if (devStatuses.includes(status)) {
       metrics.devAndCodeReviewCount++;
+    }
+
+    // Contar Ready to Sprint ou Dev To Do
+    if (readyToSprintStatuses.includes(status)) {
+      metrics.readyToSprintCount++;
     }
 
     // Contar Backlog (Ready to Sprint)

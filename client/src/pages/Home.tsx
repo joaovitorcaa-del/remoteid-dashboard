@@ -236,9 +236,34 @@ export default function Home() {
             />
           </div>
 
-          {/* SEGUNDA LINHA: Dev/Code Review + Etapa QA + Progresso (24h) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {/* Card 3: Em Desenvolvimento/Code Review */}
+          {/* SEGUNDA LINHA: Ready to Sprint + Dev/Code Review + Etapa QA + Progresso (24h) */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {/* Card 3: Ready to Sprint/Dev To Do */}
+            <div className="rounded-lg border p-6 bg-card border-border">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    Ready to Sprint/Dev To Do
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-bold font-display text-foreground">
+                      {filteredData.metrics.readyToSprintCount || 0}
+                    </p>
+                    <span className="text-sm font-semibold text-muted-foreground">
+                      issues
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Ready to Sprint + Dev To Do
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary">
+                  <Target className="w-6 h-6 text-primary" />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Em Desenvolvimento/Code Review */}
             <div className="rounded-lg border p-6 bg-card border-border cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => setShowDevIssuesModal(true)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -263,7 +288,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Card 4: Etapa QA */}
+            {/* Card 5: Etapa QA */}
             <div className="rounded-lg border p-6 bg-card border-border cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => setShowQAModal(true)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -289,7 +314,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Card 5: Progresso (24h) */}
+            {/* Card 6: Progresso (24h) */}
             <div
               onClick={() => setShowCompletedIssuesModal(true)}
               className="cursor-pointer h-full"
