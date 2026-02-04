@@ -81,14 +81,28 @@ export async function fetchJiraActiveSprintIssues(): Promise<JiraIssue[]> {
  */
 export function mapJiraStatusToDashboard(jiraStatus: string): string {
   const statusMap: Record<string, string> = {
-    'To Do': 'Ready to Sprint',
-    'In Progress': 'Dev to Do',
-    'In Review': 'Code Review',
-    'Testing': 'Test to Do',
-    'Done': 'Done',
+    'To Do': 'Dev to Do',
     'Backlog': 'Ready to Sprint',
+    'Ready to Sprint': 'Ready to Sprint',
+    'Dev To Do': 'Dev to Do',
+    'In Progress': 'Code Doing',
+    'CODE DOING': 'Code Doing',
+    'Code Doing': 'Code Doing',
+    'In Review': 'Code Review',
+    'CODE REVIEW': 'Code Review',
+    'Code Review': 'Code Review',
+    'Testing': 'Test to Do',
+    'TEST TO DO': 'Test to Do',
+    'Test to Do': 'Test to Do',
+    'TEST DOING': 'Test Doing',
+    'Test Doing': 'Test Doing',
+    'STAGING': 'Staging',
+    'Staging': 'Staging',
+    'Done': 'Done',
+    'DONE': 'Done',
     'Cancelled': 'Cancelled',
     'Canceled': 'Cancelled',
+    'CANCELLED': 'Cancelled',
   };
 
   return statusMap[jiraStatus] || 'Ready to Sprint';

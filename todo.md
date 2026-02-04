@@ -74,3 +74,11 @@
 - [x] Remover logs de debug da função syncActiveSprintIssues
 - [x] Validar que o sync está funcionando corretamente
 - [x] Confirmar que todos os 32 testes continuam passando
+
+## Sincronização com Jira - Implementação Funcional
+- [x] Investigar por que o sync não estava atualizando os status das issues
+- [x] Verificar credenciais Jira (JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT_KEY)
+- [x] Debugar fetchJiraActiveSprintIssues para confirmar que retorna dados
+- [x] Corrigir mapeamento de status do Jira para Dashboard (CODE DOING, CODE REVIEW, etc)
+- [x] Adicionar logging detalhado para debug da sincronização
+- [x] Validar que todos os status são atualizados corretamente

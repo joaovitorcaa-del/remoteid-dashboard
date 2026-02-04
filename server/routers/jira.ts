@@ -10,6 +10,7 @@ export const jiraRouter = router({
    */
   syncActiveSprintIssues: protectedProcedure.mutation(async ({ ctx }) => {
     try {
+      console.log('[Sync] Iniciando sincronização com Jira...');
       // Obter banco de dados
       const db = await getDb();
       if (!db) {
@@ -23,11 +24,13 @@ export const jiraRouter = router({
         .from(sprints)
         .where(eq(sprints.ativo, 1));
 
+      console.log('[Sync] Sprints ativas encontradas:', activeSprints.length);
       if (activeSprints.length === 0) {
         throw new Error('Nenhuma sprint ativa encontrada');
       }
 
       const activeSprint = activeSprints[0];
+      console.log('[Sync] Sprint ativa:', activeSprint.nome, 'ID:', activeSprint.id);
 
       // Buscar issues já planejadas na sprint ativa
       const plannedIssues = await db
@@ -35,15 +38,21 @@ export const jiraRouter = router({
         .from(sprintIssues)
         .where(eq(sprintIssues.sprintId, activeSprint.id));
 
+      console.log('[Sync] Issues planejadas encontradas:', plannedIssues.length);
+      console.log('[Sync] Chaves planejadas:', plannedIssues.map(i => i.chave).join(', '));
+
       if (plannedIssues.length === 0) {
         throw new Error('Nenhuma issue planejada nesta sprint');
       }
 
       // Buscar issues do Jira
+      console.log('[Sync] Buscando issues do Jira...');
       const jiraIssues = await fetchJiraActiveSprintIssues();
+      console.log('[Sync] Issues do Jira encontradas:', jiraIssues.length);
       
       // Converter para formato do dashboard
       const syncedIssues = convertJiraIssuesToDashboard(jiraIssues);
+      console.log('[Sync] Issues convertidas:', syncedIssues.map(i => ({ chave: i.chave, status: i.status })));
 
       // Sincronizar apenas as issues que estao planejadas
       let updatedCount = 0;
@@ -52,6 +61,7 @@ export const jiraRouter = router({
       for (const issue of syncedIssues) {
         // Verificar se esta issue está planejada
         if (plannedChaves.includes(issue.chave)) {
+          console.log(`[Sync] Atualizando ${issue.chave} com status: ${issue.status}`);
           // Atualizar APENAS o status do Jira
           // Preservar todos os outros campos: responsavel, storyPoints, dataInicio, dataFim
           // Isso garante que as datas planejadas e barras do Gantt continuem visiveis
@@ -62,9 +72,12 @@ export const jiraRouter = router({
             .update(sprintIssues)
             .set({ status: validStatus })
             .where(eq(sprintIssues.chave, issue.chave));
+          console.log(`[Sync] ${issue.chave} atualizada com sucesso`);
           updatedCount++;
         }
       }
+
+      console.log(`[Sync] Sincronização concluída: ${updatedCount} de ${plannedIssues.length} issues atualizadas`);
 
       return {
         success: true,
