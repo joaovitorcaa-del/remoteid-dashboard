@@ -68,3 +68,9 @@
 - [x] Implementar legenda de cores para barras de progresso baseado em Status + dataFim
 - [x] Destacar coluna do dia atual com fundo cinza claro
 - [x] Testar todas as funcionalidades e salvar checkpoint
+
+## Sincronização com Jira - Correções
+- [x] Investigar por que o botão "Sync com Jira" não estava atualizando status
+- [x] Remover logs de debug da função syncActiveSprintIssues
+- [x] Validar que o sync está funcionando corretamente
+- [x] Confirmar que todos os 32 testes continuam passando

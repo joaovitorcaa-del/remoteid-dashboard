@@ -41,9 +41,12 @@ export async function fetchJiraActiveSprintIssues(): Promise<JiraIssue[]> {
   }
 
   try {
+    console.log('[Jira] Iniciando busca de issues...');
     const jql = `sprint in openSprints() AND project = "${projectKey}"`;
+    console.log('[Jira] JQL:', jql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
     const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee,created,updated`;
+    console.log('[Jira] URL:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -55,10 +58,12 @@ export async function fetchJiraActiveSprintIssues(): Promise<JiraIssue[]> {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('[Jira] Erro na resposta:', response.status, errorText);
       throw new Error(`Erro ao buscar issues: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('[Jira] Resposta:', JSON.stringify(data, null, 2));
     if (!data.issues) {
       throw new Error('Nenhuma issue encontrada na resposta');
     }

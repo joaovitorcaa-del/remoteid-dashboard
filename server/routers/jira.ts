@@ -45,7 +45,7 @@ export const jiraRouter = router({
       // Converter para formato do dashboard
       const syncedIssues = convertJiraIssuesToDashboard(jiraIssues);
 
-      // Sincronizar apenas as issues que estão planejadas
+      // Sincronizar apenas as issues que estao planejadas
       let updatedCount = 0;
       const plannedChaves = plannedIssues.map(i => i.chave);
       
@@ -54,10 +54,13 @@ export const jiraRouter = router({
         if (plannedChaves.includes(issue.chave)) {
           // Atualizar APENAS o status do Jira
           // Preservar todos os outros campos: responsavel, storyPoints, dataInicio, dataFim
-          // Isso garante que as datas planejadas e barras do Gantt continuem visíveis
+          // Isso garante que as datas planejadas e barras do Gantt continuem visiveis
+          const validStatus = ['Ready to Sprint', 'Dev to Do', 'Code Doing', 'Code Review', 'Test to Do', 'Test Doing', 'Staging', 'Done', 'Cancelled'].includes(issue.status)
+            ? (issue.status as any)
+            : 'Ready to Sprint';
           await db
             .update(sprintIssues)
-            .set({ status: issue.status })
+            .set({ status: validStatus })
             .where(eq(sprintIssues.chave, issue.chave));
           updatedCount++;
         }

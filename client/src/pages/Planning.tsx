@@ -19,7 +19,7 @@ interface SelectedIssue {
   ordem: number;
   dataInicio: string;
   dataFim: string;
-  status?: string;
+  status: string;
 }
 
 interface Issue {
@@ -34,8 +34,8 @@ interface Issue {
 interface Sprint {
   id: number;
   nome: string;
-  dataInicio: string;
-  dataFim: string;
+  dataInicio: string | Date;
+  dataFim: string | Date;
   ativo: number;
   issues?: SelectedIssue[];
 }

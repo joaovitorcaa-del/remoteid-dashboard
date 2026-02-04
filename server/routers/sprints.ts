@@ -119,8 +119,8 @@ export const sprintsRouter = router({
 
       const newSprint: InsertSprint = {
         nome: input.nome,
-        dataInicio: input.dataInicio,
-        dataFim: input.dataFim,
+        dataInicio: new Date(input.dataInicio),
+        dataFim: new Date(input.dataFim),
         ativo: 1,
       };
 
@@ -161,8 +161,8 @@ export const sprintsRouter = router({
 
       const updateData: Partial<InsertSprint> = {};
       if (input.nome) updateData.nome = input.nome;
-      if (input.dataInicio) updateData.dataInicio = input.dataInicio;
-      if (input.dataFim) updateData.dataFim = input.dataFim;
+      if (input.dataInicio) updateData.dataInicio = new Date(input.dataInicio);
+      if (input.dataFim) updateData.dataFim = new Date(input.dataFim);
       if (input.ativo !== undefined) updateData.ativo = input.ativo;
 
       await db.update(sprints).set(updateData).where(eq(sprints.id, input.id));
@@ -226,8 +226,8 @@ export const sprintsRouter = router({
         responsavel: issue.responsavel,
         storyPoints: issue.storyPoints,
         status: (issue.status || "Ready to Sprint") as any,
-        dataInicio: issue.dataInicio,
-        dataFim: issue.dataFim,
+        dataInicio: new Date(issue.dataInicio),
+        dataFim: new Date(issue.dataFim),
         ordem: issue.ordem,
       }));
 
@@ -286,8 +286,8 @@ export const sprintsRouter = router({
         resumo: issue.resumo,
         responsavel: issue.responsavel,
         storyPoints: issue.storyPoints,
-        dataInicio: issue.dataInicio,
-        dataFim: issue.dataFim,
+        dataInicio: new Date(issue.dataInicio),
+        dataFim: new Date(issue.dataFim),
         ordem: issue.ordem,
       }));
       

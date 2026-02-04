@@ -11,6 +11,7 @@ export interface DashboardMetrics {
   doneIssues: number;
   canceledIssues?: number;
   inProgressIssues?: number;
+  readyToSprintCount?: number;
 }
 
 export interface CriticalIssue {
