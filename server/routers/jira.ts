@@ -1,5 +1,5 @@
 import { protectedProcedure, router } from "../_core/trpc";
-import { fetchJiraActiveSprintIssues, convertJiraIssuesToDashboard } from "../jira-sync";
+import { fetchJiraActiveSprintIssues, fetchJiraBacklogIssues, convertJiraIssuesToDashboard } from "../jira-sync";
 import { getDb } from "../db";
 import { sprintIssues, type InsertSprintIssue } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -88,6 +88,30 @@ export const jiraRouter = router({
     } catch (error) {
       console.error('Erro ao sincronizar com Jira:', error);
       throw new Error(`Erro ao sincronizar: ${error instanceof Error ? error.message : 'Desconhecido'}`);
+    }
+  }),
+
+  /**
+   * Busca issues do Backlog do Jira
+   */
+  getBacklogIssues: protectedProcedure.query(async () => {
+    try {
+      console.log('[Backlog] Buscando issues do backlog do Jira...');
+      const jiraIssues = await fetchJiraBacklogIssues();
+      console.log('[Backlog] Issues encontradas:', jiraIssues.length);
+      
+      // Converter para formato do dashboard
+      const backlogIssues = convertJiraIssuesToDashboard(jiraIssues);
+      console.log('[Backlog] Issues convertidas:', backlogIssues.length);
+
+      return {
+        success: true,
+        issues: backlogIssues,
+        totalCount: backlogIssues.length,
+      };
+    } catch (error) {
+      console.error('Erro ao buscar backlog:', error);
+      throw new Error(`Erro ao buscar backlog: ${error instanceof Error ? error.message : 'Desconhecido'}`);
     }
   }),
 

@@ -22,6 +22,7 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import { useFilter } from '@/contexts/FilterContext';
 import { useNextSteps } from '@/hooks/useNextSteps';
 import { useFilteredData } from '@/hooks/useFilteredData';
+import { trpc } from '@/lib/trpc';
 
 /**
  * Design Philosophy: Modern Enterprise Analytics
@@ -50,6 +51,8 @@ export default function Home() {
   const [qaIssues, setQaIssues] = useState<any[]>([]);
   const [readyToSprintIssues, setReadyToSprintIssues] = useState<any[]>([]);
   const [doneIssues, setDoneIssues] = useState<any[]>([]);
+  const [jiraBacklogIssues, setJiraBacklogIssues] = useState<any[]>([]);
+  const [backlogLoading, setBacklogLoading] = useState(false);
   
   // Aplicar filtro aos dados
   const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
@@ -99,6 +102,21 @@ export default function Home() {
       });
     }
   }, [metrics, impediments.length, generateNextSteps]);
+
+  // Carregar Backlog do Jira quando o modal for aberto
+  const backlogQuery = trpc.jira.getBacklogIssues.useQuery(undefined, {
+    enabled: showBacklogModal,
+  });
+
+  useEffect(() => {
+    if (showBacklogModal && backlogQuery.data?.issues) {
+      setJiraBacklogIssues(backlogQuery.data.issues);
+    }
+  }, [showBacklogModal, backlogQuery.data]);
+
+  useEffect(() => {
+    setBacklogLoading(backlogQuery.isLoading);
+  }, [backlogQuery.isLoading]);
 
   const getIconComponent = (iconName: string) => {
     const icons: { [key: string]: React.ReactNode } = {
@@ -351,7 +369,12 @@ export default function Home() {
               <IssueTypeChart issues={allIssues || []} />
             </div>
             <div className="lg:col-span-1 cursor-pointer" onClick={() => setShowBacklogModal(true)}>
-              <BacklogCard items={backlogItems} count={filteredData.metrics.backlogCount || 0} />
+              <BacklogCard items={jiraBacklogIssues.map((issue: any) => ({
+                key: issue.chave,
+                summary: issue.resumo,
+                issueType: 'Story',
+                status: issue.status,
+              }))} count={jiraBacklogIssues.length} isLoading={backlogLoading} />
             </div>
           </div>
         </section>
@@ -555,23 +578,25 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Itens do Backlog</DialogTitle>
             <DialogDescription>
-              {backlogItems.length} item{backlogItems.length !== 1 ? 's' : ''} no backlog
+              {jiraBacklogIssues.length} item{jiraBacklogIssues.length !== 1 ? 's' : ''} no backlog
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {backlogItems.length === 0 ? (
+            {backlogLoading ? (
+              <p className="text-sm text-muted-foreground py-4">Carregando backlog...</p>
+            ) : jiraBacklogIssues.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">Nenhum item no backlog</p>
             ) : (
-              backlogItems.map((item: any, index: number) => (
+              jiraBacklogIssues.map((item: any, index: number) => (
                 <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">{item.key || item.Key}</p>
-                      <p className="text-sm font-semibold text-foreground flex-1">{item.summary || item.Summary}</p>
+                      <p className="font-mono text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">{item.chave}</p>
+                      <p className="text-sm font-semibold text-foreground flex-1">{item.resumo}</p>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>Tipo: {item.issueType || item['Issue Type']}</span>
-                      <span>Responsavel: {item.assignee || item.Assignee || 'Nao atribuido'}</span>
+                      <span>Status: {item.status}</span>
+                      <span>Responsavel: {item.responsavel || 'Nao atribuido'}</span>
                     </div>
                   </div>
                 </div>

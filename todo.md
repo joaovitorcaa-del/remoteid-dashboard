@@ -104,3 +104,10 @@
 - [x] Adicionar onClick ao card Taxa de Conclusão
 - [x] Criar o modal para exibir Done Issues
 - [x] Testar e validar
+
+## Backlog do Jira com JQL
+- [x] Criar função para buscar Backlog do Jira usando JQL
+- [x] Adicionar estado e efeito para carregar Backlog do Jira
+- [x] Ajustar tamanho do card Backlog para ter mesma altura do card Distribuição por Tipo
+- [x] Adicionar barra de rolagem para muitos itens
+- [x] Testar e validar

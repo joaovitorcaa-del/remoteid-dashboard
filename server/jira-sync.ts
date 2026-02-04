@@ -127,3 +127,52 @@ export function convertJiraIssuesToDashboard(jiraIssues: JiraIssue[]): SyncedIss
     };
   });
 }
+
+
+/**
+ * Busca issues do Backlog no Jira usando JQL
+ */
+export async function fetchJiraBacklogIssues(): Promise<JiraIssue[]> {
+  const jiraUrl = process.env.JIRA_URL;
+  const jiraEmail = process.env.JIRA_EMAIL;
+  const jiraToken = process.env.JIRA_API_TOKEN;
+
+  if (!jiraUrl || !jiraEmail || !jiraToken) {
+    throw new Error('Credenciais do Jira não configuradas');
+  }
+
+  try {
+    console.log('[Jira Backlog] Iniciando busca de issues do backlog...');
+    const jql = `SPRINT is EMPTY AND project in ("RemoteID", "DesktopID", "Mobile ID") AND status NOT IN (OPENED, Prioritized, "USER STORY WRITTEN", "USER STORY REFINEMENT", PREPLANNING, DONE, Canceled) AND issuetype NOT IN (EPIC, "Technical Task") ORDER BY priority desc`;
+    console.log('[Jira Backlog] JQL:', jql);
+    const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
+    const url = `${baseUrl}/rest/api/3/search?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee,created,updated,priority`;
+    console.log('[Jira Backlog] URL:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${jiraEmail}:${jiraToken}`).toString('base64')}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Jira Backlog] Erro na resposta:', response.status, errorText);
+      throw new Error(`Erro ao buscar backlog: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('[Jira Backlog] Resposta:', JSON.stringify(data, null, 2));
+    if (!data.issues) {
+      throw new Error('Nenhuma issue encontrada na resposta');
+    }
+
+    console.log(`✓ Encontradas ${data.issues.length} issues do backlog`);
+    return data.issues;
+  } catch (error) {
+    console.error('Erro ao buscar backlog do Jira:', error);
+    throw error;
+  }
+}

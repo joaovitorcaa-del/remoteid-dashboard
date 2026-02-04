@@ -10,11 +10,12 @@ interface BacklogItem {
 interface BacklogCardProps {
   items: BacklogItem[];
   count: number;
+  isLoading?: boolean;
 }
 
-export function BacklogCard({ items, count }: BacklogCardProps) {
+export function BacklogCard({ items, count, isLoading = false }: BacklogCardProps) {
   return (
-    <div className="bg-card border border-border rounded-lg p-6 flex flex-col">
+    <div className="bg-card border border-border rounded-lg p-6 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">Backlog</h3>
         <Package className="w-5 h-5 text-blue-600" />
@@ -25,10 +26,16 @@ export function BacklogCard({ items, count }: BacklogCardProps) {
         <p className="text-sm text-muted-foreground">Ready to Sprint</p>
       </div>
 
-      {items.length > 0 && (
+      {isLoading && (
+        <p className="text-sm text-muted-foreground text-center py-8">
+          Carregando backlog...
+        </p>
+      )}
+
+      {!isLoading && items.length > 0 && (
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-2">
-            {items.slice(0, 5).map((item) => (
+            {items.map((item) => (
               <div
                 key={item.key}
                 className="p-2 rounded bg-secondary/50 hover:bg-secondary transition-colors"
@@ -46,16 +53,11 @@ export function BacklogCard({ items, count }: BacklogCardProps) {
                 </p>
               </div>
             ))}
-            {items.length > 5 && (
-              <p className="text-xs text-muted-foreground text-center py-2">
-                +{items.length - 5} mais itens
-              </p>
-            )}
           </div>
         </div>
       )}
 
-      {items.length === 0 && (
+      {!isLoading && items.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">
           Nenhum item no backlog
         </p>
