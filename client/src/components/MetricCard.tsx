@@ -8,6 +8,7 @@ interface MetricCardProps {
   trendValue?: string;
   description?: string;
   highlight?: boolean;
+  onClick?: () => void;
 }
 
 export function MetricCard({
@@ -18,10 +19,14 @@ export function MetricCard({
   trendValue,
   description,
   highlight = false,
+  onClick,
 }: MetricCardProps) {
   return (
     <div
+      onClick={onClick}
       className={`rounded-lg border p-6 transition-all hover:shadow-md h-full ${
+        onClick ? 'cursor-pointer hover:bg-secondary/50' : ''
+      } ${
         highlight
           ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'
           : 'bg-card border-border'

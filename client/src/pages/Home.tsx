@@ -43,11 +43,13 @@ export default function Home() {
   const [showQAModal, setShowQAModal] = useState(false);
   const [showBacklogModal, setShowBacklogModal] = useState(false);
   const [showReadyToSprintModal, setShowReadyToSprintModal] = useState(false);
+  const [showDoneIssuesModal, setShowDoneIssuesModal] = useState(false);
   const [issueTypes, setIssueTypes] = useState<string[]>([]);
   const [devIssues, setDevIssues] = useState<any[]>([]);
   const [completedIssues, setCompletedIssues] = useState<any[]>([]);
   const [qaIssues, setQaIssues] = useState<any[]>([]);
   const [readyToSprintIssues, setReadyToSprintIssues] = useState<any[]>([]);
+  const [doneIssues, setDoneIssues] = useState<any[]>([]);
   
   // Aplicar filtro aos dados
   const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
@@ -71,6 +73,10 @@ export default function Home() {
       
       const qaIssuesList = allIssues.filter((issue: any) => qaStatuses.includes((issue.Status || '').toLowerCase()));
       setQaIssues(qaIssuesList);
+      
+      const doneStatuses = ['done'];
+      const doneIssuesList = allIssues.filter((issue: any) => doneStatuses.includes((issue.Status || '').toLowerCase()));
+      setDoneIssues(doneIssuesList);
       
       const completed = getCompletedIssuesLast24h(allIssues);
       setCompletedIssues(completed);
@@ -240,6 +246,7 @@ export default function Home() {
               icon={CheckCircle2}
               description="Issues concluídas do total"
               highlight
+              onClick={() => setShowDoneIssuesModal(true)}
             />
           </div>
 
@@ -592,6 +599,39 @@ export default function Home() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <p className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
+                      <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
+                      <span>Status: {issue.Status}</span>
+                      <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Done Issues Modal */}
+      <Dialog open={showDoneIssuesModal} onOpenChange={setShowDoneIssuesModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Issues Concluídas</DialogTitle>
+            <DialogDescription>
+              {doneIssues.length} issue{doneIssues.length !== 1 ? 's' : ''} concluída{doneIssues.length !== 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {doneIssues.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Nenhuma issue concluída</p>
+            ) : (
+              doneIssues.map((issue: any, index: number) => (
+                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
                       <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">

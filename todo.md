@@ -96,3 +96,11 @@
 - [x] Investigar por que o modal não estava listando issues com status Ready to Sprint
 - [x] Corrigir o filtro de readyToSprintIssues para usar case-insensitive
 - [x] Testar e validar o modal
+
+## Modal para Taxa de Conclusão (Done Issues)
+- [x] Investigar o código do card Taxa de Conclusão
+- [x] Adicionar estado para o modal de Done Issues
+- [x] Criar o filtro de doneIssues com status "Done"
+- [x] Adicionar onClick ao card Taxa de Conclusão
+- [x] Criar o modal para exibir Done Issues
+- [x] Testar e validar
