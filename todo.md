@@ -111,3 +111,10 @@
 - [x] Ajustar tamanho do card Backlog para ter mesma altura do card Distribuição por Tipo
 - [x] Adicionar barra de rolagem para muitos itens
 - [x] Testar e validar
+
+## Ajuste do Card Backlog
+- [x] Exibir apenas os 3 primeiros issues no card
+- [x] Adicionar botão "Ver mais itens"
+- [x] Abrir modal ao clicar no botão
+- [x] Manter cálculo do total
+- [x] Testar e validar

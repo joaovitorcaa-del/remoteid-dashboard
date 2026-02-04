@@ -11,9 +11,10 @@ interface BacklogCardProps {
   items: BacklogItem[];
   count: number;
   isLoading?: boolean;
+  onViewMore?: () => void;
 }
 
-export function BacklogCard({ items, count, isLoading = false }: BacklogCardProps) {
+export function BacklogCard({ items, count, isLoading = false, onViewMore }: BacklogCardProps) {
   return (
     <div className="bg-card border border-border rounded-lg p-6 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
@@ -33,9 +34,9 @@ export function BacklogCard({ items, count, isLoading = false }: BacklogCardProp
       )}
 
       {!isLoading && items.length > 0 && (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 flex flex-col">
           <div className="space-y-2">
-            {items.map((item) => (
+            {items.slice(0, 3).map((item) => (
               <div
                 key={item.key}
                 className="p-2 rounded bg-secondary/50 hover:bg-secondary transition-colors"
@@ -54,6 +55,14 @@ export function BacklogCard({ items, count, isLoading = false }: BacklogCardProp
               </div>
             ))}
           </div>
+          {items.length > 3 && onViewMore && (
+            <button
+              onClick={onViewMore}
+              className="mt-4 w-full py-2 px-3 rounded bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm font-medium transition-colors"
+            >
+              Ver mais itens ({items.length - 3})
+            </button>
+          )}
         </div>
       )}
 

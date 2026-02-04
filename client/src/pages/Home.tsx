@@ -374,7 +374,7 @@ export default function Home() {
                 summary: issue.resumo,
                 issueType: 'Story',
                 status: issue.status,
-              }))} count={jiraBacklogIssues.length} isLoading={backlogLoading} />
+              }))} count={jiraBacklogIssues.length} isLoading={backlogLoading} onViewMore={() => setShowBacklogModal(true)} />
             </div>
           </div>
         </section>
