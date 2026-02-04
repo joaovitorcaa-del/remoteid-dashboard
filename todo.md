@@ -91,3 +91,8 @@
 - [x] Corrigir comparação de status para case-insensitive (READY TO SPRINT vs Ready to Sprint)
 - [x] Adicionar readyToSprintCount ao DashboardContext
 - [x] Testar e validar as correções
+
+## Correção do Modal Ready to Sprint/Dev To Do
+- [x] Investigar por que o modal não estava listando issues com status Ready to Sprint
+- [x] Corrigir o filtro de readyToSprintIssues para usar case-insensitive
+- [x] Testar e validar o modal

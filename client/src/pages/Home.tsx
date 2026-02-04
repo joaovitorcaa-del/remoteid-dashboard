@@ -59,17 +59,17 @@ export default function Home() {
       setIssueTypes(types as string[]);
       setAvailableIssueTypes(types as string[]);
       
-      const readyToSprintStatuses = ['Ready to Sprint', 'Dev To Do'];
-      const devStatuses = ['CODE DOING', 'CODE REVIEW'];
-      const qaStatuses = ['Test To Do', 'Test Doing', 'STAGING'];
+      const readyToSprintStatuses = ['ready to sprint', 'dev to do'];
+      const devStatuses = ['code doing', 'code review'];
+      const qaStatuses = ['test to do', 'test doing', 'staging'];
       
-      const readyToSprintList = allIssues.filter((issue: any) => readyToSprintStatuses.includes(issue.Status));
+      const readyToSprintList = allIssues.filter((issue: any) => readyToSprintStatuses.includes((issue.Status || '').toLowerCase()));
       setReadyToSprintIssues(readyToSprintList);
       
-      const devIssuesList = allIssues.filter((issue: any) => devStatuses.includes(issue.Status));
+      const devIssuesList = allIssues.filter((issue: any) => devStatuses.includes((issue.Status || '').toLowerCase()));
       setDevIssues(devIssuesList);
       
-      const qaIssuesList = allIssues.filter((issue: any) => qaStatuses.includes(issue.Status));
+      const qaIssuesList = allIssues.filter((issue: any) => qaStatuses.includes((issue.Status || '').toLowerCase()));
       setQaIssues(qaIssuesList);
       
       const completed = getCompletedIssuesLast24h(allIssues);
