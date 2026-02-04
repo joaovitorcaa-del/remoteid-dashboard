@@ -130,6 +130,16 @@ const getBarColorByStatus = (issue: GanttIssue): string => {
     return 'bg-purple-500 hover:bg-purple-600';
   }
   
+  // Status=Doing AND dataFim>Hoje --> Amarelo
+  if (status.includes('Doing') && dataFim > today) {
+    return 'bg-yellow-500 hover:bg-yellow-600';
+  }
+  
+  // Status=Dev To Do AND dataFim>hoje --> Azul
+  if (status.includes('Dev To Do') && dataFim > today) {
+    return 'bg-blue-500 hover:bg-blue-600';
+  }
+  
   // Verifica se o status é um dos que considera data
   const statusComData = status.includes('Ready') || status.includes('Dev To Do') || 
                         status.includes('CODE DOING') || status.includes('Code Doing') ||
@@ -161,10 +171,18 @@ const getBarColorByStatus = (issue: GanttIssue): string => {
 function ColorLegend() {
   return (
     <div className="mb-4 p-3 bg-muted rounded-lg">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-gray-500 rounded" />
           <span className="text-xs text-muted-foreground">Ready/Dev To Do (futuro)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-blue-500 rounded" />
+          <span className="text-xs text-muted-foreground">Dev To Do (dataFim &gt; hoje)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-yellow-500 rounded" />
+          <span className="text-xs text-muted-foreground">Doing (dataFim &gt; hoje)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-green-500 rounded" />
