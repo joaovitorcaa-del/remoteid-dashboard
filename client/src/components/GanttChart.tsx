@@ -115,55 +115,47 @@ const formatDateDisplay = (date: string): string => {
 // 4 = Ready/Dev To Do/Code Doing/Code Review & dataFim > hoje = Verde
 // 5 = Ready/Dev To Do/Code Doing/Code Review & dataFim = hoje = Laranja
 // 6 = Test ou Staging = Roxo
+
 const getBarColorByStatus = (issue: GanttIssue): string => {
-  const status = issue.status || '';
-  const today = new Date().toISOString().split('T')[0];
-  const dataFim = typeof issue.dataFim === 'string' ? issue.dataFim : toDateString(issue.dataFim);
+  const status = (issue.status || '').toUpperCase();
+  const today = toDateString(new Date());
+  const dataFim = typeof issue.dataFim === 'string'
+    ? issue.dataFim
+    : toDateString(issue.dataFim);
+  const isLate = dataFim < today;
+  const isToday = dataFim === today;
+  const isOnTime = dataFim > today;
   
-  // Done = Verde
-  if (status.includes('Done')) {
-    return 'bg-green-500 hover:bg-green-600';
+  // Concluído
+  if (status.includes('DONE')) {
+    return 'bg-green-600 hover:bg-green-700';
   }
   
-  // Test ou Staging = Roxo
-  if (status.includes('Test') || status.includes('Staging')) {
+  // Teste / Staging
+  if (status.includes('TEST') || status.includes('STAGING')) {
     return 'bg-purple-500 hover:bg-purple-600';
   }
   
-  // Status=Doing AND dataFim>Hoje --> Amarelo
-  if (status.includes('Doing') && dataFim > today) {
+  // Atrasado (qualquer status ativo)
+  if (isLate) {
+    return 'bg-red-500 hover:bg-red-600';
+  }
+  
+  // Vence hoje
+  if (isToday) {
+    return 'bg-orange-500 hover:bg-orange-600';
+  }
+  
+  // Em execução
+  if (status.includes('DOING') || status.includes('CODE')) {
     return 'bg-yellow-500 hover:bg-yellow-600';
   }
   
-  // Status=Dev To Do AND dataFim>hoje --> Azul
-  if (status.includes('Dev To Do') && dataFim > today) {
+  // Planejado / To Do
+  if (status.includes('DEV TO DO') || status.includes('READY')) {
     return 'bg-blue-500 hover:bg-blue-600';
   }
   
-  // Verifica se o status é um dos que considera data
-  const statusComData = status.includes('Ready') || status.includes('Dev To Do') || 
-                        status.includes('CODE DOING') || status.includes('Code Doing') ||
-                        status.includes('CODE REVIEW') || status.includes('Code Review');
-  
-  if (statusComData) {
-    if (dataFim < today) {
-      // dataFim < hoje = Vermelho (Atrasado)
-      return 'bg-red-500 hover:bg-red-600';
-    } else if (dataFim === today) {
-      // dataFim = hoje = Laranja (Vence Hoje)
-      return 'bg-orange-500 hover:bg-orange-600';
-    } else {
-      // dataFim > hoje = Verde (No prazo)
-      return 'bg-green-500 hover:bg-green-600';
-    }
-  }
-  
-  // Ready/Dev To Do (Futuro) = Cinza
-  if ((status.includes('Ready') || status.includes('Dev To Do')) && dataFim > today) {
-    return 'bg-gray-500 hover:bg-gray-600';
-  }
-  
-  // Padrão
   return 'bg-gray-500 hover:bg-gray-600';
 };
 
@@ -173,32 +165,32 @@ function ColorLegend() {
     <div className="mb-4 p-3 bg-muted rounded-lg">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-gray-500 rounded" />
-          <span className="text-xs text-muted-foreground">Ready/Dev To Do (futuro)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-500 rounded" />
-          <span className="text-xs text-muted-foreground">Dev To Do (dataFim &gt; hoje)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-yellow-500 rounded" />
-          <span className="text-xs text-muted-foreground">Doing (dataFim &gt; hoje)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-green-500 rounded" />
-          <span className="text-xs text-muted-foreground">Done / No Prazo</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-orange-500 rounded" />
-          <span className="text-xs text-muted-foreground">Vence Hoje (dataFim = hoje)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-500 rounded" />
-          <span className="text-xs text-muted-foreground">Atrasado (dataFim &lt; hoje)</span>
+          <div className="w-4 h-4 bg-green-600 rounded" />
+          <span className="text-xs text-muted-foreground">Concluido</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-purple-500 rounded" />
-          <span className="text-xs text-muted-foreground">Test/Staging</span>
+          <span className="text-xs text-muted-foreground">Teste / Staging</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-red-500 rounded" />
+          <span className="text-xs text-muted-foreground">Atrasado</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-orange-500 rounded" />
+          <span className="text-xs text-muted-foreground">Vence Hoje</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-yellow-500 rounded" />
+          <span className="text-xs text-muted-foreground">Em Execucao</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-blue-500 rounded" />
+          <span className="text-xs text-muted-foreground">Planejado / To Do</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-gray-500 rounded" />
+          <span className="text-xs text-muted-foreground">Sem Status</span>
         </div>
       </div>
     </div>
