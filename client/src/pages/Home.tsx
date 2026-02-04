@@ -42,10 +42,12 @@ export default function Home() {
   const [showCompletedIssuesModal, setShowCompletedIssuesModal] = useState(false);
   const [showQAModal, setShowQAModal] = useState(false);
   const [showBacklogModal, setShowBacklogModal] = useState(false);
+  const [showReadyToSprintModal, setShowReadyToSprintModal] = useState(false);
   const [issueTypes, setIssueTypes] = useState<string[]>([]);
   const [devIssues, setDevIssues] = useState<any[]>([]);
   const [completedIssues, setCompletedIssues] = useState<any[]>([]);
   const [qaIssues, setQaIssues] = useState<any[]>([]);
+  const [readyToSprintIssues, setReadyToSprintIssues] = useState<any[]>([]);
   
   // Aplicar filtro aos dados
   const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
@@ -57,8 +59,13 @@ export default function Home() {
       setIssueTypes(types as string[]);
       setAvailableIssueTypes(types as string[]);
       
-      const devStatuses = ['Dev To Do', 'CODE DOING', 'CODE REVIEW', 'Dev Doing'];
+      const readyToSprintStatuses = ['Ready to Sprint', 'Dev To Do'];
+      const devStatuses = ['CODE DOING', 'CODE REVIEW'];
       const qaStatuses = ['Test To Do', 'Test Doing', 'STAGING'];
+      
+      const readyToSprintList = allIssues.filter((issue: any) => readyToSprintStatuses.includes(issue.Status));
+      setReadyToSprintIssues(readyToSprintList);
+      
       const devIssuesList = allIssues.filter((issue: any) => devStatuses.includes(issue.Status));
       setDevIssues(devIssuesList);
       
@@ -239,7 +246,7 @@ export default function Home() {
           {/* SEGUNDA LINHA: Ready to Sprint + Dev/Code Review + Etapa QA + Progresso (24h) */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {/* Card 3: Ready to Sprint/Dev To Do */}
-            <div className="rounded-lg border p-6 bg-card border-border">
+            <div className="rounded-lg border p-6 bg-card border-border cursor-pointer hover:bg-secondary/50 transition-colors" onClick={() => setShowReadyToSprintModal(true)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground mb-2">
@@ -279,7 +286,7 @@ export default function Home() {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-3">
-                    Dev To Do + CODE DOING + Dev Doing
+                    Code Doing + Code Review
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-secondary">
@@ -558,6 +565,39 @@ export default function Home() {
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>Tipo: {item.issueType || item['Issue Type']}</span>
                       <span>Responsavel: {item.assignee || item.Assignee || 'Nao atribuido'}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Ready to Sprint/Dev To Do Modal */}
+      <Dialog open={showReadyToSprintModal} onOpenChange={setShowReadyToSprintModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ready to Sprint / Dev To Do</DialogTitle>
+            <DialogDescription>
+              {readyToSprintIssues.length} issue{readyToSprintIssues.length !== 1 ? 's' : ''} pronta{readyToSprintIssues.length !== 1 ? 's' : ''} para sprint ou em desenvolvimento inicial
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {readyToSprintIssues.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Nenhuma issue neste status</p>
+            ) : (
+              readyToSprintIssues.map((issue: any, index: number) => (
+                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
+                      <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
+                      <span>Status: {issue.Status}</span>
+                      <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
                     </div>
                   </div>
                 </div>

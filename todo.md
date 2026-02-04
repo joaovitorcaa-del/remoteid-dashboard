@@ -82,3 +82,10 @@
 - [x] Corrigir mapeamento de status do Jira para Dashboard (CODE DOING, CODE REVIEW, etc)
 - [x] Adicionar logging detalhado para debug da sincronização
 - [x] Validar que todos os status são atualizados corretamente
+
+## Correção de Cards do Dashboard
+- [x] Corrigir contagem do card "Ready to Sprint/Dev To Do" para somar ambos status
+- [x] Corrigir contagem do card "Em Desenvolvimento/Code Review" para apenas esses dois status
+- [x] Adicionar modal para exibir issues no card "Ready to Sprint/Dev To Do"
+- [x] Adicionar modal para exibir issues no card "Em Desenvolvimento/Code Review"
+- [x] Testar e validar as correções

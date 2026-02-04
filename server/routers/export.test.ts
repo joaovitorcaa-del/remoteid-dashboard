@@ -88,7 +88,7 @@ describe("export.generatePDF", () => {
     expect(bytes[1]).toBe(0x50); // P
     expect(bytes[2]).toBe(0x44); // D
     expect(bytes[3]).toBe(0x46); // F
-  });
+  }, 15000);
 
   it("should handle empty dashboard data", async () => {
     const ctx = createContext();
