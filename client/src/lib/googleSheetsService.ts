@@ -136,20 +136,25 @@ export function processSheetData(rows: SheetRow[]) {
     statusDistribution: {} as any,
   };
 
-  const doneStatuses = ['Done', 'Concluído', 'Closed', 'Finalizado', 'DONE'];
-  const canceledStatuses = ['Canceled', 'Cancelado', 'Cancelled'];
-  const qaStatuses = ['Test To Do', 'Test Doing', 'STAGING'];
-  const devStatuses = ['CODE DOING', 'CODE REVIEW'];
-  const readyToSprintStatuses = ['Ready to Sprint', 'Dev To Do'];
-  const backlogStatuses = ['READY TO SPRINT', 'OPENED'];
+  const doneStatuses = ['done', 'concluído', 'closed', 'finalizado'];
+  const canceledStatuses = ['canceled', 'cancelado', 'cancelled'];
+  const qaStatuses = ['test to do', 'test doing', 'staging'];
+  const devStatuses = ['code doing', 'code review'];
+  const readyToSprintStatuses = ['ready to sprint', 'dev to do'];
+  const backlogStatuses = ['ready to sprint', 'opened'];
 
   // Contar issues por status
   const statusCount: { [key: string]: number } = {};
   const statusIssueTypeCount: { [key: string]: { bugs: number; improvements: number; tests: number } } = {};
 
   rows.forEach((row) => {
-    const status = row.Status || 'Unknown';
+    const status = (row.Status || 'Unknown').toLowerCase();
     const issueType = row['Issue Type'] || 'Unknown';
+    
+    // Log apenas para Ready to Sprint e Dev To Do
+    if (['ready to sprint', 'dev to do'].includes(status)) {
+      console.log('[processSheetData] Status encontrado:', status, '| Chave:', row.Key);
+    }
 
     // Contar por status
     statusCount[status] = (statusCount[status] || 0) + 1;
@@ -250,6 +255,12 @@ export function processSheetData(rows: SheetRow[]) {
     tests: counts.tests,
     total: counts.bugs + counts.improvements + counts.tests,
   }));
+
+  console.log('[processSheetData] Resumo final:');
+  console.log('  - readyToSprintCount:', metrics.readyToSprintCount);
+  console.log('  - devAndCodeReviewCount:', metrics.devAndCodeReviewCount);
+  console.log('  - qaGargaloCount:', metrics.qaGargaloCount);
+  console.log('  - Status distribution:', statusCount);
 
   return metrics;
 }

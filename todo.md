@@ -88,4 +88,6 @@
 - [x] Corrigir contagem do card "Em Desenvolvimento/Code Review" para apenas esses dois status
 - [x] Adicionar modal para exibir issues no card "Ready to Sprint/Dev To Do"
 - [x] Adicionar modal para exibir issues no card "Em Desenvolvimento/Code Review"
+- [x] Corrigir comparação de status para case-insensitive (READY TO SPRINT vs Ready to Sprint)
+- [x] Adicionar readyToSprintCount ao DashboardContext
 - [x] Testar e validar as correções
