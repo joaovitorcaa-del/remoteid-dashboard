@@ -504,7 +504,13 @@ export default function Home() {
       <DevIssuesModal 
         open={showDevIssuesModal} 
         onOpenChange={setShowDevIssuesModal} 
-        issues={devIssues} 
+        issues={devIssues.map((issue: any) => ({
+          Key: issue.Key,
+          Summary: issue.Summary,
+          Assignee: issue.Assignee,
+          Status: issue.Status,
+          IssueType: issue['Issue Type'],
+        }))} 
       />
       
       {/* Completed Issues Modal (24h) */}

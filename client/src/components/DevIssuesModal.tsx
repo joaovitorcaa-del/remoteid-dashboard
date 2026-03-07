@@ -9,6 +9,7 @@ interface DevIssue {
   Summary: string;
   Assignee: string;
   Status: string;
+  IssueType?: string;
 }
 
 interface DevIssuesModalProps {
@@ -133,6 +134,11 @@ export function DevIssuesModal({ open, onOpenChange, issues }: DevIssuesModalPro
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <code className="text-sm font-semibold text-primary">{issue.Key}</code>
+                        {issue.IssueType && (
+                          <Badge className="bg-green-100 text-green-800">
+                            {issue.IssueType}
+                          </Badge>
+                        )}
                         <Badge className={getStatusColor(issue.Status)}>
                           {issue.Status}
                         </Badge>

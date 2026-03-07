@@ -118,3 +118,7 @@
 - [x] Abrir modal ao clicar no botão
 - [x] Manter cálculo do total
 - [x] Testar e validar
+
+## Modal Code Review - Exibir IssueType
+- [x] Adicionar IssueType no modal "Em Desenvolvimento/Code Review"
+- [x] Testar e validar
