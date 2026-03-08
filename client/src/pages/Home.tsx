@@ -16,6 +16,7 @@ import { ProjectEvolution } from '@/components/ProjectEvolution';
 import { IssueTypeFilter } from '@/components/IssueTypeFilter';
 import { DevIssuesModal } from '@/components/DevIssuesModal';
 import { CompletedIssuesModal } from '@/components/CompletedIssuesModal';
+import { JqlModal } from '@/components/JqlModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { getCompletedIssuesLast24h } from '@/lib/completedIssuesCalculator';
 import { useDashboard } from '@/contexts/DashboardContext';
@@ -45,9 +46,11 @@ export default function Home() {
   const [showBacklogModal, setShowBacklogModal] = useState(false);
   const [showReadyToSprintModal, setShowReadyToSprintModal] = useState(false);
   const [showDoneIssuesModal, setShowDoneIssuesModal] = useState(false);
+  const [showJqlModal, setShowJqlModal] = useState(false);
   const [issueTypes, setIssueTypes] = useState<string[]>([]);
   const [devIssues, setDevIssues] = useState<any[]>([]);
   const [completedIssues, setCompletedIssues] = useState<any[]>([]);
+  const [selectedJql, setSelectedJql] = useState<string | null>(null);
   const [qaIssues, setQaIssues] = useState<any[]>([]);
   const [readyToSprintIssues, setReadyToSprintIssues] = useState<any[]>([]);
   const [doneIssues, setDoneIssues] = useState<any[]>([]);
@@ -185,6 +188,13 @@ export default function Home() {
                 >
                   <Sparkles className="w-4 h-4" />
                   Insight de IA
+                </button>
+                <button
+                  onClick={() => setShowJqlModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  JQL
                 </button>
                 <button
                   onClick={handleRefresh}
@@ -677,6 +687,16 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* JQL Modal */}
+      <JqlModal
+        open={showJqlModal}
+        onOpenChange={setShowJqlModal}
+        onSelectJql={(jql) => {
+          setSelectedJql(jql);
+          console.log('Selected JQL:', jql);
+        }}
+      />
     </div>
   );
 }

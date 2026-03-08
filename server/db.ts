@@ -90,3 +90,59 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // TODO: add feature queries here as your schema grows.
+
+import { jqlFilters, InsertJqlFilter, JqlFilter } from "../drizzle/schema";
+
+export async function createJqlFilter(filter: InsertJqlFilter): Promise<JqlFilter> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(jqlFilters).values(filter);
+  const id = result[0].insertId;
+  
+  const created = await db.select().from(jqlFilters).where(eq(jqlFilters.id, Number(id))).limit(1);
+  return created[0];
+}
+
+export async function getJqlFiltersByUserId(userId: number): Promise<JqlFilter[]> {
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  return await db.select().from(jqlFilters).where(eq(jqlFilters.userId, userId));
+}
+
+export async function getJqlFilterById(id: number): Promise<JqlFilter | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  const result = await db.select().from(jqlFilters).where(eq(jqlFilters.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateJqlFilter(id: number, updates: Partial<InsertJqlFilter>): Promise<JqlFilter | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  await db.update(jqlFilters).set(updates).where(eq(jqlFilters.id, id));
+  
+  const updated = await db.select().from(jqlFilters).where(eq(jqlFilters.id, id)).limit(1);
+  return updated.length > 0 ? updated[0] : undefined;
+}
+
+export async function deleteJqlFilter(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    return false;
+  }
+
+  await db.delete(jqlFilters).where(eq(jqlFilters.id, id));
+  return true;
+}

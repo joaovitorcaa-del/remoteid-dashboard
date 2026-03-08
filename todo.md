@@ -122,3 +122,11 @@
 ## Modal Code Review - Exibir IssueType
 - [x] Adicionar IssueType no modal "Em Desenvolvimento/Code Review"
 - [x] Testar e validar
+
+## Gerenciador de Filtros JQL
+- [x] Criar tabela de JQL Filters no banco de dados
+- [x] Criar endpoints tRPC para CRUD de JQL filters
+- [x] Criar modal JQL para gerenciar filtros
+- [x] Adicionar botão JQL na Home
+- [ ] Modificar Dashboard para buscar dados do Jira usando JQL
+- [x] Testar e validar

@@ -58,3 +58,17 @@ export const sprintIssues = mysqlTable("sprintIssues", {
 
 export type SprintIssue = typeof sprintIssues.$inferSelect;
 export type InsertSprintIssue = typeof sprintIssues.$inferInsert;
+// JQL Filters table for saving custom Jira queries
+export const jqlFilters = mysqlTable("jqlFilters", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  nome: varchar("nome", { length: 255 }).notNull(),
+  jql: text("jql").notNull(),
+  descricao: text("descricao"),
+  ativo: int("ativo").default(1).notNull(), // 0 = false, 1 = true
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
+});
+
+export type JqlFilter = typeof jqlFilters.$inferSelect;
+export type InsertJqlFilter = typeof jqlFilters.$inferInsert;
