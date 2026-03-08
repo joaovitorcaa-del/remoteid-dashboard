@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Edit2, Check, X } from 'lucide-react';
+import { Trash2, Plus, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
 
@@ -14,15 +14,16 @@ interface JqlModalProps {
 }
 
 export function JqlModal({ open, onOpenChange, onSelectJql }: JqlModalProps) {
-  const [isCreating, setIsCreating] = useState(false);
-  
-  const showToast = (message: string, isError = false) => {
-    console.log(isError ? 'Error:' : 'Success:', message);
-  };
   const [editingId, setEditingId] = useState<number | null>(null);
   const [nome, setNome] = useState('');
   const [jql, setJql] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [activeFilterId, setActiveFilterId] = useState<number | null>(null);
+  
+  const showToast = (message: string, isError = false) => {
+    console.log(isError ? 'Error:' : 'Success:', message);
+  };
 
   // Queries
   const { data: filters = [], refetch } = trpc.jqlFilters.list.useQuery();
@@ -34,7 +35,6 @@ export function JqlModal({ open, onOpenChange, onSelectJql }: JqlModalProps) {
       setNome('');
       setJql('');
       setDescricao('');
-      setIsCreating(false);
       refetch();
     },
     onError: (error) => {
@@ -89,6 +89,7 @@ export function JqlModal({ open, onOpenChange, onSelectJql }: JqlModalProps) {
   };
 
   const handleSelectFilter = (filter: any) => {
+    setActiveFilterId(filter.id);
     onSelectJql(filter.jql);
     onOpenChange(false);
   };
@@ -183,44 +184,74 @@ export function JqlModal({ open, onOpenChange, onSelectJql }: JqlModalProps) {
               {filters.map((filter) => (
                 <div
                   key={filter.id}
-                  className="p-3 border rounded-lg bg-card hover:bg-secondary/50 transition-colors"
+                  className="border rounded-lg bg-card overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-sm">{filter.nome}</h4>
-                        {filter.descricao && (
-                          <span className="text-xs text-muted-foreground">{filter.descricao}</span>
-                        )}
+                  {/* Card Header - Sempre Visível */}
+                  <div className="p-3 hover:bg-secondary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Checkbox de Ativo */}
+                        <input
+                          type="checkbox"
+                          checked={activeFilterId === filter.id}
+                          onChange={() => handleSelectFilter(filter)}
+                          className="w-4 h-4 cursor-pointer"
+                          title="Ativar este filtro"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-sm">{filter.nome}</h4>
+                          {filter.descricao && (
+                            <p className="text-xs text-muted-foreground">{filter.descricao}</p>
+                          )}
+                        </div>
                       </div>
-                      <code className="text-xs bg-muted p-1 rounded block break-all">
-                        {filter.jql}
-                      </code>
-                    </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleSelectFilter(filter)}
-                      >
-                        Usar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleEditFilter(filter)}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDelete(filter.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1 flex-shrink-0">
+                        {/* Botão Expandir/Colapsar */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setExpandedId(expandedId === filter.id ? null : filter.id)}
+                          title={expandedId === filter.id ? 'Colapsar' : 'Expandir'}
+                        >
+                          {expandedId === filter.id ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                        </Button>
+                        {/* Botão Editar */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditFilter(filter)}
+                          title="Editar filtro"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        {/* Botão Deletar */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDelete(filter.id)}
+                          title="Deletar filtro"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Card Content - Expandível */}
+                  {expandedId === filter.id && (
+                    <div className="border-t p-3 bg-muted/30 space-y-2">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">JQL:</p>
+                        <code className="text-xs bg-background p-2 rounded block break-all font-mono border">
+                          {filter.jql}
+                        </code>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

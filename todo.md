@@ -130,3 +130,9 @@
 - [x] Adicionar botão JQL na Home
 - [ ] Modificar Dashboard para buscar dados do Jira usando JQL
 - [x] Testar e validar
+
+## Ajuste do Modal JQL
+- [x] Adicionar checkbox mostrando qual filtro está ativo
+- [x] Exibir filtros como cards colapsáveis
+- [x] Ocultar JQL inicialmente (expandir ao clicar)
+- [x] Testar e validar
