@@ -8,6 +8,7 @@ import { FilterProvider } from "./contexts/FilterContext";
 import { DashboardProvider } from "./contexts/DashboardContext";
 import Home from "./pages/Home";
 import Planning from "./pages/Planning";
+import Daily from "./pages/Daily";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -15,6 +16,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/planning" component={Planning} />
+      <Route path="/daily" component={Daily} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

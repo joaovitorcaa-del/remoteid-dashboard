@@ -72,3 +72,48 @@ export const jqlFilters = mysqlTable("jqlFilters", {
 
 export type JqlFilter = typeof jqlFilters.$inferSelect;
 export type InsertJqlFilter = typeof jqlFilters.$inferInsert;
+
+// Daily Snapshots - for tracking daily metrics
+export const dailySnapshots = mysqlTable("dailySnapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  sprintId: int("sprintId").notNull(),
+  snapshotDate: date("snapshotDate").notNull(),
+  totalSp: int("totalSp"),
+  completedSp: int("completedSp"),
+  inProgressSp: int("inProgressSp"),
+  blockedCount: int("blockedCount"),
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+});
+
+export type DailySnapshot = typeof dailySnapshots.$inferSelect;
+export type InsertDailySnapshot = typeof dailySnapshots.$inferInsert;
+
+// Impediments - for tracking blockers
+export const impediments = mysqlTable("impediments", {
+  id: int("id").autoincrement().primaryKey(),
+  issueKey: varchar("issueKey", { length: 50 }).notNull(),
+  issueSummary: text("issueSummary"),
+  blockedSince: date("blockedSince").notNull(),
+  reason: varchar("reason", { length: 255 }),
+  impactSp: int("impactSp"),
+  resolvedAt: timestamp("resolvedAt"),
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Impediment = typeof impediments.$inferSelect;
+export type InsertImpediment = typeof impediments.$inferInsert;
+
+// Activity Log - for tracking changes
+export const activityLog = mysqlTable("activityLog", {
+  id: int("id").autoincrement().primaryKey(),
+  issueKey: varchar("issueKey", { length: 50 }).notNull(),
+  fromStatus: varchar("fromStatus", { length: 100 }),
+  toStatus: varchar("toStatus", { length: 100 }),
+  changedBy: varchar("changedBy", { length: 255 }),
+  changedAt: timestamp("changedAt").notNull(),
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+});
+
+export type ActivityLogEntry = typeof activityLog.$inferSelect;
+export type InsertActivityLogEntry = typeof activityLog.$inferInsert;

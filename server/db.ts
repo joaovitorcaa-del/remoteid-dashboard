@@ -146,3 +146,159 @@ export async function deleteJqlFilter(id: number): Promise<boolean> {
   await db.delete(jqlFilters).where(eq(jqlFilters.id, id));
   return true;
 }
+
+
+// ============================================
+// DAILY FEATURES - Impediments, Snapshots, Activity
+// ============================================
+
+import { 
+  impediments, 
+  InsertImpediment, 
+  Impediment,
+  dailySnapshots,
+  InsertDailySnapshot,
+  DailySnapshot,
+  activityLog,
+  InsertActivityLogEntry,
+  ActivityLogEntry
+} from "../drizzle/schema";
+import { and, isNull, desc, gte, lte } from "drizzle-orm";
+
+// Impediments CRUD
+export async function createImpediment(impediment: InsertImpediment): Promise<Impediment> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(impediments).values(impediment);
+  const id = result[0].insertId;
+  
+  const created = await db.select().from(impediments).where(eq(impediments.id, Number(id))).limit(1);
+  return created[0];
+}
+
+export async function getActiveImpediments(): Promise<Impediment[]> {
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  return await db.select().from(impediments).where(isNull(impediments.resolvedAt));
+}
+
+export async function getImpedimentById(id: number): Promise<Impediment | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  const result = await db.select().from(impediments).where(eq(impediments.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateImpediment(id: number, updates: Partial<InsertImpediment>): Promise<Impediment | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  await db.update(impediments).set(updates).where(eq(impediments.id, id));
+  
+  const updated = await db.select().from(impediments).where(eq(impediments.id, id)).limit(1);
+  return updated.length > 0 ? updated[0] : undefined;
+}
+
+export async function resolveImpediment(id: number): Promise<Impediment | undefined> {
+  return updateImpediment(id, { resolvedAt: new Date() });
+}
+
+export async function deleteImpediment(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    return false;
+  }
+
+  await db.delete(impediments).where(eq(impediments.id, id));
+  return true;
+}
+
+// Daily Snapshots CRUD
+export async function createDailySnapshot(snapshot: InsertDailySnapshot): Promise<DailySnapshot> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(dailySnapshots).values(snapshot);
+  const id = result[0].insertId;
+  
+  const created = await db.select().from(dailySnapshots).where(eq(dailySnapshots.id, Number(id))).limit(1);
+  return created[0];
+}
+
+export async function getDailySnapshotsBySprintId(sprintId: number): Promise<DailySnapshot[]> {
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  return await db.select().from(dailySnapshots).where(eq(dailySnapshots.sprintId, sprintId));
+}
+
+export async function getLatestDailySnapshot(sprintId: number): Promise<DailySnapshot | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  const result = await db.select()
+    .from(dailySnapshots)
+    .where(eq(dailySnapshots.sprintId, sprintId))
+    .orderBy(desc(dailySnapshots.snapshotDate))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Activity Log CRUD
+export async function createActivityLogEntry(entry: InsertActivityLogEntry): Promise<ActivityLogEntry> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(activityLog).values(entry);
+  const id = result[0].insertId;
+  
+  const created = await db.select().from(activityLog).where(eq(activityLog.id, Number(id))).limit(1);
+  return created[0];
+}
+
+export async function getRecentActivity(hoursBack: number = 24): Promise<ActivityLogEntry[]> {
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  const sinceDate = new Date();
+  sinceDate.setHours(sinceDate.getHours() - hoursBack);
+
+  return await db.select()
+    .from(activityLog)
+    .where(gte(activityLog.changedAt, sinceDate))
+    .orderBy(desc(activityLog.changedAt));
+}
+
+export async function getActivityByIssueKey(issueKey: string): Promise<ActivityLogEntry[]> {
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  return await db.select()
+    .from(activityLog)
+    .where(eq(activityLog.issueKey, issueKey))
+    .orderBy(desc(activityLog.changedAt));
+}

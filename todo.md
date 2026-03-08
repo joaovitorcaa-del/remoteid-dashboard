@@ -45,14 +45,14 @@
 - [x] Marcar Sprint como ativo (ativo: 1) ao salvar no banco
 - [x] Exibir Sprint ativa no topo sempre que houver uma criada
 - [x] Mostrar "Sem Sprint Ativa" apenas quando não houver nenhuma Sprint criada
-- [x] Testar fluxo completo de salvamento e visualizaçãoento e visualiza\u00e7\u00e3o
+- [x] Testar fluxo completo de salvamento e visualização
 
 ### Planning Page - Correções Críticas
 - [x] Debugar banco de dados - verificar dados em sprintIssues
 - [x] Corrigir salvamento de Sprint - criar registros em sprintIssues com dataInicio e dataFim
 - [x] Corrigir query de carregamento - trazer issues com datas corretas
 - [x] Corrigir renderização do Gantt - exibir datas, colunas e barras de progresso
-- [x] Testar fluxo completo de salvamento e visualizaçãoalvamento e visualiza\u00e7\u00e3o
+- [x] Testar fluxo completo de salvamento e visualização
 
 ## Planning Page - Reorganização de Layout e UX (Iteração 2)
 - [x] Corrigir conversão de Date objects para strings YYYY-MM-DD no GanttChart
@@ -60,7 +60,6 @@
 - [x] Remover botão "Reativar Sprint"
 - [x] Remover lista de issues do formulário de planejamento
 - [x] Testar renderização completa com Sprint ativa e anterior
-
 
 ## Planning Page - Novas Funcionalidades (Iteração 3)
 - [x] Adicionar botão de voltar para Dashboard no cabeçalho
@@ -136,3 +135,149 @@
 - [x] Exibir filtros como cards colapsáveis
 - [x] Ocultar JQL inicialmente (expandir ao clicar)
 - [x] Testar e validar
+
+---
+
+# FASE 1: MVP DAILY (Semana 1-2)
+
+## Fase 1 - Estrutura e Banco de Dados
+- [x] Criar migrations para tabelas: daily_snapshots, impediments, activity_log
+- [x] Criar funções no server/db.ts para CRUD de impedimentos
+- [x] Criar funções para snapshots diários
+- [x] Criar funções para activity log
+- [x] Executar migrations com pnpm db:push
+- [x] Validar schema no banco
+
+## Fase 1 - Componentes e UI
+- [x] Criar OverdueCard.tsx (issues atrasadas)
+- [x] Criar BlockersCard.tsx (bloqueadores ativos)
+- [x] Criar ActivityCard.tsx (atividade recente 24h)
+- [x] Criar DailySummaryCard.tsx (resumo executivo)
+- [x] Criar Daily.tsx (página principal)
+- [x] Integrar Daily.tsx no App.tsx (navegação)
+- [x] Criar endpoints tRPC para daily metrics
+- [x] Criar endpoints tRPC para impediments
+- [x] Testar componentes no browser
+
+## Fase 1 - Testes e Validação
+- [x] Escrever testes para endpoints daily
+- [x] Escrever testes para impediments
+- [x] Testar fluxo completo (criar, listar, atualizar bloqueadores)
+- [x] Validar que Home.tsx não foi quebrada
+- [x] Validar que Planning.tsx não foi quebrada
+- [x] Executar todos os testes (pnpm test)
+- [ ] Criar checkpoint Fase 1
+
+---
+
+# FASE 2: REVIEW (Semana 2-3)
+
+## Fase 2 - Estrutura e Componentes
+- [ ] Criar migrations para tabelas: sprint_history, work_distribution
+- [ ] Criar funções no server/db.ts para sprint history
+- [ ] Criar funções para work distribution
+- [ ] Executar migrations com pnpm db:push
+- [ ] Criar SprintComparisonCard.tsx
+- [ ] Criar VelocityChart.tsx
+- [ ] Criar WorkDistributionCard.tsx
+- [ ] Criar BurndownChart.tsx
+- [ ] Criar Review.tsx (página principal)
+- [ ] Integrar Review.tsx no App.tsx (navegação)
+- [ ] Criar endpoints tRPC para review metrics
+
+## Fase 2 - Testes e Validação
+- [ ] Escrever testes para endpoints review
+- [ ] Testar fluxo completo de review
+- [ ] Validar que Daily.tsx não foi quebrada
+- [ ] Validar que Home.tsx não foi quebrada
+- [ ] Executar todos os testes (pnpm test)
+- [ ] Criar checkpoint Fase 2
+
+---
+
+# FASE 3: RETROSPECTIVA (Semana 3-4)
+
+## Fase 3 - Estrutura e Componentes
+- [ ] Criar migrations para tabelas: retro_actions, quality_metrics, blocking_patterns
+- [ ] Criar funções no server/db.ts para retro actions
+- [ ] Criar funções para quality metrics
+- [ ] Criar funções para blocking patterns
+- [ ] Executar migrations com pnpm db:push
+- [ ] Criar RetroActionsTable.tsx
+- [ ] Criar QualityMetricsCard.tsx
+- [ ] Criar BlockingPatternsCard.tsx
+- [ ] Criar CreateRetroActionForm.tsx
+- [ ] Criar Retrospective.tsx (página principal)
+- [ ] Integrar Retrospective.tsx no App.tsx (navegação)
+- [ ] Criar endpoints tRPC para retro
+
+## Fase 3 - Testes e Validação
+- [ ] Escrever testes para endpoints retro
+- [ ] Testar fluxo completo de retrospectiva
+- [ ] Validar que Review.tsx não foi quebrada
+- [ ] Validar que Daily.tsx não foi quebrada
+- [ ] Executar todos os testes (pnpm test)
+- [ ] Criar checkpoint Fase 3
+
+---
+
+# FASE 4: KPI DASHBOARD (Semana 4-5)
+
+## Fase 4 - Estrutura e Componentes
+- [ ] Criar migrations para tabelas: kpi_history, alerts
+- [ ] Criar funções no server/db.ts para KPI
+- [ ] Criar funções para alerts
+- [ ] Executar migrations com pnpm db:push
+- [ ] Criar KPICard.tsx (componente genérico)
+- [ ] Criar AlertsPanel.tsx
+- [ ] Criar KPI.tsx (página principal)
+- [ ] Integrar KPI.tsx no App.tsx (navegação)
+- [ ] Criar endpoints tRPC para KPI metrics
+- [ ] Implementar cálculo de KPIs (velocity, cycle_time, lead_time, etc)
+
+## Fase 4 - Testes e Validação
+- [ ] Escrever testes para endpoints KPI
+- [ ] Testar fluxo completo de KPI
+- [ ] Validar que Retrospective.tsx não foi quebrada
+- [ ] Validar que Review.tsx não foi quebrada
+- [ ] Executar todos os testes (pnpm test)
+- [ ] Criar checkpoint Fase 4
+
+---
+
+# FASE 5: COMERCIALIZAÇÃO (Semana 5+)
+
+## Fase 5 - Estrutura Multi-tenant
+- [ ] Criar migrations para tabelas: organizations, organization_members, organization_projects
+- [ ] Criar funções no server/db.ts para organizations
+- [ ] Criar funções para organization members
+- [ ] Criar funções para organization projects
+- [ ] Executar migrations com pnpm db:push
+- [ ] Modificar schema user para adicionar organization_id
+- [ ] Criar middleware de autenticação por organização
+- [ ] Criar endpoints tRPC para organizations
+
+## Fase 5 - Billing e Integração
+- [ ] Criar migrations para tabelas: subscriptions
+- [ ] Criar funções para subscriptions
+- [ ] Integrar Stripe (webdev_add_feature stripe)
+- [ ] Criar endpoints tRPC para billing
+- [ ] Criar página Settings/Organization.tsx
+- [ ] Criar página Settings/Billing.tsx
+- [ ] Criar página Settings/Projects.tsx
+- [ ] Testar fluxo completo de multi-tenant
+- [ ] Testar fluxo de upgrade/downgrade
+- [ ] Executar todos os testes (pnpm test)
+- [ ] Criar checkpoint Fase 5
+
+---
+
+# ENTREGA FINAL
+
+- [ ] Documentar todas as novas features
+- [ ] Criar guia de uso para cada página
+- [ ] Validar performance geral
+- [ ] Validar responsividade em mobile
+- [ ] Validar acessibilidade (WCAG AA)
+- [ ] Criar checkpoint final
+- [ ] Preparar para produção
