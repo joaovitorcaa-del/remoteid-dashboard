@@ -173,23 +173,23 @@
 # FASE 2: REVIEW (Semana 2-3)
 
 ## Fase 2 - Estrutura e Componentes
-- [ ] Criar migrations para tabelas: sprint_history, work_distribution
-- [ ] Criar funções no server/db.ts para sprint history
-- [ ] Criar funções para work distribution
-- [ ] Executar migrations com pnpm db:push
-- [ ] Criar SprintComparisonCard.tsx
-- [ ] Criar VelocityChart.tsx
-- [ ] Criar WorkDistributionCard.tsx
-- [ ] Criar BurndownChart.tsx
-- [ ] Criar Review.tsx (página principal)
-- [ ] Integrar Review.tsx no App.tsx (navegação)
+- [x] Criar migrations para tabelas: sprint_history, work_distribution
+- [x] Criar funções no server/db.ts para sprint history
+- [x] Criar funções para work distribution
+- [x] Executar migrations com pnpm db:push
+- [x] Criar SprintComparisonCard.tsx
+- [x] Criar VelocityCard.tsx
+- [x] Criar BurndownChartReview.tsx
+- [x] Criar Review.tsx (página principal)
+- [x] Integrar Review.tsx no App.tsx (navegação)
+- [x] Adicionar botão Review no header da Home
 - [ ] Criar endpoints tRPC para review metrics
 
 ## Fase 2 - Testes e Validação
 - [ ] Escrever testes para endpoints review
 - [ ] Testar fluxo completo de review
-- [ ] Validar que Daily.tsx não foi quebrada
-- [ ] Validar que Home.tsx não foi quebrada
+- [x] Validar que Daily.tsx não foi quebrada
+- [x] Validar que Home.tsx não foi quebrada
 - [ ] Executar todos os testes (pnpm test)
 - [ ] Criar checkpoint Fase 2
 

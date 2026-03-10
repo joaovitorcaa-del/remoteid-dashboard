@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import exportPdfRouter from "../routes/exportPdf";
+import { startAutoSync } from "../services/jiraSyncService";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -28,6 +29,8 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+let syncTimerId: ReturnType<typeof setInterval> | null = null;
+
 async function startServer() {
   const app = express();
   const server = createServer(app);
@@ -36,6 +39,11 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  
+  // Start automatic Jira sync (every 30 minutes)
+  if (process.env.NODE_ENV === "production" || process.env.ENABLE_JIRA_SYNC === "true") {
+    syncTimerId = startAutoSync(30);
+  }
   // Export PDF routes
   app.use("/api/export", exportPdfRouter);
   // tRPC API
@@ -62,6 +70,18 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+  });
+  
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    if (syncTimerId) {
+      clearInterval(syncTimerId);
+    }
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
   });
 }
 
