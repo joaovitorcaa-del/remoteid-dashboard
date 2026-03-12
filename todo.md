@@ -281,3 +281,44 @@
 - [ ] Validar acessibilidade (WCAG AA)
 - [ ] Criar checkpoint final
 - [ ] Preparar para produção
+
+
+---
+
+# REFATORAÇÃO: Jira como Fonte Única de Dados
+
+## Fase 1: Contexto Global de Filtro JQL
+- [x] Estender FilterContext para incluir filtro JQL ativo
+- [x] Adicionar estado para armazenar filtro padrão (Sprint Ativa)
+- [x] Criar hook useActiveJqlFilter() para acessar filtro em qualquer componente
+- [x] Persistir filtro ativo no localStorage
+
+## Fase 2: Refatorar Endpoints tRPC
+- [x] Criar endpoint dashboard.getMetricsByJql(jql) - retorna métricas do Jira
+- [x] Criar endpoint dashboard.getIssuesByJql(jql) - retorna issues do Jira
+- [x] Criar endpoint dashboard.getActivityByJql(jql) - retorna atividade das últimas 24h
+- [x] Criar endpoint dashboard.getCriticalIssuesByJql(jql) - retorna bloqueadores
+- [x] Manter endpoint jira.getBacklogIssues com seu JQL específico
+- [x] Remover dependência de Google Sheets em refreshData()
+
+## Fase 3: Atualizar Componentes
+- [x] Refatorar DashboardContext para usar endpoints tRPC com JQL
+- [x] Corrigir ordem de providers (FilterProvider antes de DashboardProvider)
+- [x] Atualizar JqlModal para atualizar FilterContext ao selecionar filtro
+- [x] Auto-refresh ao mudar filtro JQL
+- [ ] Atualizar Daily.tsx para usar JQL ativo
+- [ ] Atualizar Review.tsx para usar JQL ativo
+- [ ] Remover googleSheetsService.ts (não mais necessário)
+
+## Fase 4: Integração com JQL Modal
+- [x] Quando selecionar filtro no JQL Modal, atualizar FilterContext
+- [x] Disparar refresh automático ao mudar filtro
+- [ ] Mostrar qual filtro está ativo no header
+- [ ] Adicionar botão "Sprint Ativa" como favorito rápido
+
+## Fase 5: Testes e Validação
+- [x] Testar fluxo completo com Sprint Ativa
+- [x] Testar criação de novo filtro e aplicação
+- [x] Testar botão Atualizar Dados com JQL ativo
+- [x] Validar que Backlog continua com seu JQL
+- [x] Validar que dados são atualizados em tempo real

@@ -38,14 +38,14 @@ function App() {
         defaultTheme="light"
         // switchable
       >
-        <DashboardProvider>
-          <FilterProvider>
+        <FilterProvider>
+          <DashboardProvider>
             <TooltipProvider>
               <Toaster />
               <Router />
             </TooltipProvider>
-          </FilterProvider>
-        </DashboardProvider>
+          </DashboardProvider>
+        </FilterProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

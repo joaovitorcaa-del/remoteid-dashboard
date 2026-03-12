@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { useFilter } from '@/contexts/FilterContext';
 
 
 interface JqlModalProps {
@@ -14,12 +15,13 @@ interface JqlModalProps {
 }
 
 export function JqlModal({ open, onOpenChange, onSelectJql }: JqlModalProps) {
+  const { activeJqlFilter, setActiveJqlFilter } = useFilter();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [nome, setNome] = useState('');
   const [jql, setJql] = useState('');
   const [descricao, setDescricao] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [activeFilterId, setActiveFilterId] = useState<number | null>(null);
+  const [activeFilterId, setActiveFilterId] = useState<number | null>(activeJqlFilter?.id || null);
   
   const showToast = (message: string, isError = false) => {
     console.log(isError ? 'Error:' : 'Success:', message);
@@ -91,6 +93,8 @@ export function JqlModal({ open, onOpenChange, onSelectJql }: JqlModalProps) {
   const handleSelectFilter = (filter: any) => {
     setActiveFilterId(filter.id);
     onSelectJql(filter.jql);
+    // Atualizar filtro ativo no contexto
+    setActiveJqlFilter(filter);
     onOpenChange(false);
   };
 
