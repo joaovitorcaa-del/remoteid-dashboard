@@ -1,3 +1,17 @@
+# Project TODO - AUDITORIA E CORREÇÕES FINAIS
+
+## Auditoria Completada
+- [x] Verificar imports em dashboard.ts (CORRIGIDO: Adicionado router e protectedProcedure)
+- [x] Verificar ordem de providers em App.tsx (OK: FilterProvider antes de DashboardProvider)
+- [x] Verificar inicialização de FilterContext (OK: Filtro padrão Sprint Ativa)
+- [x] Verificar endpoints tRPC (OK: Todos implementados)
+- [x] Verificar integração com Jira (PENDENTE: Conectividade com API)
+- [ ] Testar Daily.tsx com JQL ativo
+- [ ] Testar Review.tsx com JQL ativo
+- [ ] Remover googleSheetsService.ts
+- [ ] Adicionar indicador visual de filtro ativo no header
+- [ ] Adicionar atalhos de filtros rápidos
+
 # Project TODO
 
 ## Dashboard Page
