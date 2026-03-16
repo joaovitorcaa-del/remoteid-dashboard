@@ -181,8 +181,13 @@ export const dashboardRouter = router({
       try {
         console.log("[Dashboard] Buscando atividade com JQL:", input.jql);
         
+        // Limpar JQL: remover quebras de linha e espaços extras
+        const cleanJql = input.jql.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+        
         // Buscar issues atualizadas nas últimas 24h
-        const jqlWithTime = `${input.jql} AND updated >= -1d`;
+        const jqlWithTime = `${cleanJql} AND updated >= -1d`;
+        console.log("[Dashboard] JQL final:", jqlWithTime);
+        
         const jiraIssues = await fetchJiraIssuesByJql(jqlWithTime);
         const issues = convertJiraIssuesToDashboard(jiraIssues);
         

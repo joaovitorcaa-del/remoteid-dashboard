@@ -374,3 +374,7 @@
 - [x] Validar que Daily.tsx não foi quebrada
 - [x] Executar todos os testes (pnpm test)
 - [ ] Criar checkpoint Fase 3
+
+
+## Correcoes de Bugs
+- [x] Corrigir erro JQL: "Expecting ',' but got 'AND'" - Adicionar limpeza de quebras de linha no getActivityByJql
