@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Planning from "./pages/Planning";
 import Daily from "./pages/Daily";
 import Review from "./pages/Review";
+import Retrospective from "./pages/Retrospective";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/planning" component={Planning} />
       <Route path="/daily" component={Daily} />
       <Route path="/review" component={Review} />
+      <Route path="/retrospective" component={Retrospective} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

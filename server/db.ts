@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, InsertRetroAction, retroActions, RetroAction, InsertQualityMetric, qualityMetrics, QualityMetric, InsertBlockingPattern, blockingPatterns, BlockingPattern, InsertDailySnapshot, dailySnapshots, DailySnapshot, InsertActivityLogEntry, activityLog, ActivityLogEntry, InsertImpediment, impediments, Impediment } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -152,17 +152,6 @@ export async function deleteJqlFilter(id: number): Promise<boolean> {
 // DAILY FEATURES - Impediments, Snapshots, Activity
 // ============================================
 
-import { 
-  impediments, 
-  InsertImpediment, 
-  Impediment,
-  dailySnapshots,
-  InsertDailySnapshot,
-  DailySnapshot,
-  activityLog,
-  InsertActivityLogEntry,
-  ActivityLogEntry
-} from "../drizzle/schema";
 import { and, isNull, desc, gte, lte } from "drizzle-orm";
 
 // Impediments CRUD
@@ -301,4 +290,121 @@ export async function getActivityByIssueKey(issueKey: string): Promise<ActivityL
     .from(activityLog)
     .where(eq(activityLog.issueKey, issueKey))
     .orderBy(desc(activityLog.changedAt));
+}
+
+
+// Retro Actions CRUD
+export async function createRetroAction(action: InsertRetroAction): Promise<RetroAction> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(retroActions).values(action);
+  const id = result[0].insertId;
+  
+  const created = await db.select().from(retroActions).where(eq(retroActions.id, Number(id))).limit(1);
+  return created[0];
+}
+
+export async function getRetroActionsBySprintId(sprintId: number): Promise<RetroAction[]> {
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  return await db.select().from(retroActions).where(eq(retroActions.sprintId, sprintId)).orderBy(desc(retroActions.criadoEm));
+}
+
+export async function updateRetroAction(id: number, updates: Partial<InsertRetroAction>): Promise<RetroAction | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  await db.update(retroActions).set(updates).where(eq(retroActions.id, id));
+  
+  const updated = await db.select().from(retroActions).where(eq(retroActions.id, id)).limit(1);
+  return updated.length > 0 ? updated[0] : undefined;
+}
+
+export async function deleteRetroAction(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    return false;
+  }
+
+  await db.delete(retroActions).where(eq(retroActions.id, id));
+  return true;
+}
+
+// Quality Metrics CRUD
+export async function createQualityMetric(metric: InsertQualityMetric): Promise<QualityMetric> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(qualityMetrics).values(metric);
+  const id = result[0].insertId;
+  
+  const created = await db.select().from(qualityMetrics).where(eq(qualityMetrics.id, Number(id))).limit(1);
+  return created[0];
+}
+
+export async function getQualityMetricsBySprintId(sprintId: number): Promise<QualityMetric | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  const result = await db.select().from(qualityMetrics).where(eq(qualityMetrics.sprintId, sprintId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateQualityMetric(id: number, updates: Partial<InsertQualityMetric>): Promise<QualityMetric | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  await db.update(qualityMetrics).set(updates).where(eq(qualityMetrics.id, id));
+  
+  const updated = await db.select().from(qualityMetrics).where(eq(qualityMetrics.id, id)).limit(1);
+  return updated.length > 0 ? updated[0] : undefined;
+}
+
+// Blocking Patterns CRUD
+export async function createBlockingPattern(pattern: InsertBlockingPattern): Promise<BlockingPattern> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(blockingPatterns).values(pattern);
+  const id = result[0].insertId;
+  
+  const created = await db.select().from(blockingPatterns).where(eq(blockingPatterns.id, Number(id))).limit(1);
+  return created[0];
+}
+
+export async function getBlockingPatterns(): Promise<BlockingPattern[]> {
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  return await db.select().from(blockingPatterns).orderBy(desc(blockingPatterns.frequencia));
+}
+
+export async function updateBlockingPattern(id: number, updates: Partial<InsertBlockingPattern>): Promise<BlockingPattern | undefined> {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  await db.update(blockingPatterns).set(updates).where(eq(blockingPatterns.id, id));
+  
+  const updated = await db.select().from(blockingPatterns).where(eq(blockingPatterns.id, id)).limit(1);
+  return updated.length > 0 ? updated[0] : undefined;
 }

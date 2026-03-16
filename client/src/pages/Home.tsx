@@ -211,6 +211,13 @@ export default function Home() {
                   Review
                 </button>
                 <button
+                  onClick={() => navigate('/retrospective')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-pink-600 text-white hover:bg-pink-700 transition-colors text-sm font-medium"
+                >
+                  <Target className="w-4 h-4" />
+                  Retrospectiva
+                </button>
+                <button
                   onClick={handleRefresh}
                   disabled={isRefreshing || loading}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity text-sm font-medium"

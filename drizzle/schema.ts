@@ -117,3 +117,53 @@ export const activityLog = mysqlTable("activityLog", {
 
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
 export type InsertActivityLogEntry = typeof activityLog.$inferInsert;
+
+
+// Retro Actions - for tracking retrospective action items
+export const retroActions = mysqlTable("retroActions", {
+  id: int("id").autoincrement().primaryKey(),
+  sprintId: int("sprintId").notNull(),
+  titulo: varchar("titulo", { length: 255 }).notNull(),
+  descricao: text("descricao"),
+  responsavel: varchar("responsavel", { length: 255 }),
+  status: mysqlEnum("status", ["Aberta", "Em Progresso", "Concluída", "Cancelada"]).default("Aberta").notNull(),
+  prioridade: mysqlEnum("prioridade", ["Baixa", "Média", "Alta"]).default("Média").notNull(),
+  dataVencimento: date("dataVencimento"),
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
+});
+
+export type RetroAction = typeof retroActions.$inferSelect;
+export type InsertRetroAction = typeof retroActions.$inferInsert;
+
+// Quality Metrics - for tracking bugs and quality per sprint
+export const qualityMetrics = mysqlTable("qualityMetrics", {
+  id: int("id").autoincrement().primaryKey(),
+  sprintId: int("sprintId").notNull(),
+  totalBugs: int("totalBugs").default(0).notNull(),
+  bugsFixed: int("bugsFixed").default(0).notNull(),
+  bugsDeferred: int("bugsDeferred").default(0).notNull(),
+  testCoverage: int("testCoverage").default(0), // percentage
+  defectDensity: int("defectDensity").default(0), // bugs per 1000 lines
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
+});
+
+export type QualityMetric = typeof qualityMetrics.$inferSelect;
+export type InsertQualityMetric = typeof qualityMetrics.$inferInsert;
+
+// Blocking Patterns - for analyzing recurring blocker patterns
+export const blockingPatterns = mysqlTable("blockingPatterns", {
+  id: int("id").autoincrement().primaryKey(),
+  padraoNome: varchar("padraoNome", { length: 255 }).notNull(),
+  descricao: text("descricao"),
+  frequencia: int("frequencia").default(0).notNull(), // how many times occurred
+  impactoTotal: int("impactoTotal").default(0), // total SP impacted
+  ultimaOcorrencia: date("ultimaOcorrencia"),
+  status: mysqlEnum("status", ["Ativo", "Resolvido", "Monitorando"]).default("Ativo").notNull(),
+  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizadoEm").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BlockingPattern = typeof blockingPatterns.$inferSelect;
+export type InsertBlockingPattern = typeof blockingPatterns.$inferInsert;

@@ -336,3 +336,41 @@
 - [x] Testar botão Atualizar Dados com JQL ativo
 - [x] Validar que Backlog continua com seu JQL
 - [x] Validar que dados são atualizados em tempo real
+
+
+---
+
+# FASE 3: RETROSPECTIVA (Semana 3-4)
+
+## Fase 3 - Estrutura e Banco de Dados
+- [x] Criar migrations para tabelas: retro_actions, quality_metrics, blocking_patterns
+- [x] Criar funções no server/db.ts para retro actions
+- [x] Criar funções para quality metrics
+- [x] Criar funções para blocking patterns
+- [x] Executar migrations com pnpm db:push
+- [x] Validar schema no banco
+
+## Fase 3 - Componentes e UI
+- [x] Criar RetroActionsTable.tsx (tabela de ações com status)
+- [x] Criar QualityMetricsCard.tsx (bugs por sprint)
+- [x] Criar BlockingPatternsCard.tsx (análise de padrões)
+- [x] Criar CreateRetroActionForm.tsx (formulário para criar ações)
+- [x] Criar Retrospective.tsx (página principal)
+- [x] Integrar Retrospective.tsx no App.tsx (navegação)
+- [x] Adicionar botão Retrospectiva no header da Home
+
+## Fase 3 - Endpoints tRPC
+- [x] Criar endpoint retro.createAction()
+- [x] Criar endpoint retro.getActions()
+- [x] Criar endpoint retro.updateActionStatus()
+- [x] Criar endpoint retro.deleteAction()
+- [x] Criar endpoint retro.getQualityMetrics()
+- [x] Criar endpoint retro.getBlockingPatterns()
+
+## Fase 3 - Testes e Validação
+- [x] Escrever testes para endpoints retro
+- [x] Testar fluxo completo de retrospectiva
+- [x] Validar que Review.tsx não foi quebrada
+- [x] Validar que Daily.tsx não foi quebrada
+- [x] Executar todos os testes (pnpm test)
+- [ ] Criar checkpoint Fase 3
