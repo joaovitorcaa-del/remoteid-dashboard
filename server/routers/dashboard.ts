@@ -173,6 +173,40 @@ export const dashboardRouter = router({
     }),
 
   /**
+   * Busca issues por status específico filtrando por JQL
+   * Usado pelos modais para exibir listas de issues
+   */
+  getIssuesByStatus: protectedProcedure
+    .input(z.object({ jql: z.string(), statuses: z.array(z.string()) }))
+    .query(async ({ input }) => {
+      try {
+        console.log("[Dashboard] Buscando issues por status com JQL:", input.jql);
+        
+        // Limpar JQL
+        const cleanJql = input.jql.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+        
+        // Construir JQL com filtro de status
+        const statusFilter = input.statuses.map(s => `\"${s}\"`).join(', ');
+        const jqlWithStatus = `${cleanJql} AND status in (${statusFilter})`;
+        console.log("[Dashboard] JQL com status:", jqlWithStatus);
+        
+        const jiraIssues = await fetchJiraIssuesByJql(jqlWithStatus);
+        const issues = convertJiraIssuesToDashboard(jiraIssues);
+        
+        return {
+          success: true,
+          issues,
+          totalCount: issues.length,
+        };
+      } catch (error) {
+        console.error("[Dashboard] Erro ao buscar issues por status:", error);
+        throw new Error(
+          `Erro ao buscar issues: ${error instanceof Error ? error.message : 'Desconhecido'}`
+        );
+      }
+    }),
+
+  /**
    * Busca atividade das últimas 24h filtrando por JQL
    */
   getActivityByJql: protectedProcedure

@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Code, User, Filter, X, Loader2 } from 'lucide-react';
+import { CheckSquare, User, Filter, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFilter } from '@/contexts/FilterContext';
 import { trpc } from '@/lib/trpc';
 
-interface DevIssue {
+interface ReadyIssue {
   chave: string;
   resumo: string;
   atribuido: string;
@@ -14,30 +14,28 @@ interface DevIssue {
   tipoIssue?: string;
 }
 
-interface DevIssuesModalProps {
+interface ReadyToSprintModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const DEV_STATUSES = ['Code Doing', 'Code Review'];
+const READY_STATUSES = ['Ready to Sprint', 'Dev To Do'];
 
-export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
+export function ReadyToSprintModal({ open, onOpenChange }: ReadyToSprintModalProps) {
   const { activeJqlFilter } = useFilter();
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [issues, setIssues] = useState<DevIssue[]>([]);
+  const [issues, setIssues] = useState<ReadyIssue[]>([]);
 
-  // Buscar issues do Jira usando JQL
   const issuesQuery = trpc.dashboard.getIssuesByStatus.useQuery(
     {
       jql: activeJqlFilter?.jql || '',
-      statuses: DEV_STATUSES,
+      statuses: READY_STATUSES,
     },
     { enabled: open && !!activeJqlFilter?.jql }
   );
 
   useEffect(() => {
     if (issuesQuery.data?.issues) {
-      // Converter SyncedIssue para DevIssue
       const convertedIssues = issuesQuery.data.issues.map((issue: any) => ({
         chave: issue.chave,
         resumo: issue.resumo,
@@ -51,16 +49,15 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'code doing':
+      case 'ready to sprint':
         return 'bg-blue-100 text-blue-800';
-      case 'code review':
-        return 'bg-purple-100 text-purple-800';
+      case 'dev to do':
+        return 'bg-cyan-100 text-cyan-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // Filtrar issues baseado nos status selecionados
   const filteredIssues = useMemo(() => {
     if (selectedStatuses.length === 0) {
       return issues;
@@ -68,10 +65,9 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
     return issues.filter(issue => selectedStatuses.includes(issue.status));
   }, [issues, selectedStatuses]);
 
-  // Contar issues por status
   const statusCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
-    DEV_STATUSES.forEach(status => {
+    READY_STATUSES.forEach(status => {
       counts[status] = issues.filter(issue => issue.status === status).length;
     });
     return counts;
@@ -94,8 +90,8 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Code className="w-5 h-5" />
-            Issues em Desenvolvimento/Code Review
+            <CheckSquare className="w-5 h-5" />
+            Issues Prontas para Sprint
           </DialogTitle>
         </DialogHeader>
 
@@ -109,7 +105,6 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
           </div>
         ) : (
           <>
-            {/* Filtro por Status */}
             <div className="space-y-3 pb-4 border-b">
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-muted-foreground" />
@@ -128,7 +123,7 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
               </div>
               
               <div className="flex flex-wrap gap-2">
-                {DEV_STATUSES.map(status => (
+                {READY_STATUSES.map(status => (
                   <Button
                     key={status}
                     variant={selectedStatuses.includes(status) ? 'default' : 'outline'}
@@ -145,7 +140,6 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
               </div>
             </div>
 
-            {/* Lista de Issues */}
             <div className="space-y-3">
               {filteredIssues.length > 0 ? (
                 <>
@@ -176,7 +170,7 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
                         <User className="w-3 h-3" />
-                        <span>{issue.atribuido || 'Não atribuído'}</span>
+                        <span>{issue.atribuido}</span>
                       </div>
                     </div>
                   ))}
@@ -186,7 +180,7 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
                   <p className="text-sm text-muted-foreground">
                     {selectedStatuses.length > 0
                       ? 'Nenhuma issue encontrada com os filtros selecionados.'
-                      : 'Nenhuma issue em desenvolvimento no momento.'}
+                      : 'Nenhuma issue pronta para sprint no momento.'}
                   </p>
                 </div>
               )}

@@ -378,3 +378,14 @@
 
 ## Correcoes de Bugs
 - [x] Corrigir erro JQL: "Expecting ',' but got 'AND'" - Adicionar limpeza de quebras de linha no getActivityByJql
+
+
+## Correcao de Modais - Usar JQL como Fonte
+- [x] Criar endpoints tRPC para buscar issues por status (Dev, QA, Ready to Sprint, Done)
+- [x] Refatorar DevIssuesModal para usar endpoint tRPC com JQL
+- [x] Refatorar CompletedIssuesModal para usar endpoint tRPC com JQL
+- [x] Refatorar QAIssuesModal para usar endpoint tRPC com JQL
+- [x] Refatorar ReadyToSprintModal para usar endpoint tRPC com JQL
+- [x] Refatorar DoneIssuesModal para usar endpoint tRPC com JQL
+- [x] Testar todos os modais com dados do Jira
+- [x] Validar que filtros funcionam corretamente

@@ -1,92 +1,93 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Code, User, Filter, X, Loader2 } from 'lucide-react';
+import { CheckCircle, User, Filter, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFilter } from '@/contexts/FilterContext';
 import { trpc } from '@/lib/trpc';
 
-interface DevIssue {
+interface DoneIssue {
   chave: string;
   resumo: string;
   atribuido: string;
-  status: string;
   tipoIssue?: string;
 }
 
-interface DevIssuesModalProps {
+interface DoneIssuesModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const DEV_STATUSES = ['Code Doing', 'Code Review'];
+const DONE_STATUSES = ['Done'];
 
-export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
+export function DoneIssuesModal({ open, onOpenChange }: DoneIssuesModalProps) {
   const { activeJqlFilter } = useFilter();
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [issues, setIssues] = useState<DevIssue[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [issues, setIssues] = useState<DoneIssue[]>([]);
 
-  // Buscar issues do Jira usando JQL
   const issuesQuery = trpc.dashboard.getIssuesByStatus.useQuery(
     {
       jql: activeJqlFilter?.jql || '',
-      statuses: DEV_STATUSES,
+      statuses: DONE_STATUSES,
     },
     { enabled: open && !!activeJqlFilter?.jql }
   );
 
   useEffect(() => {
     if (issuesQuery.data?.issues) {
-      // Converter SyncedIssue para DevIssue
       const convertedIssues = issuesQuery.data.issues.map((issue: any) => ({
         chave: issue.chave,
         resumo: issue.resumo,
         atribuido: issue.atribuido || 'Nao atribuido',
-        status: issue.status,
-        tipoIssue: issue.tipoIssue,
+        tipoIssue: issue.tipoIssue || 'Task',
       }));
       setIssues(convertedIssues);
     }
   }, [issuesQuery.data]);
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'code doing':
+  const getIssueTypeColor = (type: string) => {
+    switch (type) {
+      case 'Bug':
+        return 'bg-red-100 text-red-800';
+      case 'Improvement':
         return 'bg-blue-100 text-blue-800';
-      case 'code review':
+      case 'Tests':
+        return 'bg-green-100 text-green-800';
+      case 'Task':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Story':
         return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // Filtrar issues baseado nos status selecionados
   const filteredIssues = useMemo(() => {
-    if (selectedStatuses.length === 0) {
+    if (selectedTypes.length === 0) {
       return issues;
     }
-    return issues.filter(issue => selectedStatuses.includes(issue.status));
-  }, [issues, selectedStatuses]);
+    return issues.filter(issue => selectedTypes.includes(issue.tipoIssue || 'Task'));
+  }, [issues, selectedTypes]);
 
-  // Contar issues por status
-  const statusCounts = useMemo(() => {
+  const typeCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
-    DEV_STATUSES.forEach(status => {
-      counts[status] = issues.filter(issue => issue.status === status).length;
+    const uniqueTypes = Array.from(new Set(issues.map(i => i.tipoIssue || 'Task')));
+    uniqueTypes.forEach(type => {
+      counts[type] = issues.filter(issue => (issue.tipoIssue || 'Task') === type).length;
     });
     return counts;
   }, [issues]);
 
-  const toggleStatus = (status: string) => {
-    setSelectedStatuses(prev =>
-      prev.includes(status)
-        ? prev.filter(s => s !== status)
-        : [...prev, status]
+  const toggleType = (type: string) => {
+    setSelectedTypes(prev =>
+      prev.includes(type)
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
     );
   };
 
   const clearFilters = () => {
-    setSelectedStatuses([]);
+    setSelectedTypes([]);
   };
 
   return (
@@ -94,8 +95,8 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Code className="w-5 h-5" />
-            Issues em Desenvolvimento/Code Review
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            Issues Concluidas
           </DialogTitle>
         </DialogHeader>
 
@@ -109,43 +110,43 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
           </div>
         ) : (
           <>
-            {/* Filtro por Status */}
-            <div className="space-y-3 pb-4 border-b">
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">Filtrar por Status:</span>
-                {selectedStatuses.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="ml-auto h-7 px-2 text-xs"
-                  >
-                    <X className="w-3 h-3 mr-1" />
-                    Limpar
-                  </Button>
-                )}
+            {Array.from(new Set(issues.map(i => i.tipoIssue || 'Task'))).length > 0 && (
+              <div className="space-y-3 pb-4 border-b">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold">Filtrar por Tipo:</span>
+                  {selectedTypes.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="ml-auto h-7 px-2 text-xs"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Limpar
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(new Set(issues.map(i => i.tipoIssue || 'Task'))).map(type => (
+                    <Button
+                      key={type}
+                      variant={selectedTypes.includes(type) ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => toggleType(type)}
+                      className="text-xs"
+                    >
+                      {type}
+                      <span className="ml-1 text-xs opacity-70">
+                        ({typeCounts[type] || 0})
+                      </span>
+                    </Button>
+                  ))}
+                </div>
               </div>
-              
-              <div className="flex flex-wrap gap-2">
-                {DEV_STATUSES.map(status => (
-                  <Button
-                    key={status}
-                    variant={selectedStatuses.includes(status) ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => toggleStatus(status)}
-                    className="text-xs"
-                  >
-                    {status}
-                    <span className="ml-1 text-xs opacity-70">
-                      ({statusCounts[status] || 0})
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </div>
+            )}
 
-            {/* Lista de Issues */}
             <div className="space-y-3">
               {filteredIssues.length > 0 ? (
                 <>
@@ -161,13 +162,12 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <code className="text-sm font-semibold text-primary">{issue.chave}</code>
-                            {issue.tipoIssue && (
-                              <Badge className="bg-green-100 text-green-800">
-                                {issue.tipoIssue}
-                              </Badge>
-                            )}
-                            <Badge className={getStatusColor(issue.status)}>
-                              {issue.status}
+                            <Badge className={getIssueTypeColor(issue.tipoIssue || 'Task')}>
+                              {issue.tipoIssue || 'Task'}
+                            </Badge>
+                            <Badge className="bg-green-100 text-green-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Concluida
                             </Badge>
                           </div>
                           <p className="text-sm text-foreground font-medium">{issue.resumo}</p>
@@ -176,7 +176,7 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
                         <User className="w-3 h-3" />
-                        <span>{issue.atribuido || 'Não atribuído'}</span>
+                        <span>{issue.atribuido}</span>
                       </div>
                     </div>
                   ))}
@@ -184,9 +184,9 @@ export function DevIssuesModal({ open, onOpenChange }: DevIssuesModalProps) {
               ) : (
                 <div className="text-center py-8">
                   <p className="text-sm text-muted-foreground">
-                    {selectedStatuses.length > 0
+                    {selectedTypes.length > 0
                       ? 'Nenhuma issue encontrada com os filtros selecionados.'
-                      : 'Nenhuma issue em desenvolvimento no momento.'}
+                      : 'Nenhuma issue concluida.'}
                   </p>
                 </div>
               )}

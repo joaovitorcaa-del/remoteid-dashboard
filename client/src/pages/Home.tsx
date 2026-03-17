@@ -16,6 +16,9 @@ import { ProjectEvolution } from '@/components/ProjectEvolution';
 import { IssueTypeFilter } from '@/components/IssueTypeFilter';
 import { DevIssuesModal } from '@/components/DevIssuesModal';
 import { CompletedIssuesModal } from '@/components/CompletedIssuesModal';
+import { QAIssuesModal } from '@/components/QAIssuesModal';
+import { ReadyToSprintModal } from '@/components/ReadyToSprintModal';
+import { DoneIssuesModal } from '@/components/DoneIssuesModal';
 import { JqlModal } from '@/components/JqlModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { getCompletedIssuesLast24h } from '@/lib/completedIssuesCalculator';
@@ -534,80 +537,21 @@ export default function Home() {
       {/* Dev Issues Modal */}
       <DevIssuesModal 
         open={showDevIssuesModal} 
-        onOpenChange={setShowDevIssuesModal} 
-        issues={devIssues.map((issue: any) => ({
-          Key: issue.Key,
-          Summary: issue.Summary,
-          Assignee: issue.Assignee,
-          Status: issue.Status,
-          IssueType: issue['Issue Type'],
-        }))} 
+        onOpenChange={setShowDevIssuesModal}
       />
       
       {/* Completed Issues Modal (24h) */}
-      <Dialog open={showCompletedIssuesModal} onOpenChange={setShowCompletedIssuesModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Issues Concluidas (Ultimas 24h)</DialogTitle>
-            <DialogDescription>
-              {completedIssues.length} issue{completedIssues.length !== 1 ? 's' : ''} concluida{completedIssues.length !== 1 ? 's' : ''} nas ultimas 24 horas
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {completedIssues.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">Nenhuma issue concluida nas ultimas 24 horas</p>
-            ) : (
-              completedIssues.map((issue: any, index: number) => (
-                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
-                      <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
-                      <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Completed Issues Modal */}
+      <CompletedIssuesModal 
+        open={showCompletedIssuesModal} 
+        onOpenChange={setShowCompletedIssuesModal}
+      />
       
       {/* QA Issues Modal */}
-      <Dialog open={showQAModal} onOpenChange={setShowQAModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Issues em Etapa QA</DialogTitle>
-            <DialogDescription>
-              {qaIssues.length} issue{qaIssues.length !== 1 ? 's' : ''} em teste ou staging
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {qaIssues.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">Nenhuma issue em etapa QA</p>
-            ) : (
-              qaIssues.map((issue: any, index: number) => (
-                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
-                      <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
-                      <span>Status: {issue.Status}</span>
-                      <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <QAIssuesModal 
+        open={showQAModal} 
+        onOpenChange={setShowQAModal}
+      />
       
       {/* Backlog Modal */}
       <Dialog open={showBacklogModal} onOpenChange={setShowBacklogModal}>
@@ -644,70 +588,17 @@ export default function Home() {
       </Dialog>
       
       {/* Ready to Sprint/Dev To Do Modal */}
-      <Dialog open={showReadyToSprintModal} onOpenChange={setShowReadyToSprintModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Ready to Sprint / Dev To Do</DialogTitle>
-            <DialogDescription>
-              {readyToSprintIssues.length} issue{readyToSprintIssues.length !== 1 ? 's' : ''} pronta{readyToSprintIssues.length !== 1 ? 's' : ''} para sprint ou em desenvolvimento inicial
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {readyToSprintIssues.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">Nenhuma issue neste status</p>
-            ) : (
-              readyToSprintIssues.map((issue: any, index: number) => (
-                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
-                      <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
-                      <span>Status: {issue.Status}</span>
-                      <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReadyToSprintModal 
+        open={showReadyToSprintModal} 
+        onOpenChange={setShowReadyToSprintModal}
+      />
       
       {/* Done Issues Modal */}
-      <Dialog open={showDoneIssuesModal} onOpenChange={setShowDoneIssuesModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Issues Concluídas</DialogTitle>
-            <DialogDescription>
-              {doneIssues.length} issue{doneIssues.length !== 1 ? 's' : ''} concluída{doneIssues.length !== 1 ? 's' : ''}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {doneIssues.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">Nenhuma issue concluída</p>
-            ) : (
-              doneIssues.map((issue: any, index: number) => (
-                <div key={index} className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">{issue.key || issue.Key}</p>
-                      <p className="text-sm font-semibold text-foreground flex-1">{issue.summary || issue.Summary}</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>Tipo: {issue.issueType || issue['Issue Type']}</span>
-                      <span>Status: {issue.Status}</span>
-                      <span>Responsavel: {issue.assignee || issue.Assignee || 'Nao atribuido'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Done Issues Modal */}
+      <DoneIssuesModal 
+        open={showDoneIssuesModal} 
+        onOpenChange={setShowDoneIssuesModal}
+      />
       
       {/* JQL Modal */}
       <JqlModal
