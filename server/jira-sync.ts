@@ -45,7 +45,7 @@ export async function fetchJiraActiveSprintIssues(): Promise<JiraIssue[]> {
     const jql = `sprint in openSprints() AND project = "${projectKey}"`;
     console.log('[Jira] JQL:', jql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
-    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee,created,updated`;
+    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,created,updated`;
     console.log('[Jira] URL:', url);
 
     const response = await fetch(url, {
@@ -145,7 +145,7 @@ export async function fetchJiraIssuesByJql(jql: string): Promise<JiraIssue[]> {
     console.log('[Jira] Buscando issues com JQL customizado...');
     console.log('[Jira] JQL:', jql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
-    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee,created,updated,priority,customfield_10016`;
+    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,created,updated,priority,customfield_10016`;
     console.log('[Jira] URL:', url);
 
     const response = await fetch(url, {
@@ -193,7 +193,7 @@ export async function fetchJiraBacklogIssues(): Promise<JiraIssue[]> {
     const jql = `SPRINT is EMPTY AND project in ("RemoteID", "DesktopID", "Mobile ID") AND status NOT IN (OPENED, Prioritized, "USER STORY WRITTEN", "USER STORY REFINEMENT", PREPLANNING, DONE, Canceled) AND issuetype NOT IN (EPIC, "Technical Task") ORDER BY priority desc`;
     console.log('[Jira Backlog] JQL:', jql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
-    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee,created,updated,priority`;
+    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,created,updated,priority`;
     console.log('[Jira Backlog] URL:', url);
 
     const response = await fetch(url, {

@@ -379,6 +379,12 @@
 ## Correcoes de Bugs
 - [x] Corrigir erro JQL: "Expecting ',' but got 'AND'" - Adicionar limpeza de quebras de linha no getActivityByJql
 
+## Correcoes da Planning
+- [x] Refatorar getPlanejamento para usar JQL do Jira em vez de Google Sheets
+- [x] Corrigir loop infinito do botão "Sync com Jira" (retornar sucesso quando não há dados)
+- [x] Aumentar limite de maxResults de 100 para 500 em todas as buscas JQL
+- [x] Verificar que issues REM-3730+ aparecem corretamente
+
 
 ## Correcao de Modais - Usar JQL como Fonte
 - [x] Criar endpoints tRPC para buscar issues por status (Dev, QA, Ready to Sprint, Done)

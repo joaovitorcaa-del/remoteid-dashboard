@@ -26,7 +26,13 @@ export const jiraRouter = router({
 
       console.log('[Sync] Sprints ativas encontradas:', activeSprints.length);
       if (activeSprints.length === 0) {
-        throw new Error('Nenhuma sprint ativa encontrada');
+        console.log('[Sync] Nenhuma sprint ativa encontrada - retornando sucesso');
+        return {
+          success: true,
+          totalSynced: 0,
+          plannedIssues: 0,
+          message: 'Nenhuma sprint ativa para sincronizar',
+        };
       }
 
       const activeSprint = activeSprints[0];
@@ -42,7 +48,13 @@ export const jiraRouter = router({
       console.log('[Sync] Chaves planejadas:', plannedIssues.map(i => i.chave).join(', '));
 
       if (plannedIssues.length === 0) {
-        throw new Error('Nenhuma issue planejada nesta sprint');
+        console.log('[Sync] Nenhuma issue planejada nesta sprint - retornando sucesso');
+        return {
+          success: true,
+          totalSynced: 0,
+          plannedIssues: 0,
+          message: 'Nenhuma issue planejada para sincronizar',
+        };
       }
 
       // Buscar issues do Jira
