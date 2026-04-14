@@ -27,6 +27,7 @@ import { useFilter } from '@/contexts/FilterContext';
 import { useNextSteps } from '@/hooks/useNextSteps';
 import { useFilteredData } from '@/hooks/useFilteredData';
 import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
 
 /**
  * Design Philosophy: Modern Enterprise Analytics
@@ -38,6 +39,7 @@ import { trpc } from '@/lib/trpc';
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
   const { metrics, statusDistribution, criticalIssues, impediments, backlogItems, loading, error, lastUpdated, refreshData, allIssues } = useDashboard();
   const { steps: dynamicSteps, generateNextSteps } = useNextSteps();
   const { setAvailableIssueTypes } = useFilter();
@@ -144,6 +146,8 @@ export default function Home() {
     setIsRefreshing(true);
     try {
       await refreshData();
+    } catch (err) {
+      console.error('Erro ao atualizar dados:', err);
     } finally {
       setIsRefreshing(false);
     }
@@ -193,11 +197,11 @@ export default function Home() {
                   Insight de IA
                 </button>
                 <button
-                  onClick={() => setShowJqlModal(true)}
+                  onClick={() => navigate('/settings')}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
                 >
                   <Sparkles className="w-4 h-4" />
-                  JQL
+                  Configuração
                 </button>
                 <button
                   onClick={() => navigate('/daily')}
@@ -219,6 +223,13 @@ export default function Home() {
                 >
                   <Target className="w-4 h-4" />
                   Retrospectiva
+                </button>
+                <button
+                  onClick={() => navigate('/responsible')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-medium"
+                >
+                  <Users className="w-4 h-4" />
+                  Visão por Responsável
                 </button>
                 <button
                   onClick={handleRefresh}
