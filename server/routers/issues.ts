@@ -12,7 +12,7 @@ export const issuesRouter = router({
       
       // JQL para buscar issues prontas para planejamento
       // Ordenar por key DESC para trazer as mais recentes primeiro
-      const jql = 'project = "REMOTEID" AND status in ("Ready to Sprint", "Dev To Do") ORDER BY key DESC';
+      const jql = 'project = REMOTEID AND (status = "Ready to Sprint" OR status = "Dev To Do") ORDER BY key DESC';
       
       console.log('[Issues] Buscando issues Ready to Sprint com JQL:', jql);
       
@@ -46,7 +46,7 @@ export const issuesRouter = router({
       try {
         const { fetchJiraIssuesByJql } = await import("../jira-sync");
         
-        const jql = `key = "${input.chave}"`;
+        const jql = `key = ${input.chave}`;
         const issues = await fetchJiraIssuesByJql(jql);
         
         if (issues.length === 0) {

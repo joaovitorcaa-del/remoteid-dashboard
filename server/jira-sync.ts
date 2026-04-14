@@ -42,7 +42,7 @@ export async function fetchJiraActiveSprintIssues(): Promise<JiraIssue[]> {
 
   try {
     console.log('[Jira] Iniciando busca de issues...');
-    const jql = `sprint in openSprints() AND project = "${projectKey}"`;
+    const jql = `sprint in openSprints() AND project = ${projectKey}`;
     console.log('[Jira] JQL:', jql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
     const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,created,updated`;

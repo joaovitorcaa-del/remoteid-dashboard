@@ -186,7 +186,8 @@ export const dashboardRouter = router({
         const cleanJql = input.jql.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
         
         // Construir JQL com filtro de status
-        const statusFilter = input.statuses.map(s => `\"${s}\"`).join(', ');
+        // Em Jira JQL, status com espaços devem estar entre aspas simples
+        const statusFilter = input.statuses.map(s => `'${s}'`).join(', ');
         const jqlWithStatus = `${cleanJql} AND status in (${statusFilter})`;
         console.log("[Dashboard] JQL com status:", jqlWithStatus);
         
@@ -214,6 +215,8 @@ export const dashboardRouter = router({
     .query(async ({ input }) => {
       try {
         console.log("[Dashboard] Buscando atividade com JQL:", input.jql);
+        console.log("[Dashboard] JQL length:", input.jql.length);
+        console.log("[Dashboard] JQL char codes:", Array.from(input.jql).map(c => c.charCodeAt(0)).join(','));
         
         // Limpar JQL: remover quebras de linha, espaços extras e caracteres especiais
         let cleanJql = input.jql

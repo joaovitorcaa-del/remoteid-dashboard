@@ -61,7 +61,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const activityQuery = trpc.dashboard.getActivityByJql.useQuery(
     { jql: activeJqlFilter?.jql || '' },
-    { enabled: !!activeJqlFilter?.jql }
+    { enabled: false } // Desabilitar temporariamente para debugar
   );
 
   // Atualizar estado quando queries retornam dados
