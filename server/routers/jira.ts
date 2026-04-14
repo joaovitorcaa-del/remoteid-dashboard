@@ -166,4 +166,108 @@ export const jiraRouter = router({
       return { status: 'error', message: error instanceof Error ? error.message : 'Erro desconhecido' };
     }
   }),
+
+  /**
+   * Obtém métricas de tarefas agrupadas por desenvolvedor
+   */
+  getDeveloperMetrics: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      console.log('[DeveloperMetrics] Buscando métricas por desenvolvedor...');
+      const db = await getDb();
+      if (!db) {
+        throw new Error('Banco de dados não disponível');
+      }
+
+      // Buscar todas as issues
+      const allIssues = await db.select().from(sprintIssues);
+      console.log('[DeveloperMetrics] Total de issues encontradas:', allIssues.length);
+
+      // Agrupar por responsável
+      const developerMap = new Map<string, any>();
+
+      for (const issue of allIssues) {
+        const developer = issue.responsavel || 'Não Atribuído';
+        
+        if (!developerMap.has(developer)) {
+          developerMap.set(developer, {
+            name: developer,
+            totalTasks: 0,
+            completedTasks: 0,
+            inProgressTasks: 0,
+            totalStoryPoints: 0,
+            storyPointsCount: 0,
+            tasksByType: {} as Record<string, number>,
+            tasksByStatus: {} as Record<string, number>,
+            tasksBySprint: {} as Record<string, number>,
+          });
+        }
+
+        const devMetrics = developerMap.get(developer)!;
+        devMetrics.totalTasks++;
+
+        // Contar por status
+        if (issue.status === 'Done') {
+          devMetrics.completedTasks++;
+        } else if (['Code Doing', 'Code Review', 'Test Doing'].includes(issue.status)) {
+          devMetrics.inProgressTasks++;
+        }
+
+        // Contar story points
+        if (issue.storyPoints && issue.storyPoints > 0) {
+          devMetrics.totalStoryPoints += issue.storyPoints;
+          devMetrics.storyPointsCount++;
+        }
+
+        // Agrupar por tipo (usar resumo como tipo de issue)
+        const issueType = 'Task'; // Padrão já que o schema não tem campo tipo
+        devMetrics.tasksByType[issueType] = (devMetrics.tasksByType[issueType] || 0) + 1;
+
+        // Agrupar por status
+        devMetrics.tasksByStatus[issue.status] = (devMetrics.tasksByStatus[issue.status] || 0) + 1;
+
+        // Agrupar por sprint
+        if (issue.sprintId) {
+          const sprintName = `Sprint ${issue.sprintId}`;
+          devMetrics.tasksBySprint[sprintName] = (devMetrics.tasksBySprint[sprintName] || 0) + 1;
+        }
+      }
+
+      // Converter para array e calcular métricas
+      const developers = Array.from(developerMap.values()).map(dev => ({
+        name: dev.name,
+        totalTasks: dev.totalTasks,
+        completedTasks: dev.completedTasks,
+        inProgressTasks: dev.inProgressTasks,
+        totalStoryPoints: dev.totalStoryPoints,
+        averageStoryPoints: dev.storyPointsCount > 0 ? dev.totalStoryPoints / dev.storyPointsCount : 0,
+        completionRate: dev.totalTasks > 0 ? (dev.completedTasks / dev.totalTasks) * 100 : 0,
+        tasksByType: dev.tasksByType,
+        tasksByStatus: dev.tasksByStatus,
+        tasksBySprint: dev.tasksBySprint,
+      }));
+
+      // Calcular resumo geral
+      const totalTasks = developers.reduce((sum, d) => sum + d.totalTasks, 0);
+      const totalCompleted = developers.reduce((sum, d) => sum + d.completedTasks, 0);
+      const totalStoryPoints = developers.reduce((sum, d) => sum + d.totalStoryPoints, 0);
+
+      const summary = {
+        totalTasks,
+        totalDevelopers: developers.length,
+        averageCompletionRate: totalTasks > 0 ? (totalCompleted / totalTasks) * 100 : 0,
+        totalStoryPoints,
+      };
+
+      console.log('[DeveloperMetrics] Métricas calculadas:', summary);
+
+      return {
+        developers: developers.sort((a, b) => b.totalTasks - a.totalTasks),
+        summary,
+        lastUpdated: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Erro ao buscar métricas de desenvolvedor:', error);
+      throw new Error(`Erro ao buscar métricas: ${error instanceof Error ? error.message : 'Desconhecido'}`);
+    }
+  }),
 });
