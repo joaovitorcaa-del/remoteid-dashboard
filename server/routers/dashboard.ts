@@ -227,8 +227,16 @@ export const dashboardRouter = router({
         // Remover AND/OR duplicados no final
         cleanJql = cleanJql.replace(/\s+(AND|OR)\s*$/i, '');
         
+        // Validar JQL - se vazio ou inválido, usar JQL padrão
+        if (!cleanJql || cleanJql.length === 0) {
+          cleanJql = 'sprint in openSprints() AND project = REMOTEID';
+        }
+        
+        // Garantir que o JQL não termina com AND/OR antes de concatenar
+        cleanJql = cleanJql.replace(/\s+(AND|OR)\s*$/i, '').trim();
+        
         // Buscar issues atualizadas nas últimas 24h
-        const jqlWithTime = cleanJql ? `${cleanJql} AND updated >= -1d` : `updated >= -1d`;
+        const jqlWithTime = `${cleanJql} AND updated >= -1d`;
         console.log("[Dashboard] JQL final:", jqlWithTime);
         
         const jiraIssues = await fetchJiraIssuesByJql(jqlWithTime);
