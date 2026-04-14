@@ -215,11 +215,20 @@ export const dashboardRouter = router({
       try {
         console.log("[Dashboard] Buscando atividade com JQL:", input.jql);
         
-        // Limpar JQL: remover quebras de linha e espaços extras
-        const cleanJql = input.jql.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+        // Limpar JQL: remover quebras de linha, espaços extras e caracteres especiais
+        let cleanJql = input.jql
+          .trim()
+          .replace(/\n/g, ' ')
+          .replace(/\r/g, ' ')
+          .replace(/\t/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        // Remover AND/OR duplicados no final
+        cleanJql = cleanJql.replace(/\s+(AND|OR)\s*$/i, '');
         
         // Buscar issues atualizadas nas últimas 24h
-        const jqlWithTime = `${cleanJql} AND updated >= -1d`;
+        const jqlWithTime = cleanJql ? `${cleanJql} AND updated >= -1d` : `updated >= -1d`;
         console.log("[Dashboard] JQL final:", jqlWithTime);
         
         const jiraIssues = await fetchJiraIssuesByJql(jqlWithTime);
