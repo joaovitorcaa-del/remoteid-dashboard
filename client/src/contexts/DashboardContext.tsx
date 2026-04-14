@@ -41,6 +41,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // tRPC queries
   const metricsQuery = trpc.dashboard.getMetricsByJql.useQuery(
@@ -98,17 +99,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [criticalIssuesQuery.data]);
 
   const refreshData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+        setLoading(true);
+        setError(null);
 
-    try {
-      // Refetch todas as queries
-      await Promise.all([
-        metricsQuery.refetch(),
-        statusDistributionQuery.refetch(),
-        criticalIssuesQuery.refetch(),
-        activityQuery.refetch(),
-      ]);
+        try {
+          // Refetch todas as queries com timeout de 10 segundos
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout ao buscar dados')), 10000)
+          );
+          
+          await Promise.race([
+            Promise.all([
+              metricsQuery.refetch(),
+              statusDistributionQuery.refetch(),
+              criticalIssuesQuery.refetch(),
+              activityQuery.refetch(),
+            ]),
+            timeoutPromise,
+          ]);
 
       // Salvar snapshot
       await saveSnapshot({
@@ -129,17 +137,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar dados';
       setError(errorMessage);
       console.error('Erro ao atualizar dados:', err);
+      // Não dispara novo refetch em caso de erro para evitar loop infinito
     } finally {
       setLoading(false);
     }
   }, [metrics, impediments.length, metricsQuery, statusDistributionQuery, criticalIssuesQuery, activityQuery]);
 
-  // Auto-refresh quando o filtro JQL mudar
+  // Auto-refresh quando o filtro JQL mudar (apenas uma vez na inicialização)
   useEffect(() => {
-    if (activeJqlFilter?.jql) {
+    if (activeJqlFilter?.jql && !isInitialized) {
+      setIsInitialized(true);
       refreshData();
     }
-  }, [activeJqlFilter?.jql, refreshData]);
+  }, [activeJqlFilter?.jql, isInitialized, refreshData]);
+
+  // Função para refetch manual (chamada pelo botão "Atualizar Dados")
+  const manualRefresh = useCallback(async () => {
+    await refreshData();
+  }, [refreshData]);
 
   return (
     <DashboardContext.Provider
