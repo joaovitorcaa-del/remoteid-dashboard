@@ -46,8 +46,8 @@ export const analysisRouter = {
         // Buscar issues do Jira
         const issues = await fetchJiraIssuesByJql(jql);
         
-        // Limitar a 500 issues para evitar timeout
-        const limitedIssues = issues.slice(0, 500);
+        // Usar todas as issues retornadas (sem limite)
+        const limitedIssues = issues;
 
         // Agrupar issues por período
         const periodMap = new Map<string, any>();
