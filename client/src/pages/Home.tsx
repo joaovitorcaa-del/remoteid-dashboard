@@ -241,7 +241,7 @@ export default function Home() {
 
             {/* Análise */}
             <button
-              onClick={() => navigate('/responsible')}
+              onClick={() => navigate('/analysis')}
               className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors border border-transparent hover:border-border"
             >
               <BarChart3 className="w-4 h-4" />
