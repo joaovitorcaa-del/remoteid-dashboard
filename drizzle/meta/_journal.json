@@ -43,6 +43,13 @@
       "when": 1773666644602,
       "tag": "0005_loud_excalibur",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1776228122152,
+      "tag": "0006_new_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

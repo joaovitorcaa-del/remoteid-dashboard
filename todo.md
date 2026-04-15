@@ -296,6 +296,51 @@
 - [ ] Criar checkpoint final
 - [ ] Preparar para produção
 
+---
+
+# PÁGINA ANÁLISE: Consulta Direta JIRA + Persistência + Dashboards Analíticos
+
+## Banco de Dados
+- [x] Criar tabela analysis_issues para persistir issues do JIRA
+- [x] Criar tabela analysis_sync_log para registrar sincronizações
+- [x] Executar migrations com pnpm db:push
+
+## Router de Análise
+- [x] Criar endpoint analysis.syncJiraData - consulta JIRA com JQL e persiste no banco
+- [x] Paginação completa (buscar TODAS as issues, não apenas 100)
+- [x] Criar endpoint analysis.getIssues - consulta banco local
+- [x] Criar endpoint analysis.getVelocityMetrics - métricas de velocidade por sprint
+- [x] Criar endpoint analysis.getCapacityMetrics - métricas de capacidade do time
+- [x] Criar endpoint analysis.getSyncStatus - status da última sincronização
+
+## Frontend - AnalysisContext
+- [x] Refatorar AnalysisContext para usar dados persistidos do banco
+- [x] Botão "Atualizar Dados" que roda JQL e sincroniza base
+- [x] Indicador de última sincronização
+
+## Frontend - Dashboard de Produtividade
+- [x] Velocity chart (story points por sprint)
+- [x] Throughput chart (issues concluídas por período)
+- [x] Cycle time médio por tipo de issue
+- [x] Lead time médio por tipo de issue
+- [x] Cumulative flow diagram
+- [x] Burn-up chart
+
+## Frontend - Análise de Squad
+- [x] Distribuição de trabalho por membro
+- [x] Velocity individual
+- [x] Issues por status por membro
+
+## Frontend - Tendências e Insights
+- [x] Tendência de velocity ao longo do tempo
+- [x] Previsão de entrega baseada em velocity
+- [x] Análise de gargalos
+
+## Testes
+- [x] Testes para router de análise
+- [x] Testes para sync JIRA
+- [x] Validar que Dashboard principal não foi afetado
+
 
 ---
 

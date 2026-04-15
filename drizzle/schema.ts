@@ -167,3 +167,46 @@ export const blockingPatterns = mysqlTable("blockingPatterns", {
 
 export type BlockingPattern = typeof blockingPatterns.$inferSelect;
 export type InsertBlockingPattern = typeof blockingPatterns.$inferInsert;
+
+// Analysis Issues - issues do JIRA persistidas para análise offline
+export const analysisIssues = mysqlTable("analysisIssues", {
+  id: int("id").autoincrement().primaryKey(),
+  issueKey: varchar("issueKey", { length: 50 }).notNull(),
+  summary: text("summary"),
+  issueType: varchar("issueType", { length: 100 }),
+  status: varchar("status", { length: 100 }),
+  priority: varchar("priority", { length: 50 }),
+  assignee: varchar("assignee", { length: 255 }),
+  reporter: varchar("reporter", { length: 255 }),
+  project: varchar("project", { length: 100 }),
+  storyPoints: decimal("storyPoints", { precision: 10, scale: 2 }),
+  sprintName: varchar("sprintName", { length: 255 }),
+  sprintState: varchar("sprintState", { length: 50 }),
+  labels: text("labels"), // JSON array
+  components: text("components"), // JSON array
+  resolution: varchar("resolution", { length: 100 }),
+  createdAt: timestamp("createdAt"),
+  updatedAt: timestamp("updatedAt"),
+  resolvedAt: timestamp("resolvedAt"),
+  statusChangedAt: timestamp("statusChangedAt"),
+  syncedAt: timestamp("syncedAt").defaultNow().notNull(),
+  jqlSource: text("jqlSource"), // JQL que originou este registro
+});
+
+export type AnalysisIssue = typeof analysisIssues.$inferSelect;
+export type InsertAnalysisIssue = typeof analysisIssues.$inferInsert;
+
+// Analysis Sync Log - registro de sincronizações
+export const analysisSyncLog = mysqlTable("analysisSyncLog", {
+  id: int("id").autoincrement().primaryKey(),
+  jql: text("jql").notNull(),
+  totalIssues: int("totalIssues").default(0).notNull(),
+  status: mysqlEnum("status", ["running", "completed", "failed"]).default("running").notNull(),
+  errorMessage: text("errorMessage"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  durationMs: int("durationMs"),
+});
+
+export type AnalysisSyncLog = typeof analysisSyncLog.$inferSelect;
+export type InsertAnalysisSyncLog = typeof analysisSyncLog.$inferInsert;
