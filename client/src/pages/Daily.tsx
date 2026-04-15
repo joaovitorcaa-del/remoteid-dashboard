@@ -39,21 +39,9 @@ export default function Daily() {
     }
   );
 
-  // Fetch snapshot if it exists
-  const { data: snapshot } = trpc.daily.getSnapshot.useQuery({
-    date: dateString,
-  });
-
   // Declare mutations at top level (before any conditionals)
   const saveSnapshotMutation = trpc.daily.saveSnapshot.useMutation();
   const createShareLinkMutation = trpc.daily.createSharedLink.useMutation();
-
-  // Load notes from snapshot if available
-  useEffect(() => {
-    if (snapshot?.notes) {
-      setNotes(snapshot.notes);
-    }
-  }, [snapshot]);
 
   const handleDateChange = (days: number) => {
     const newDate = days > 0 ? addDays(selectedDate, days) : subDays(selectedDate, Math.abs(days));
@@ -90,21 +78,7 @@ export default function Daily() {
   };
 
   const handleShare = async () => {
-    if (!snapshot?.id) {
-      alert('Salve um snapshot primeiro para compartilhar');
-      return;
-    }
-
-    try {
-      const result = await createShareLinkMutation.mutateAsync({
-        snapshotId: snapshot.id,
-      });
-      const url = `${window.location.origin}/d/${result.url}`;
-      navigator.clipboard.writeText(url);
-      alert(`Link copiado para clipboard! Válido por 7 dias.`);
-    } catch (error) {
-      console.error('Error creating share link:', error);
-    }
+    alert('Funcionalidade de compartilhamento em desenvolvimento');
   };
 
   // Show message if no JQL filter is configured
