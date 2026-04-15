@@ -28,22 +28,16 @@ interface PeriodData {
 }
 
 export default function ProductivityDashboard() {
-  const { analysisJql } = useAnalysis();
+  const { analysisJql, metricsData, loading, error, refreshData } = useAnalysis();
   const [periodType, setPeriodType] = useState<PeriodType>('month');
   const [chartMetric, setChartMetric] = useState<ChartMetric>('both');
   const [showTrendline, setShowTrendline] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Buscar métricas usando o JQL customizado da página Análise
-  const metricsQuery = trpc.dashboard.getMetricsByJql.useQuery(
-    { jql: analysisJql || '' },
-    { enabled: !!analysisJql }
-  );
-
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await metricsQuery.refetch();
+      await refreshData();
     } finally {
       setIsRefreshing(false);
     }
@@ -51,9 +45,9 @@ export default function ProductivityDashboard() {
 
   // Processar dados para o gráfico
   const chartData = useMemo(() => {
-    if (!metricsQuery.data?.issues) return [];
+    if (!metricsData?.issues) return [];
 
-    const issues = metricsQuery.data.issues as any[];
+    const issues = metricsData.issues as any[];
     const periodMap = new Map<string, any>();
 
     issues.forEach((issue: any) => {
@@ -117,22 +111,22 @@ export default function ProductivityDashboard() {
     }
 
     return allData;
-  }, [metricsQuery.data?.issues, periodType, showTrendline]);
+  }, [metricsData?.issues, periodType, showTrendline]);
 
   // Calcular KPIs
   const kpis = useMemo(() => {
-    if (!metricsQuery.data?.issues) {
+    if (!metricsData?.issues) {
       return { total: 0, storyPoints: 0, completed: 0, inProgress: 0 };
     }
 
-    const issues = metricsQuery.data.issues as any[];
+    const issues = metricsData.issues as any[];
     const total = issues.length;
     const storyPoints = issues.reduce((sum: number, i: any) => sum + (i?.fields?.customfield_10028 || i?.fields?.customfield_10029 || 0), 0);
     const completed = issues.filter((i: any) => i?.fields?.status?.name === 'DONE').length;
     const inProgress = issues.filter((i: any) => ['CODE DOING', 'CODE REVIEW', 'STAGING'].includes(i?.fields?.status?.name)).length;
 
     return { total, storyPoints, completed, inProgress };
-  }, [metricsQuery.data?.issues]);
+  }, [metricsData?.issues]);
 
   if (!analysisJql) {
     return (
@@ -144,7 +138,7 @@ export default function ProductivityDashboard() {
     );
   }
 
-  if (metricsQuery.isLoading) {
+  if (loading) {
     return (
       <Card>
         <CardContent className="pt-6">
@@ -154,11 +148,11 @@ export default function ProductivityDashboard() {
     );
   }
 
-  if (metricsQuery.error) {
+  if (error) {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-center text-red-600">Erro ao carregar dados: {metricsQuery.error.message}</p>
+          <p className="text-center text-red-600">Erro ao carregar dados: {error}</p>
         </CardContent>
       </Card>
     );
