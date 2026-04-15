@@ -55,28 +55,16 @@ async function fetchJiraIssues(jql: string) {
   try {
     console.log('[Daily] Fetching JIRA issues with JQL:', jql.substring(0, 100));
     
-    const response = await fetch(`${url}/rest/api/3/search`, {
-      method: "POST",
+    const fields = "key,summary,status,assignee,updated,duedate,flagged,customfield_10004";
+    const searchUrl = `${url}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=100&fields=${fields}`;
+    
+    const response = await fetch(searchUrl, {
+      method: "GET",
       headers: {
         Authorization: `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`,
         "Content-Type": "application/json",
+        "Accept": "application/json",
       },
-      body: JSON.stringify({
-        jql,
-        fields: [
-          "key",
-          "summary",
-          "status",
-          "assignee",
-          "updated",
-          "duedate",
-          "flagged",
-          "customfield_10004", // Story Points
-          "changelog",
-        ],
-        expand: ["changelog"],
-        maxResults: 100,
-      }),
     });
 
     if (!response.ok) {
