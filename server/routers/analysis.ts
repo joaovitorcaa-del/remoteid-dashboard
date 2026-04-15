@@ -827,6 +827,21 @@ export const analysisRouter = {
     }),
 
   /**
+   * Buscar lista de status disponíveis
+   */
+  getStatuses: protectedProcedure
+    .query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      const statuses = await db.selectDistinct({ status: analysisIssues.status })
+        .from(analysisIssues)
+        .where(isNotNull(analysisIssues.status));
+
+      return statuses.map(s => s.status).filter(Boolean).sort() as string[];
+    }),
+
+  /**
    * Buscar lista de assignees disponíveis
    */
   getAssignees: protectedProcedure

@@ -12,9 +12,13 @@ interface SyncStatus {
   issuesInDb: number;
 }
 
-interface AnalysisFilters {
+export interface AnalysisFilters {
   issueTypes: string[];
   projects: string[];
+  assignees: string[];
+  statuses: string[];
+  spMin: number | undefined;
+  spMax: number | undefined;
   startDate: string | undefined;
   endDate: string | undefined;
 }
@@ -35,14 +39,16 @@ interface AnalysisContextType {
   availableIssueTypes: string[];
   availableProjects: string[];
   availableAssignees: string[];
+  availableStatuses: string[];
 
   // Sync
   isSyncing: boolean;
   syncData: () => Promise<void>;
   syncStatus: SyncStatus | null;
 
-  // Dados do banco
+  // Dados do banco (já filtrados)
   issues: any[];
+  filteredIssues: any[];
   issuesLoading: boolean;
 
   // Métricas
@@ -67,6 +73,10 @@ const DEFAULT_ANALYSIS_JQL = 'project IN ("RemoteID", "DesktopID", "Mobile ID") 
 const DEFAULT_FILTERS: AnalysisFilters = {
   issueTypes: [],
   projects: [],
+  assignees: [],
+  statuses: [],
+  spMin: undefined,
+  spMax: undefined,
   startDate: undefined,
   endDate: undefined,
 };
@@ -99,8 +109,8 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     setIsInitialized(true);
   }, []);
 
-  // Estabilizar input de filtros para evitar re-renders infinitos
-  const filterInput = useMemo(() => ({
+  // Estabilizar input de filtros para queries do servidor (sem assignees/statuses/sp - filtrados no frontend)
+  const serverFilterInput = useMemo(() => ({
     issueTypes: filters.issueTypes.length > 0 ? filters.issueTypes : undefined,
     projects: filters.projects.length > 0 ? filters.projects : undefined,
     startDate: filters.startDate || undefined,
@@ -120,48 +130,73 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     enabled: isInitialized,
   });
 
-  // Queries ao banco com filtros aplicados
+  // Buscar status disponíveis
+  const statusesQuery = trpc.analysis.getStatuses.useQuery(undefined, {
+    enabled: isInitialized,
+  });
+
+  // Queries ao banco com filtros de servidor
   const syncStatusQuery = trpc.analysis.getSyncStatus.useQuery(undefined, {
     enabled: isInitialized,
   });
 
   const issuesQuery = trpc.analysis.getIssues.useQuery(
-    filterInput.issueTypes || filterInput.projects || filterInput.startDate || filterInput.endDate
+    serverFilterInput.issueTypes || serverFilterInput.projects || serverFilterInput.startDate || serverFilterInput.endDate
       ? {
-          issueTypes: filterInput.issueTypes,
-          projects: filterInput.projects,
-          startDate: filterInput.startDate,
-          endDate: filterInput.endDate,
+          issueTypes: serverFilterInput.issueTypes,
+          projects: serverFilterInput.projects,
+          startDate: serverFilterInput.startDate,
+          endDate: serverFilterInput.endDate,
         }
       : undefined,
     { enabled: isInitialized }
   );
 
-  const velocityQuery = trpc.analysis.getVelocityMetrics.useQuery(filterInput, {
+  const velocityQuery = trpc.analysis.getVelocityMetrics.useQuery(serverFilterInput, {
     enabled: isInitialized,
   });
 
-  const capacityQuery = trpc.analysis.getCapacityMetrics.useQuery(filterInput, {
+  const capacityQuery = trpc.analysis.getCapacityMetrics.useQuery(serverFilterInput, {
     enabled: isInitialized,
   });
 
   const throughputQuery = trpc.analysis.getThroughput.useQuery(
-    { periodType: 'month', ...filterInput },
+    { periodType: 'month', ...serverFilterInput },
     { enabled: isInitialized }
   );
 
-  const cycleTimeQuery = trpc.analysis.getCycleTimeMetrics.useQuery(filterInput, {
+  const cycleTimeQuery = trpc.analysis.getCycleTimeMetrics.useQuery(serverFilterInput, {
     enabled: isInitialized,
   });
 
   const cumulativeFlowQuery = trpc.analysis.getCumulativeFlow.useQuery(
-    { periodType: 'month', ...filterInput },
+    { periodType: 'month', ...serverFilterInput },
     { enabled: isInitialized }
   );
 
-  const distributionsQuery = trpc.analysis.getDistributions.useQuery(filterInput, {
+  const distributionsQuery = trpc.analysis.getDistributions.useQuery(serverFilterInput, {
     enabled: isInitialized,
   });
+
+  // Filtrar issues no frontend para filtros adicionais (assignees, statuses, SP)
+  const filteredIssues = useMemo(() => {
+    let result = issuesQuery.data || [];
+
+    if (filters.assignees.length > 0) {
+      result = result.filter((i: any) => filters.assignees.includes(i.assignee || ''));
+    }
+    if (filters.statuses.length > 0) {
+      result = result.filter((i: any) => filters.statuses.includes(i.status || ''));
+    }
+    if (filters.spMin !== undefined) {
+      result = result.filter((i: any) => (Number(i.storyPoints) || 0) >= filters.spMin!);
+    }
+    if (filters.spMax !== undefined) {
+      result = result.filter((i: any) => (Number(i.storyPoints) || 0) <= filters.spMax!);
+    }
+
+    return result;
+  }, [issuesQuery.data, filters.assignees, filters.statuses, filters.spMin, filters.spMax]);
 
   // Mutation de sync
   const syncMutation = trpc.analysis.syncJiraData.useMutation();
@@ -187,6 +222,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         issueTypesQuery.refetch(),
         projectsQuery.refetch(),
         assigneesQuery.refetch(),
+        statusesQuery.refetch(),
       ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao sincronizar';
@@ -195,7 +231,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSyncing(false);
     }
-  }, [analysisJql, syncMutation, syncStatusQuery, issuesQuery, velocityQuery, capacityQuery, throughputQuery, cycleTimeQuery, cumulativeFlowQuery, distributionsQuery, issueTypesQuery, projectsQuery, assigneesQuery]);
+  }, [analysisJql, syncMutation, syncStatusQuery, issuesQuery, velocityQuery, capacityQuery, throughputQuery, cycleTimeQuery, cumulativeFlowQuery, distributionsQuery, issueTypesQuery, projectsQuery, assigneesQuery, statusesQuery]);
 
   // Refresh = refetch dados do banco (sem sync do JIRA)
   const refreshData = useCallback(async () => {
@@ -256,10 +292,12 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         availableIssueTypes: issueTypesQuery.data || [],
         availableProjects: projectsQuery.data || [],
         availableAssignees: assigneesQuery.data || [],
+        availableStatuses: statusesQuery.data || [],
         isSyncing,
         syncData,
         syncStatus: syncStatusQuery.data as SyncStatus | null,
         issues: issuesQuery.data || [],
+        filteredIssues,
         issuesLoading: issuesQuery.isLoading,
         velocityData: velocityQuery.data || null,
         capacityData: capacityQuery.data || null,

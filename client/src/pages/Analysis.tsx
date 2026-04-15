@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowLeft, RefreshCw, Filter, X, Calendar, Database, Clock } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Filter, X, Calendar, Database, Clock, Users, Tag, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import ProductivityDashboard from '@/components/ProductivityDashboard';
 import TeamAnalysis from '@/components/TeamAnalysis';
 import TrendsInsights from '@/components/TrendsInsights';
@@ -13,14 +14,31 @@ import { AnalysisProvider, useAnalysis } from '@/contexts/AnalysisContext';
 function AnalysisFiltersBar() {
   const {
     filters, setFilters, resetFilters,
-    availableIssueTypes, availableProjects,
+    availableIssueTypes, availableProjects, availableAssignees, availableStatuses,
     isSyncing, syncData, syncStatus,
-    issues, loading,
+    issues, filteredIssues, loading,
   } = useAnalysis();
 
   const [showFilters, setShowFilters] = useState(false);
-  const hasActiveFilters = filters.issueTypes.length > 0 || filters.projects.length > 0 || filters.startDate || filters.endDate;
-  const activeFilterCount = (filters.issueTypes.length > 0 ? 1 : 0) + (filters.projects.length > 0 ? 1 : 0) + (filters.startDate ? 1 : 0) + (filters.endDate ? 1 : 0);
+
+  const hasActiveFilters =
+    filters.issueTypes.length > 0 ||
+    filters.projects.length > 0 ||
+    filters.assignees.length > 0 ||
+    filters.statuses.length > 0 ||
+    filters.spMin !== undefined ||
+    filters.spMax !== undefined ||
+    !!filters.startDate ||
+    !!filters.endDate;
+
+  const activeFilterCount =
+    (filters.issueTypes.length > 0 ? 1 : 0) +
+    (filters.projects.length > 0 ? 1 : 0) +
+    (filters.assignees.length > 0 ? 1 : 0) +
+    (filters.statuses.length > 0 ? 1 : 0) +
+    (filters.spMin !== undefined || filters.spMax !== undefined ? 1 : 0) +
+    (filters.startDate ? 1 : 0) +
+    (filters.endDate ? 1 : 0);
 
   return (
     <div className="space-y-3">
@@ -93,10 +111,70 @@ function AnalysisFiltersBar() {
       {/* Painel de filtros expandido */}
       {showFilters && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Filtro por Responsável */}
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <Users className="w-3.5 h-3.5" /> Responsável
+              </label>
+              <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
+                {availableAssignees.length === 0 && (
+                  <p className="text-xs text-gray-400">Sincronize dados primeiro</p>
+                )}
+                {availableAssignees.map(assignee => (
+                  <label key={assignee} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={filters.assignees.includes(assignee)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFilters({ assignees: [...filters.assignees, assignee] });
+                        } else {
+                          setFilters({ assignees: filters.assignees.filter(a => a !== assignee) });
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700 truncate">{assignee}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtro por Status */}
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <Tag className="w-3.5 h-3.5" /> Status
+              </label>
+              <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
+                {availableStatuses.length === 0 && (
+                  <p className="text-xs text-gray-400">Sincronize dados primeiro</p>
+                )}
+                {availableStatuses.map(status => (
+                  <label key={status} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={filters.statuses.includes(status)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFilters({ statuses: [...filters.statuses, status] });
+                        } else {
+                          setFilters({ statuses: filters.statuses.filter(s => s !== status) });
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">{status}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             {/* Filtro por Issue Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Issue</label>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <Zap className="w-3.5 h-3.5" /> Tipo de Issue
+              </label>
               <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
                 {availableIssueTypes.length === 0 && (
                   <p className="text-xs text-gray-400">Sincronize dados primeiro</p>
@@ -123,7 +201,9 @@ function AnalysisFiltersBar() {
 
             {/* Filtro por Projeto */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Projeto</label>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <Database className="w-3.5 h-3.5" /> Projeto
+              </label>
               <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
                 {availableProjects.length === 0 && (
                   <p className="text-xs text-gray-400">Sincronize dados primeiro</p>
@@ -148,9 +228,37 @@ function AnalysisFiltersBar() {
               </div>
             </div>
 
+            {/* Filtro por Story Points */}
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <Zap className="w-3.5 h-3.5" /> Story Points
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  min={0}
+                  value={filters.spMin ?? ''}
+                  onChange={(e) => setFilters({ spMin: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-20 h-9 text-sm"
+                />
+                <span className="text-gray-400">—</span>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  min={0}
+                  value={filters.spMax ?? ''}
+                  onChange={(e) => setFilters({ spMax: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-20 h-9 text-sm"
+                />
+              </div>
+            </div>
+
             {/* Filtro por Data Início */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Data Início</label>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <Calendar className="w-3.5 h-3.5" /> Data Início
+              </label>
               <input
                 type="date"
                 value={filters.startDate || ''}
@@ -161,7 +269,9 @@ function AnalysisFiltersBar() {
 
             {/* Filtro por Data Fim */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Data Fim</label>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <Calendar className="w-3.5 h-3.5" /> Data Fim
+              </label>
               <input
                 type="date"
                 value={filters.endDate || ''}
@@ -174,6 +284,18 @@ function AnalysisFiltersBar() {
           {/* Tags de filtros ativos */}
           {hasActiveFilters && (
             <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+              {filters.assignees.map(assignee => (
+                <Badge key={assignee} variant="secondary" className="bg-cyan-50 text-cyan-700 cursor-pointer hover:bg-cyan-100"
+                  onClick={() => setFilters({ assignees: filters.assignees.filter(a => a !== assignee) })}>
+                  <Users className="w-3 h-3 mr-1" /> {assignee} <X className="w-3 h-3 ml-1" />
+                </Badge>
+              ))}
+              {filters.statuses.map(status => (
+                <Badge key={status} variant="secondary" className="bg-amber-50 text-amber-700 cursor-pointer hover:bg-amber-100"
+                  onClick={() => setFilters({ statuses: filters.statuses.filter(s => s !== status) })}>
+                  <Tag className="w-3 h-3 mr-1" /> {status} <X className="w-3 h-3 ml-1" />
+                </Badge>
+              ))}
               {filters.issueTypes.map(type => (
                 <Badge key={type} variant="secondary" className="bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100"
                   onClick={() => setFilters({ issueTypes: filters.issueTypes.filter(t => t !== type) })}>
@@ -186,6 +308,12 @@ function AnalysisFiltersBar() {
                   {proj} <X className="w-3 h-3 ml-1" />
                 </Badge>
               ))}
+              {(filters.spMin !== undefined || filters.spMax !== undefined) && (
+                <Badge variant="secondary" className="bg-orange-50 text-orange-700 cursor-pointer hover:bg-orange-100"
+                  onClick={() => setFilters({ spMin: undefined, spMax: undefined })}>
+                  SP: {filters.spMin ?? '0'} — {filters.spMax ?? '∞'} <X className="w-3 h-3 ml-1" />
+                </Badge>
+              )}
               {filters.startDate && (
                 <Badge variant="secondary" className="bg-purple-50 text-purple-700 cursor-pointer hover:bg-purple-100"
                   onClick={() => setFilters({ startDate: undefined })}>
@@ -206,8 +334,10 @@ function AnalysisFiltersBar() {
       {/* Resumo rápido de dados filtrados */}
       {issues.length > 0 && (
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Exibindo <strong className="text-gray-900">{issues.length}</strong> issues</span>
-          {hasActiveFilters && <span className="text-indigo-600">(filtrado)</span>}
+          <span>Exibindo <strong className="text-gray-900">{filteredIssues.length}</strong> issues</span>
+          {hasActiveFilters && (
+            <span className="text-indigo-600">(filtrado de {issues.length})</span>
+          )}
         </div>
       )}
     </div>

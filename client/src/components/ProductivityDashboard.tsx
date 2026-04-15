@@ -14,6 +14,7 @@ import { useAnalysis } from '@/contexts/AnalysisContext';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import ProductivityOverviewChart from '@/components/ProductivityOverviewChart';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 const STATUS_COLORS: Record<string, string> = {
@@ -29,31 +30,36 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function ProductivityDashboard() {
   const {
-    analysisJql, issues, isSyncing, syncData, syncStatus,
+    analysisJql, issues, filteredIssues, isSyncing, syncData, syncStatus,
     velocityData, capacityData, throughputData, cycleTimeData,
     cumulativeFlowData, distributions, loading, error, lastUpdated,
+    filters,
   } = useAnalysis();
+
+  // Usar filteredIssues para KPIs quando há filtros de assignee/status/SP ativos
+  const hasClientFilters = filters.assignees.length > 0 || filters.statuses.length > 0 || filters.spMin !== undefined || filters.spMax !== undefined;
+  const displayIssues = hasClientFilters ? filteredIssues : issues;
 
   const [periodType, setPeriodType] = useState<'week' | 'month'>('month');
 
-  // KPIs calculados dos dados persistidos
+  // KPIs calculados dos dados persistidos (respeitam filtros de assignee/status/SP)
   const kpis = useMemo(() => {
-    if (!issues || issues.length === 0) {
+    if (!displayIssues || displayIssues.length === 0) {
       return { total: 0, storyPoints: 0, completedSP: 0, completed: 0, inProgress: 0, avgCycleTime: 0, completionRate: 0 };
     }
 
-    const total = issues.length;
-    const storyPoints = issues.reduce((sum: number, i: any) => sum + (Number(i.storyPoints) || 0), 0);
+    const total = displayIssues.length;
+    const storyPoints = displayIssues.reduce((sum: number, i: any) => sum + (Number(i.storyPoints) || 0), 0);
     const doneStatuses = ['DONE', 'Done', 'Closed'];
-    const completedIssues = issues.filter((i: any) => doneStatuses.includes(i.status));
+    const completedIssues = displayIssues.filter((i: any) => doneStatuses.includes(i.status));
     const completed = completedIssues.length;
     const completedSP = completedIssues.reduce((sum: number, i: any) => sum + (Number(i.storyPoints) || 0), 0);
     const inProgressStatuses = ['CODE DOING', 'Code Doing', 'In Progress', 'CODE REVIEW', 'Code Review', 'STAGING', 'Staging'];
-    const inProgress = issues.filter((i: any) => inProgressStatuses.includes(i.status)).length;
+    const inProgress = displayIssues.filter((i: any) => inProgressStatuses.includes(i.status)).length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     // Cycle time médio
-    const resolvedIssues = issues.filter((i: any) => i.resolvedAt && i.createdAt);
+    const resolvedIssues = displayIssues.filter((i: any) => i.resolvedAt && i.createdAt);
     const avgCycleTime = resolvedIssues.length > 0
       ? Math.round(resolvedIssues.reduce((sum: number, i: any) => {
           const days = (new Date(i.resolvedAt).getTime() - new Date(i.createdAt).getTime()) / (1000 * 60 * 60 * 24);
@@ -62,9 +68,9 @@ export default function ProductivityDashboard() {
       : 0;
 
     return { total, storyPoints, completedSP, completed, inProgress, avgCycleTime, completionRate };
-  }, [issues]);
+  }, [displayIssues]);
 
-  const hasData = issues && issues.length > 0;
+  const hasData = displayIssues && displayIssues.length > 0;
 
   if (!analysisJql) {
     return (
@@ -177,6 +183,9 @@ export default function ProductivityDashboard() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Gráfico Geral de Produtividade */}
+          <ProductivityOverviewChart />
 
           {/* Velocity por Sprint */}
           {velocityData && velocityData.sprints && velocityData.sprints.length > 0 && (

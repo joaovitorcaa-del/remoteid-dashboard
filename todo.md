@@ -494,3 +494,15 @@
 - [x] Implementar filtros interativos por projeto
 - [x] Testar com todas as 860 issues
 - [x] Validar story points corretos (1408 SP total, 1204 entregues)
+
+## Ajustes Página Análise - Filtros e Gráfico de Produtividade
+- [x] Adicionar filtro por responsável (multiselect com lista de assignees)
+- [x] Adicionar filtro por status (multiselect com lista de status)
+- [x] Adicionar filtro por Story Points (range min/max)
+- [x] Criar gráfico geral de produtividade como primeiro elemento do Dashboard
+- [x] Toggle entre quantidade de itens e story points
+- [x] Agrupamento selecionável: mês, semana ou sprint
+- [x] Barras empilhadas por membro do time (visão individual)
+- [x] Respeitar todos os filtros aplicados
+- [x] Testar filtros combinados
+- [x] Testar gráfico com diferentes toggles e agrupamentos
