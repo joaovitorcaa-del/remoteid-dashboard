@@ -1,65 +1,130 @@
-import { router, protectedProcedure } from '../_core/trpc';
+import { protectedProcedure, router } from '../_core/trpc';
 import { z } from 'zod';
 import { fetchJiraIssuesByJql } from '../jira-sync';
 
 export const responsibleRouter = router({
-  // Novo nome: getMetricsByPeriod (mais descritivo)
+  // Endpoint para buscar métricas por período com suporte a múltiplos desenvolvedores
   getMetricsByPeriod: protectedProcedure
     .input(z.object({
       assignees: z.array(z.string()).optional(),
-      startDate: z.string(),
-      endDate: z.string(),
-      periodType: z.enum(['week', 'month', 'sprint']).optional(),
+      periodType: z.enum(['sprint', 'month', 'week']).default('sprint'),
     }))
     .query(async ({ input }) => {
       try {
-        // Importar builders de JQL
-        const { buildAssigneeJql, buildDateRangeJql, sanitizeJql } = await import('../jql-sanitizer');
+        const { sanitizeJql } = await import('../jql-sanitizer');
         
-        // Construir JQL de forma segura
-        let jql = 'project = REMOTEID and created >= 2025-07-01';
-
-        // Adicionar filtro de período
-        if (input.startDate && input.endDate) {
-          jql = buildDateRangeJql(jql, input.startDate, input.endDate);
-        }
-
-        // Adicionar filtro de responsáveis
+        // JQL base: todos os projetos desde julho/2025
+        let jql = 'project in ("RemoteID", "DesktopID", "Mobile ID") and created >= "2025-07-01" order by priority desc';
+        
+        // Adicionar filtro de responsáveis se fornecido
         if (input.assignees && input.assignees.length > 0) {
-          jql = buildAssigneeJql(jql, input.assignees);
-        } else {
-          jql = sanitizeJql(jql);
+          const assigneesList = input.assignees.map(a => `"${a}"`).join(', ');
+          jql = `assignee in (${assigneesList}) and ${jql}`;
         }
-
+        
+        jql = sanitizeJql(jql);
+        
         // Buscar issues do Jira
         const issues = await fetchJiraIssuesByJql(jql);
 
-        // Processar dados por responsável
+        // Agrupar dados por período e desenvolvedor
+        const periodMap = new Map<string, {
+          period: string;
+          totalTasks: number;
+          completedTasks: number;
+          inProgressTasks: number;
+          totalStoryPoints: number;
+          tasksByType: Record<string, number>;
+          tasksByStatus: Record<string, number>;
+          tasksByAssignee: Record<string, {
+            total: number;
+            completed: number;
+            inProgress: number;
+            storyPoints: number;
+          }>;
+        }>();
+
         const developerMap = new Map<string, {
           name: string;
           totalTasks: number;
           completedTasks: number;
           inProgressTasks: number;
           totalStoryPoints: number;
-          completedStoryPoints?: number;
-          velocity?: number;
-          efficiency?: number;
           tasksByType: Record<string, number>;
           tasksByStatus: Record<string, number>;
-          tasksBySprint: Record<string, number>;
+          tasksByPeriod: Record<string, number>;
         }>();
 
+        // Processar cada issue
         issues.forEach((issue: any) => {
           const assignee = issue.fields?.assignee?.displayName || 'Não Atribuído';
           const status = issue.fields?.status?.name || 'Unknown';
           const issueType = issue.fields?.issuetype?.name || 'Unknown';
-          const sprint = issue.fields?.sprint?.name || 'Sem Sprint';
-          // Tentar múltiplos campos de Story Points
+          const createdDate = issue.fields?.created ? new Date(issue.fields.created) : new Date();
           const storyPoints = issue.fields?.customfield_10016 
             || issue.fields?.customfield_10005 
             || issue.fields?.customfield_10004 
             || 0;
 
+          // Determinar período baseado no tipo selecionado
+          let periodKey = '';
+          if (input.periodType === 'sprint') {
+            const sprint = issue.fields?.sprint?.name || 'Sem Sprint';
+            periodKey = sprint;
+          } else if (input.periodType === 'month') {
+            periodKey = createdDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+          } else if (input.periodType === 'week') {
+            const weekStart = new Date(createdDate);
+            weekStart.setDate(createdDate.getDate() - createdDate.getDay());
+            periodKey = `Semana de ${weekStart.toLocaleDateString('pt-BR')}`;
+          }
+
+          // Atualizar mapa de períodos
+          if (!periodMap.has(periodKey)) {
+            periodMap.set(periodKey, {
+              period: periodKey,
+              totalTasks: 0,
+              completedTasks: 0,
+              inProgressTasks: 0,
+              totalStoryPoints: 0,
+              tasksByType: {},
+              tasksByStatus: {},
+              tasksByAssignee: {},
+            });
+          }
+
+          const periodData = periodMap.get(periodKey)!;
+          periodData.totalTasks++;
+          periodData.totalStoryPoints += (typeof storyPoints === 'number' ? storyPoints : 0);
+
+          if (status === 'Done') {
+            periodData.completedTasks++;
+          } else if (status === 'In Progress' || status === 'CODE DOING') {
+            periodData.inProgressTasks++;
+          }
+
+          periodData.tasksByType[issueType] = (periodData.tasksByType[issueType] || 0) + 1;
+          periodData.tasksByStatus[status] = (periodData.tasksByStatus[status] || 0) + 1;
+
+          if (!periodData.tasksByAssignee[assignee]) {
+            periodData.tasksByAssignee[assignee] = {
+              total: 0,
+              completed: 0,
+              inProgress: 0,
+              storyPoints: 0,
+            };
+          }
+
+          periodData.tasksByAssignee[assignee].total++;
+          periodData.tasksByAssignee[assignee].storyPoints += (typeof storyPoints === 'number' ? storyPoints : 0);
+
+          if (status === 'Done') {
+            periodData.tasksByAssignee[assignee].completed++;
+          } else if (status === 'In Progress' || status === 'CODE DOING') {
+            periodData.tasksByAssignee[assignee].inProgress++;
+          }
+
+          // Atualizar mapa de desenvolvedores
           if (!developerMap.has(assignee)) {
             developerMap.set(assignee, {
               name: assignee,
@@ -69,57 +134,48 @@ export const responsibleRouter = router({
               totalStoryPoints: 0,
               tasksByType: {},
               tasksByStatus: {},
-              tasksBySprint: {},
+              tasksByPeriod: {},
             });
           }
 
-          const dev = developerMap.get(assignee)!;
-          dev.totalTasks++;
-          dev.totalStoryPoints += (typeof storyPoints === 'number' ? storyPoints : 0);
+          const devData = developerMap.get(assignee)!;
+          devData.totalTasks++;
+          devData.totalStoryPoints += (typeof storyPoints === 'number' ? storyPoints : 0);
 
-          // Contar por status
           if (status === 'Done') {
-            dev.completedTasks++;
+            devData.completedTasks++;
           } else if (status === 'In Progress' || status === 'CODE DOING') {
-            dev.inProgressTasks++;
+            devData.inProgressTasks++;
           }
 
-          // Contar por tipo
-          dev.tasksByType[issueType] = (dev.tasksByType[issueType] || 0) + 1;
-
-          // Contar por status
-          dev.tasksByStatus[status] = (dev.tasksByStatus[status] || 0) + 1;
-
-          // Contar por sprint
-          dev.tasksBySprint[sprint] = (dev.tasksBySprint[sprint] || 0) + 1;
+          devData.tasksByType[issueType] = (devData.tasksByType[issueType] || 0) + 1;
+          devData.tasksByStatus[status] = (devData.tasksByStatus[status] || 0) + 1;
+          devData.tasksByPeriod[periodKey] = (devData.tasksByPeriod[periodKey] || 0) + 1;
         });
 
-        // Converter para array e calcular métricas
-        const developers = Array.from(developerMap.values()).map(dev => {
-          const completionRate = dev.totalTasks > 0 ? (dev.completedTasks / dev.totalTasks) * 100 : 0;
-          const velocity = dev.totalStoryPoints > 0 ? (dev.completedTasks / dev.totalTasks) * dev.totalStoryPoints : 0;
-          const efficiency = dev.totalTasks > 0 ? dev.completedTasks / dev.totalTasks : 0;
-          
-          return {
-            ...dev,
-            completionRate,
-            velocity: velocity,
-            efficiency: efficiency,
-            completedStoryPoints: Math.round(dev.completedTasks * (dev.totalStoryPoints / Math.max(dev.totalTasks, 1))),
-          };
-        });
+        // Converter para arrays
+        const periods = Array.from(periodMap.values());
+        const developers = Array.from(developerMap.values()).map(dev => ({
+          ...dev,
+          completionRate: dev.totalTasks > 0 ? (dev.completedTasks / dev.totalTasks) * 100 : 0,
+          velocity: dev.totalStoryPoints > 0 ? (dev.completedTasks / dev.totalTasks) * dev.totalStoryPoints : 0,
+          efficiency: dev.totalTasks > 0 ? dev.completedTasks / dev.totalTasks : 0,
+        }));
 
-        // Calcular resumo
+        // Calcular resumo geral
         const summary = {
           totalTasks: developers.reduce((sum, d) => sum + d.totalTasks, 0),
+          completedTasks: developers.reduce((sum, d) => sum + d.completedTasks, 0),
+          inProgressTasks: developers.reduce((sum, d) => sum + d.inProgressTasks, 0),
           totalDevelopers: developers.length,
+          totalStoryPoints: developers.reduce((sum, d) => sum + d.totalStoryPoints, 0),
           averageCompletionRate: developers.length > 0
             ? developers.reduce((sum, d) => sum + d.completionRate, 0) / developers.length
             : 0,
-          totalStoryPoints: developers.reduce((sum, d) => sum + d.totalStoryPoints, 0),
         };
 
         return {
+          periods,
           developers: developers as any,
           summary,
           lastUpdated: new Date().toISOString(),
@@ -130,12 +186,12 @@ export const responsibleRouter = router({
       }
     }),
 
+  // Endpoint para buscar todos os responsáveis disponíveis
   getAllAssignees: protectedProcedure
     .query(async () => {
       try {
-        // Buscar todas as issues desde julho de 2025
         const { sanitizeJql } = await import('../jql-sanitizer');
-        const jql = sanitizeJql('project = REMOTEID and created >= 2025-07-01 order by updated desc');
+        const jql = sanitizeJql('project in ("RemoteID", "DesktopID", "Mobile ID") and created >= "2025-07-01" order by updated desc');
         const issues = await fetchJiraIssuesByJql(jql);
 
         // Extrair responsáveis únicos
