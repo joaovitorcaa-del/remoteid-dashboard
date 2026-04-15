@@ -38,6 +38,10 @@ export default function Daily() {
     date: dateString,
   });
 
+  // Declare mutations at top level (before any conditionals)
+  const saveSnapshotMutation = trpc.daily.saveSnapshot.useMutation();
+  const createShareLinkMutation = trpc.daily.createSharedLink.useMutation();
+
   // Load notes from snapshot if available
   useEffect(() => {
     if (snapshot?.notes) {
@@ -60,24 +64,6 @@ export default function Daily() {
       setIsRefreshing(false);
     }
   };
-
-  // Show message if no JQL filter is configured
-  if (!activeJqlFilter) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <h2 className="text-xl font-bold mb-2">Nenhum Filtro JQL Configurado</h2>
-          <p className="text-muted-foreground mb-4">
-            Configure um filtro JQL na seção de Configuração para usar o Daily Dashboard.
-          </p>
-          <Button onClick={() => navigate('/')}>Voltar ao Dashboard</Button>
-        </div>
-      </div>
-    );
-  }
-
-  const saveSnapshotMutation = trpc.daily.saveSnapshot.useMutation();
-  const createShareLinkMutation = trpc.daily.createSharedLink.useMutation();
 
   const handleSaveSnapshot = async () => {
     if (!dailyData) return;
@@ -114,6 +100,21 @@ export default function Daily() {
       console.error('Error creating share link:', error);
     }
   };
+
+  // Show message if no JQL filter is configured
+  if (!activeJqlFilter) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <h2 className="text-xl font-bold mb-2">Nenhum Filtro JQL Configurado</h2>
+          <p className="text-muted-foreground mb-4">
+            Configure um filtro JQL na seção de Configuração para usar o Daily Dashboard.
+          </p>
+          <Button onClick={() => navigate('/')}>Voltar ao Dashboard</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -287,96 +288,71 @@ export default function Daily() {
         </div>
 
         {/* Critical Issues */}
-        {dailyData.criticalIssues.length > 0 && (
-          <div className="bg-white rounded-lg p-6 mb-6 border">
-            <h2 className="text-lg font-bold mb-4">Issues Críticas</h2>
+        {dailyData.criticalIssues && dailyData.criticalIssues.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-bold text-red-900 mb-4">⚠️ Issues Críticas</h2>
             <div className="space-y-3">
-              {dailyData.criticalIssues.slice(0, 3).map((issue) => (
-                <div key={issue.key} className="flex items-center gap-4 p-3 bg-red-50 rounded-lg border border-red-200">
-                  <div className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{issue.key}</p>
-                    <p className="text-sm text-muted-foreground truncate">{issue.title}</p>
+              {dailyData.criticalIssues.map((issue: any) => (
+                <div key={issue.key} className="flex items-start justify-between bg-white p-3 rounded border border-red-100">
+                  <div>
+                    <p className="font-semibold text-sm">{issue.key}: {issue.title}</p>
+                    <p className="text-xs text-muted-foreground">{issue.status}</p>
                   </div>
-                  {issue.daysOverdue > 100 && (
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-red-600">{issue.daysOverdue} dias</p>
-                    </div>
+                  {issue.daysOverdue > 0 && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                      {issue.daysOverdue}d atrasado
+                    </span>
                   )}
                 </div>
               ))}
             </div>
-            {dailyData.criticalIssues.length > 3 && (
-              <p className="text-sm text-blue-600 mt-4 cursor-pointer hover:underline">
-                Ver todas as {dailyData.criticalIssues.length} issues →
-              </p>
-            )}
           </div>
         )}
 
-        {/* Developer Progress Grid */}
-        <div className="mb-6">
-          <h2 className="text-lg font-bold mb-4">Progresso por Desenvolvedor</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {dailyData.developers.map((dev) => (
-              <div key={dev.id} className="bg-white rounded-lg p-4 border">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold">
-                      {dev.avatar}
-                    </div>
+        {/* Developers Grid */}
+        {dailyData.developers && dailyData.developers.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-bold mb-4">Atividade do Time</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {dailyData.developers.map((dev: any) => (
+                <div key={dev.id} className={`p-4 rounded-lg border ${
+                  dev.status === 'active' ? 'bg-green-50 border-green-200' :
+                  dev.status === 'critical' ? 'bg-red-50 border-red-200' :
+                  'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="font-semibold text-sm">{dev.name}</p>
+                      <p className="font-semibold">{dev.name}</p>
                       <p className="text-xs text-muted-foreground">{dev.lastActivity}</p>
                     </div>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      dev.status === 'active' ? 'bg-green-200 text-green-800' :
+                      dev.status === 'critical' ? 'bg-red-200 text-red-800' :
+                      'bg-gray-200 text-gray-800'
+                    }`}>
+                      {dev.status === 'active' ? '🟢 Ativo' : dev.status === 'critical' ? '🔴 Crítico' : '⚫ Inativo'}
+                    </span>
                   </div>
-                  <div className={`w-3 h-3 rounded-full ${
-                    dev.status === 'active' ? 'bg-green-500' :
-                    dev.status === 'inactive' ? 'bg-gray-400' :
-                    'bg-red-500'
-                  }`}></div>
-                </div>
-
-                <p className="text-xs text-muted-foreground mb-3">
-                  Ontem: {dev.summary.yesterday.inProgress} em progresso, {dev.summary.yesterday.done} concluídas • Hoje: {dev.summary.today.inProgress} em progresso, {dev.summary.today.done} concluídas
-                </p>
-
-                <div className="space-y-2">
-                  {dev.issues.map((issue) => (
-                    <div key={issue.key} className="text-xs p-2 bg-gray-50 rounded">
-                      <p className="font-semibold">{issue.key}</p>
-                      <p className="text-muted-foreground truncate">{issue.title}</p>
-                      <p className="text-xs text-gray-500">{issue.lastUpdate}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {dev.status === 'critical' && (
-                  <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-                    ⚠️ Sem atividade há 3+ dias. Verificar bloqueio.
+                  <div className="text-sm space-y-1">
+                    <p>Hoje: {dev.summary.today.inProgress} em progresso, {dev.summary.today.done} concluídas</p>
+                    <p className="text-xs text-muted-foreground">Ontem: {dev.summary.yesterday.inProgress} em progresso, {dev.summary.yesterday.done} concluídas</p>
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Notes Section */}
-        <div className="bg-white rounded-lg p-6 border">
-          <h2 className="text-lg font-bold mb-4">Anotações e Decisões</h2>
+        <div className="bg-card rounded-lg p-6 border">
+          <h2 className="text-lg font-bold mb-4">Anotações</h2>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Adicione decisões, acordos do time, bloqueios externos ou contexto que não está no JIRA..."
-            className="w-full h-32 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="Adicione anotações sobre o dia..."
+            className="w-full p-3 border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            rows={4}
           />
-          <Button
-            onClick={handleSaveSnapshot}
-            className="mt-4"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            Salvar Anotações
-          </Button>
         </div>
       </div>
     </div>

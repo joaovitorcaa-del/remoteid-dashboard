@@ -406,17 +406,35 @@ export const dailyRouter = router({
         return null;
       }
 
-      // Ensure date is in YYYY-MM-DD format for database query
-      const dateObj = new Date(input.date);
-      const snapshotDate = dateObj.toISOString().split('T')[0];
-      
-      const result = await db
-        .select()
-        .from(dailySnapshots)
-        .where(eq(dailySnapshots.snapshotDate, new Date(snapshotDate)))
-        .limit(1);
+      try {
+        // Ensure date is in YYYY-MM-DD format
+        let snapshotDate: string;
+        if (input.date.includes('T')) {
+          // If ISO string, extract date part
+          snapshotDate = input.date.split('T')[0];
+        } else if (input.date.length === 10) {
+          // Already in YYYY-MM-DD format
+          snapshotDate = input.date;
+        } else {
+          // Parse as date and format
+          const dateObj = new Date(input.date);
+          snapshotDate = dateObj.toISOString().split('T')[0];
+        }
+        
+        console.log('[Daily] getSnapshot - searching for date:', snapshotDate);
+        
+        const result = await db
+          .select()
+          .from(dailySnapshots)
+          .where(eq(dailySnapshots.snapshotDate, new Date(snapshotDate)))
+          .limit(1);
 
-      return result.length > 0 ? result[0] : null;
+        console.log('[Daily] getSnapshot - found:', result.length > 0 ? 'yes' : 'no');
+        return result.length > 0 ? result[0] : null;
+      } catch (error) {
+        console.error('[Daily] getSnapshot error:', error, 'input:', input.date);
+        throw error;
+      }
     }),
 
   // Create shared link

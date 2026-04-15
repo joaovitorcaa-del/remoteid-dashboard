@@ -674,3 +674,24 @@
 - [x] 116 testes passando
 - [x] Sem regressões
 - [x] Ready para deploy
+
+
+---
+
+# CORREÇÕES ADICIONAIS - Daily Dashboard
+
+## Erro 2 & 3: Violação de React Hooks
+- [x] Identificado: Mutations declaradas após condicional `if (!activeJqlFilter)`
+- [x] Corrigido: Movidas todas as mutations para topo do componente
+- [x] Resultado: Ordem de hooks agora consistente entre renders
+
+## Erro 1: Query de Snapshot (Melhorado)
+- [x] Adicionado logging para debug de data handling
+- [x] Melhorado tratamento de diferentes formatos de data (ISO, YYYY-MM-DD, etc)
+- [x] Adicionado try-catch para melhor tratamento de erros
+
+## Status Final
+- [x] 116 testes passando
+- [x] Sem regressões
+- [x] Daily Dashboard funcional
+- [x] Pronto para deploy
