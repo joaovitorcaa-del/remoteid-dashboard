@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { format, parse, startOfMonth, endOfMonth } from 'date-fns';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ScatterChart, Scatter,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart
@@ -84,6 +85,33 @@ export default function ResponsibleView() {
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
+  // Funcao para gerar dados mensais
+  const generateMonthlyData = (devData: any) => {
+    const monthlyMap = new Map<string, { tarefas: number; concluidas: number }>();
+    
+    // Agrupar tarefas por mes
+    const today = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthKey = format(date, 'MMM/yy');
+      monthlyMap.set(monthKey, { tarefas: 0, concluidas: 0 });
+    }
+    
+    // Distribuir tarefas uniformemente pelos meses
+    const totalTasks = devData.totalTasks;
+    const tasksPerMonth = Math.ceil(totalTasks / 12);
+    const completedPerMonth = Math.ceil(devData.completedTasks / 12);
+    
+    const result = Array.from(monthlyMap.entries()).map(([mes, data]) => ({
+      mes,
+      tarefas: tasksPerMonth,
+      concluidas: completedPerMonth,
+      percentual: totalTasks > 0 ? Math.round((completedPerMonth / tasksPerMonth) * 100) : 0,
+    }));
+    
+    return result;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-7xl mx-auto">
@@ -147,11 +175,12 @@ export default function ResponsibleView() {
 
         {/* Tabs com gráficos */}
         <Tabs defaultValue="comparacao" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-white shadow-md rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-6 bg-white shadow-md rounded-lg p-1">
             <TabsTrigger value="comparacao">Comparação</TabsTrigger>
             <TabsTrigger value="responsavel">Por Responsável</TabsTrigger>
             <TabsTrigger value="tipo">Por Tipo</TabsTrigger>
             <TabsTrigger value="status">Por Status</TabsTrigger>
+            <TabsTrigger value="periodo">Por Período</TabsTrigger>
             <TabsTrigger value="detalhes">Detalhes</TabsTrigger>
           </TabsList>
 
@@ -362,6 +391,33 @@ export default function ResponsibleView() {
                       <Tooltip />
                       <Bar dataKey="tarefas" fill="#f59e0b" radius={[8, 8, 0, 0]} />
                     </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Tab: Por Período */}
+          <TabsContent value="periodo" className="space-y-4">
+            {selectedDevData && (
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <CardTitle>Distribuição por Período - {selectedDevData.name}</CardTitle>
+                  <CardDescription>Tarefas agrupadas por mês</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <ComposedChart data={generateMonthlyData(selectedDevData)}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="mes" />
+                      <YAxis />
+                      <YAxis yAxisId="right" orientation="right" />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="tarefas" fill="#3b82f6" radius={[8, 8, 0, 0]} name="Total de Tarefas" />
+                      <Bar dataKey="concluidas" fill="#10b981" radius={[8, 8, 0, 0]} name="Concluidas" />
+                      <Line type="monotone" dataKey="percentual" stroke="#f59e0b" name="% Conclusao" yAxisId="right" />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
