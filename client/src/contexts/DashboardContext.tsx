@@ -61,7 +61,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const activityQuery = trpc.dashboard.getActivityByJql.useQuery(
     { jql: activeJqlFilter?.jql || '' },
-    { enabled: false } // Desabilitar temporariamente para debugar
+    { enabled: !!activeJqlFilter?.jql, staleTime: 30000 } // 30 segundos de cache
   );
 
   // Atualizar estado quando queries retornam dados
@@ -103,17 +103,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         setError(null);
 
         try {
-          // Refetch todas as queries com timeout de 10 segundos
+          // Refetch todas as queries com timeout de 30 segundos (mais realista)
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout ao buscar dados')), 10000)
+            setTimeout(() => reject(new Error('Timeout ao buscar dados')), 30000)
           );
           
+          // Refetch apenas as 3 queries principais
           await Promise.race([
             Promise.all([
               metricsQuery.refetch(),
               statusDistributionQuery.refetch(),
               criticalIssuesQuery.refetch(),
-              activityQuery.refetch(),
             ]),
             timeoutPromise,
           ]);
@@ -135,25 +135,35 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar dados';
-      setError(errorMessage);
-      console.error('Erro ao atualizar dados:', err);
-      // Não dispara novo refetch em caso de erro para evitar loop infinito
+      console.warn('Aviso ao atualizar dados:', errorMessage);
+      // Não mostrar erro se for timeout, apenas avisar
+      if (!errorMessage.includes('Timeout')) {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
-  }, [metrics, impediments.length, metricsQuery, statusDistributionQuery, criticalIssuesQuery, activityQuery]);
+  }, [metrics, impediments.length, metricsQuery, statusDistributionQuery, criticalIssuesQuery]);
 
   // Auto-refresh quando o filtro JQL mudar (apenas uma vez na inicialização)
   useEffect(() => {
     if (activeJqlFilter?.jql && !isInitialized) {
       setIsInitialized(true);
-      refreshData();
+      // Usar um pequeno delay para evitar race conditions
+      const timer = setTimeout(() => {
+        refreshData();
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [activeJqlFilter?.jql, isInitialized, refreshData]);
 
   // Função para refetch manual (chamada pelo botão "Atualizar Dados")
   const manualRefresh = useCallback(async () => {
-    await refreshData();
+    try {
+      await refreshData();
+    } catch (err) {
+      console.error('Erro ao fazer refresh manual:', err);
+    }
   }, [refreshData]);
 
   return (
@@ -168,7 +178,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         loading: loading || metricsQuery.isLoading,
         error,
         lastUpdated,
-        refreshData,
+        refreshData: manualRefresh,
       }}
     >
       {children}

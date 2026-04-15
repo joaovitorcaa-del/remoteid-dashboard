@@ -26,7 +26,7 @@ interface FilterContextType {
 const DEFAULT_JQL_FILTER: JqlFilter = {
   id: 0,
   nome: 'Sprint Ativa',
-  jql: 'sprint in openSprints() AND project = REMOTEID',
+  jql: 'sprint in openSprints() and project = REMOTEID',
   descricao: 'Filtro padrão - Issues da Sprint Ativa',
 };
 

@@ -15,10 +15,17 @@ export const dashboardRouter = router({
     .input(z.object({ jql: z.string() }))
     .query(async ({ input }) => {
       try {
-        console.log("[Dashboard] Buscando métricas com JQL:", input.jql);
+        const { sanitizeJql } = await import('../jql-sanitizer');
+        console.log('[Dashboard] JQL ORIGINAL recebido:', JSON.stringify(input.jql));
+        console.log('[Dashboard] Comprimento JQL original:', input.jql.length);
+        console.log('[Dashboard] Char codes:', Array.from(input.jql).map(c => c.charCodeAt(0)).join(',').substring(0, 200));
         
-        // Buscar issues do Jira usando o JQL fornecido
-        const jiraIssues = await fetchJiraIssuesByJql(input.jql);
+        const cleanJql = sanitizeJql(input.jql);
+        
+        console.log("[Dashboard] Buscando métricas com JQL:", cleanJql);
+        
+        // Buscar issues do Jira usando o JQL sanitizado
+        const jiraIssues = await fetchJiraIssuesByJql(cleanJql);
         console.log("[Dashboard] Issues encontradas:", jiraIssues.length);
         
         // Converter para formato do dashboard
@@ -86,9 +93,12 @@ export const dashboardRouter = router({
     .input(z.object({ jql: z.string() }))
     .query(async ({ input }) => {
       try {
-        console.log("[Dashboard] Buscando issues com JQL:", input.jql);
+        const { sanitizeJql } = await import('../jql-sanitizer');
+        const cleanJql = sanitizeJql(input.jql);
         
-        const jiraIssues = await fetchJiraIssuesByJql(input.jql);
+        console.log("[Dashboard] Buscando issues com JQL:", cleanJql);
+        
+        const jiraIssues = await fetchJiraIssuesByJql(cleanJql);
         const issues = convertJiraIssuesToDashboard(jiraIssues);
         
         return {
@@ -111,9 +121,12 @@ export const dashboardRouter = router({
     .input(z.object({ jql: z.string() }))
     .query(async ({ input }) => {
       try {
-        console.log("[Dashboard] Buscando issues críticas com JQL:", input.jql);
+        const { sanitizeJql } = await import('../jql-sanitizer');
+        const cleanJql = sanitizeJql(input.jql);
         
-        const jiraIssues = await fetchJiraIssuesByJql(input.jql);
+        console.log("[Dashboard] Buscando issues críticas com JQL:", cleanJql);
+        
+        const jiraIssues = await fetchJiraIssuesByJql(cleanJql);
         const issues = convertJiraIssuesToDashboard(jiraIssues);
         
         // Filtrar apenas issues críticas (bloqueadores)
@@ -142,9 +155,12 @@ export const dashboardRouter = router({
     .input(z.object({ jql: z.string() }))
     .query(async ({ input }) => {
       try {
-        console.log("[Dashboard] Buscando distribuição de status com JQL:", input.jql);
+        const { sanitizeJql } = await import('../jql-sanitizer');
+        const cleanJql = sanitizeJql(input.jql);
         
-        const jiraIssues = await fetchJiraIssuesByJql(input.jql);
+        console.log("[Dashboard] Buscando distribuição de status com JQL:", cleanJql);
+        
+        const jiraIssues = await fetchJiraIssuesByJql(cleanJql);
         const issues = convertJiraIssuesToDashboard(jiraIssues);
         
         // Agrupar por status
@@ -212,39 +228,33 @@ export const dashboardRouter = router({
     .input(z.object({ jql: z.string() }))
     .query(async ({ input }) => {
       try {
-        console.log("[Dashboard] Buscando atividade com JQL:", input.jql);
-        console.log("[Dashboard] JQL length:", input.jql.length);
-        console.log("[Dashboard] JQL char codes:", Array.from(input.jql).map(c => c.charCodeAt(0)).join(','));
+        const { sanitizeJql, validateJql } = await import('../jql-sanitizer');
         
-        console.log('[Dashboard] Input JQL recebido:', JSON.stringify(input.jql));
-        console.log('[Dashboard] Comprimento do JQL:', input.jql?.length);
+        console.log('[Dashboard Activity] JQL ORIGINAL recebido:', JSON.stringify(input.jql));
+        console.log('[Dashboard Activity] Comprimento JQL original:', input.jql.length);
         
-        // Limpar JQL: remover quebras de linha, espaços extras e caracteres especiais
-        let cleanJql = input.jql
-          .trim()
-          .replace(/\n/g, ' ')
-          .replace(/\r/g, ' ')
-          .replace(/\t/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
+        // Usar sanitizador centralizado
+        let cleanJql = sanitizeJql(input.jql);
         
-        console.log('[Dashboard] JQL após limpeza:', cleanJql);
+        console.log('[Dashboard Activity] JQL SANITIZADO:', cleanJql);
         
-        // Remover AND/OR duplicados no final
-        cleanJql = cleanJql.replace(/\s+(AND|OR)\s*$/i, '');
+        // Validar JQL
+        const validation = validateJql(cleanJql);
+        if (!validation.valid) {
+          throw new Error(`JQL inválido: ${validation.error}`);
+        }
         
         // Validar JQL - se vazio ou inválido, usar JQL padrão
         if (!cleanJql || cleanJql.length === 0) {
-          cleanJql = 'sprint in openSprints() AND project = REMOTEID';
+          cleanJql = 'sprint in openSprints() and project = REMOTEID';
         }
         
-        // Garantir que o JQL não termina com AND/OR antes de concatenar
-        cleanJql = cleanJql.replace(/\s+(AND|OR)\s*$/i, '').trim();
+        // Garantir que o JQL não termina com and/or antes de concatenar
+        cleanJql = cleanJql.replace(/\s+(and|or)\s*$/i, '').trim();
         
         // Buscar issues atualizadas nas últimas 24h
-        const jqlWithTime = `${cleanJql} AND updated >= -1d`;
+        const jqlWithTime = `${cleanJql} and updated >= -1d`;
         console.log('[Dashboard] JQL final completo:', jqlWithTime);
-        console.log('[Dashboard] Comprimento do JQL final:', jqlWithTime.length);
         
         const jiraIssues = await fetchJiraIssuesByJql(jqlWithTime);
         const issues = convertJiraIssuesToDashboard(jiraIssues);
@@ -253,6 +263,7 @@ export const dashboardRouter = router({
           success: true,
           recentActivity: issues,
           totalCount: issues.length,
+          lastFetched: new Date().toISOString(),
         };
       } catch (error) {
         console.error("[Dashboard] Erro ao buscar atividade:", error);

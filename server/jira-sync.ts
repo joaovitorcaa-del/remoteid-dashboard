@@ -42,7 +42,7 @@ export async function fetchJiraActiveSprintIssues(): Promise<JiraIssue[]> {
 
   try {
     console.log('[Jira] Iniciando busca de issues...');
-    const jql = `sprint in openSprints() AND project = ${projectKey}`;
+    const jql = `sprint in openSprints() and project = ${projectKey}`;
     console.log('[Jira] JQL:', jql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
     const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,created,updated`;
@@ -203,7 +203,7 @@ export async function fetchJiraBacklogIssues(): Promise<JiraIssue[]> {
 
   try {
     console.log('[Jira Backlog] Iniciando busca de issues do backlog...');
-    const jql = `sprint is empty AND project in ("RemoteID", "DesktopID", "Mobile ID") AND status not in (OPENED, Prioritized, "USER STORY WRITTEN", "USER STORY REFINEMENT", PREPLANNING, DONE, Canceled) AND issuetype not in (EPIC, "Technical Task") order by priority desc`;
+    const jql = `sprint is empty and project in ("RemoteID", "DesktopID", "Mobile ID") and status not in (OPENED, Prioritized, "USER STORY WRITTEN", "USER STORY REFINEMENT", PREPLANNING, DONE, Canceled) and issuetype not in (EPIC, "Technical Task") order by priority desc`;
     console.log('[Jira Backlog] JQL:', jql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
     const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,created,updated,priority`;

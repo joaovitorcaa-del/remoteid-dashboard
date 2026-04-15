@@ -17,7 +17,7 @@ export const responsibleRouter = router({
         const { buildAssigneeJql, buildDateRangeJql, sanitizeJql } = await import('../jql-sanitizer');
         
         // Construir JQL de forma segura
-        let jql = 'project = REMOTEID AND created >= 2025-07-01';
+        let jql = 'project = REMOTEID and created >= 2025-07-01';
 
         // Adicionar filtro de período
         if (input.startDate && input.endDate) {
@@ -119,7 +119,7 @@ export const responsibleRouter = router({
       try {
         // Buscar todas as issues desde julho de 2025
         const { sanitizeJql } = await import('../jql-sanitizer');
-        const jql = sanitizeJql('project = REMOTEID AND created >= 2025-07-01 order by updated desc');
+        const jql = sanitizeJql('project = REMOTEID and created >= 2025-07-01 order by updated desc');
         const issues = await fetchJiraIssuesByJql(jql);
 
         // Extrair responsáveis únicos
