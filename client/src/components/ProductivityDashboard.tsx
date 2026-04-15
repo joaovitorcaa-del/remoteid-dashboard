@@ -126,9 +126,9 @@ export default function ProductivityDashboard() {
 
     const issues = metricsQuery.data.issues as any[];
     const total = issues.length;
-    const storyPoints = issues.reduce((sum: number, i: any) => sum + (i.fields.customfield_10028 || i.fields.customfield_10029 || 0), 0);
-    const completed = issues.filter((i: any) => i.fields.status?.name === 'DONE').length;
-    const inProgress = issues.filter((i: any) => ['CODE DOING', 'CODE REVIEW', 'STAGING'].includes(i.fields.status?.name)).length;
+    const storyPoints = issues.reduce((sum: number, i: any) => sum + (i?.fields?.customfield_10028 || i?.fields?.customfield_10029 || 0), 0);
+    const completed = issues.filter((i: any) => i?.fields?.status?.name === 'DONE').length;
+    const inProgress = issues.filter((i: any) => ['CODE DOING', 'CODE REVIEW', 'STAGING'].includes(i?.fields?.status?.name)).length;
 
     return { total, storyPoints, completed, inProgress };
   }, [metricsQuery.data?.issues]);
