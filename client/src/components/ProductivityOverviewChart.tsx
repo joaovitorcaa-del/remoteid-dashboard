@@ -288,6 +288,7 @@ export default function ProductivityOverviewChart() {
                     stackId="members"
                     fill={MEMBER_COLORS[idx % MEMBER_COLORS.length]}
                     name={member.length > 20 ? member.slice(0, 18) + '...' : member}
+                    label={{ position: 'insideTop', fontSize: 10, fill: '#fff', fontWeight: 'bold' }}
                   />
                 ))}
               </BarChart>
@@ -329,7 +330,8 @@ export default function ProductivityOverviewChart() {
                   dataKey="total"
                   stroke="#3b82f6"
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={{ r: 4, fill: '#3b82f6' }}
+                  label={{ position: 'top', fontSize: 10, fill: '#3b82f6', fontWeight: 'bold' }}
                   name={`Por período`}
                 />
                 <Line
@@ -339,7 +341,8 @@ export default function ProductivityOverviewChart() {
                   stroke="#10b981"
                   strokeWidth={2}
                   strokeDasharray="5 5"
-                  dot={{ r: 3 }}
+                  dot={{ r: 3, fill: '#10b981' }}
+                  label={{ position: 'top', fontSize: 10, fill: '#10b981', fontWeight: 'bold' }}
                   name={`Acumulado`}
                 />
               </LineChart>
