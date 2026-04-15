@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
 
 interface SyncStatus {
@@ -12,12 +12,29 @@ interface SyncStatus {
   issuesInDb: number;
 }
 
+interface AnalysisFilters {
+  issueTypes: string[];
+  projects: string[];
+  startDate: string | undefined;
+  endDate: string | undefined;
+}
+
 interface AnalysisContextType {
   // JQL customizado para a página Análise
   analysisJql: string;
   setAnalysisJql: (jql: string) => void;
   resetAnalysisJql: () => void;
   defaultAnalysisJql: string;
+
+  // Filtros interativos
+  filters: AnalysisFilters;
+  setFilters: (filters: Partial<AnalysisFilters>) => void;
+  resetFilters: () => void;
+
+  // Opções de filtro disponíveis
+  availableIssueTypes: string[];
+  availableProjects: string[];
+  availableAssignees: string[];
 
   // Sync
   isSyncing: boolean;
@@ -47,54 +64,102 @@ interface AnalysisContextType {
 
 const DEFAULT_ANALYSIS_JQL = 'project IN ("RemoteID", "DesktopID", "Mobile ID") AND created >= "2025-07-01" ORDER BY priority DESC';
 
+const DEFAULT_FILTERS: AnalysisFilters = {
+  issueTypes: [],
+  projects: [],
+  startDate: undefined,
+  endDate: undefined,
+};
+
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
 
 export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [analysisJql, setAnalysisJqlState] = useState<string>(DEFAULT_ANALYSIS_JQL);
+  const [filters, setFiltersState] = useState<AnalysisFilters>(DEFAULT_FILTERS);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Carregar JQL do localStorage
+  // Carregar JQL e filtros do localStorage
   useEffect(() => {
     const savedJql = localStorage.getItem('analysisCustomJql');
     if (savedJql) {
       setAnalysisJqlState(savedJql);
     }
+    const savedFilters = localStorage.getItem('analysisFilters');
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        setFiltersState({ ...DEFAULT_FILTERS, ...parsed });
+      } catch (e) {
+        // ignore
+      }
+    }
     setIsInitialized(true);
   }, []);
 
-  // Queries ao banco (dados persistidos)
+  // Estabilizar input de filtros para evitar re-renders infinitos
+  const filterInput = useMemo(() => ({
+    issueTypes: filters.issueTypes.length > 0 ? filters.issueTypes : undefined,
+    projects: filters.projects.length > 0 ? filters.projects : undefined,
+    startDate: filters.startDate || undefined,
+    endDate: filters.endDate || undefined,
+  }), [filters.issueTypes, filters.projects, filters.startDate, filters.endDate]);
+
+  // Opções de filtro disponíveis (sem filtros aplicados)
+  const issueTypesQuery = trpc.analysis.getIssueTypes.useQuery(undefined, {
+    enabled: isInitialized,
+  });
+
+  const projectsQuery = trpc.analysis.getProjects.useQuery(undefined, {
+    enabled: isInitialized,
+  });
+
+  const assigneesQuery = trpc.analysis.getAssignees.useQuery(undefined, {
+    enabled: isInitialized,
+  });
+
+  // Queries ao banco com filtros aplicados
   const syncStatusQuery = trpc.analysis.getSyncStatus.useQuery(undefined, {
     enabled: isInitialized,
   });
 
-  const issuesQuery = trpc.analysis.getIssues.useQuery(undefined, {
+  const issuesQuery = trpc.analysis.getIssues.useQuery(
+    filterInput.issueTypes || filterInput.projects || filterInput.startDate || filterInput.endDate
+      ? {
+          issueTypes: filterInput.issueTypes,
+          projects: filterInput.projects,
+          startDate: filterInput.startDate,
+          endDate: filterInput.endDate,
+        }
+      : undefined,
+    { enabled: isInitialized }
+  );
+
+  const velocityQuery = trpc.analysis.getVelocityMetrics.useQuery(filterInput, {
     enabled: isInitialized,
   });
 
-  const velocityQuery = trpc.analysis.getVelocityMetrics.useQuery(undefined, {
+  const capacityQuery = trpc.analysis.getCapacityMetrics.useQuery(filterInput, {
     enabled: isInitialized,
   });
 
-  const capacityQuery = trpc.analysis.getCapacityMetrics.useQuery(undefined, {
+  const throughputQuery = trpc.analysis.getThroughput.useQuery(
+    { periodType: 'month', ...filterInput },
+    { enabled: isInitialized }
+  );
+
+  const cycleTimeQuery = trpc.analysis.getCycleTimeMetrics.useQuery(filterInput, {
     enabled: isInitialized,
   });
 
-  const throughputQuery = trpc.analysis.getThroughput.useQuery(undefined, {
-    enabled: isInitialized,
-  });
+  const cumulativeFlowQuery = trpc.analysis.getCumulativeFlow.useQuery(
+    { periodType: 'month', ...filterInput },
+    { enabled: isInitialized }
+  );
 
-  const cycleTimeQuery = trpc.analysis.getCycleTimeMetrics.useQuery(undefined, {
-    enabled: isInitialized,
-  });
-
-  const cumulativeFlowQuery = trpc.analysis.getCumulativeFlow.useQuery(undefined, {
-    enabled: isInitialized,
-  });
-
-  const distributionsQuery = trpc.analysis.getDistributions.useQuery(undefined, {
+  const distributionsQuery = trpc.analysis.getDistributions.useQuery(filterInput, {
     enabled: isInitialized,
   });
 
@@ -119,6 +184,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         cycleTimeQuery.refetch(),
         cumulativeFlowQuery.refetch(),
         distributionsQuery.refetch(),
+        issueTypesQuery.refetch(),
+        projectsQuery.refetch(),
+        assigneesQuery.refetch(),
       ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao sincronizar';
@@ -127,7 +195,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSyncing(false);
     }
-  }, [analysisJql, syncMutation, syncStatusQuery, issuesQuery, velocityQuery, capacityQuery, throughputQuery, cycleTimeQuery, cumulativeFlowQuery, distributionsQuery]);
+  }, [analysisJql, syncMutation, syncStatusQuery, issuesQuery, velocityQuery, capacityQuery, throughputQuery, cycleTimeQuery, cumulativeFlowQuery, distributionsQuery, issueTypesQuery, projectsQuery, assigneesQuery]);
 
   // Refresh = refetch dados do banco (sem sync do JIRA)
   const refreshData = useCallback(async () => {
@@ -160,6 +228,19 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('analysisCustomJql');
   };
 
+  const setFilters = useCallback((partial: Partial<AnalysisFilters>) => {
+    setFiltersState(prev => {
+      const next = { ...prev, ...partial };
+      localStorage.setItem('analysisFilters', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFiltersState(DEFAULT_FILTERS);
+    localStorage.removeItem('analysisFilters');
+  }, []);
+
   const loading = isSyncing || issuesQuery.isLoading;
 
   return (
@@ -169,6 +250,12 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         setAnalysisJql,
         resetAnalysisJql,
         defaultAnalysisJql: DEFAULT_ANALYSIS_JQL,
+        filters,
+        setFilters,
+        resetFilters,
+        availableIssueTypes: issueTypesQuery.data || [],
+        availableProjects: projectsQuery.data || [],
+        availableAssignees: assigneesQuery.data || [],
         isSyncing,
         syncData,
         syncStatus: syncStatusQuery.data as SyncStatus | null,

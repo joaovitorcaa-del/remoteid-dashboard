@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { sanitizeJql } from '../jql-sanitizer';
 import { getDb } from '../db';
 import { analysisIssues, analysisSyncLog } from '../../drizzle/schema';
-import { eq, sql, desc, and, gte, lte, isNotNull } from 'drizzle-orm';
+import { eq, sql, desc, and, gte, lte, isNotNull, inArray } from 'drizzle-orm';
 
 /**
- * Busca issues do JIRA com paginação completa (todas as páginas)
+ * Busca issues do JIRA com paginação por token (API v3 /search/jql)
+ * A API v2 foi descontinuada (410 Gone), usa-se v3 com nextPageToken/isLast
  */
 async function fetchAllJiraIssuesPaginated(jql: string): Promise<any[]> {
   const jiraUrl = process.env.JIRA_URL;
@@ -19,25 +20,30 @@ async function fetchAllJiraIssuesPaginated(jql: string): Promise<any[]> {
 
   const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
   const allIssues: any[] = [];
-  let startAt = 0;
-  const maxResults = 100;
-  let total = Infinity;
 
   // Campos expandidos para capturar máximo de dados
+  // customfield_10004 = Story Points (confirmado via /rest/api/3/field)
+  // customfield_10020 = Sprint
   const fields = [
     'summary', 'status', 'assignee', 'reporter', 'created', 'updated',
     'priority', 'issuetype', 'project', 'labels', 'components',
     'resolution', 'resolutiondate', 'statuscategorychangedate',
-    'customfield_10016', // Story Points (Jira Cloud)
-    'customfield_10028', // Story Points (alternativo)
-    'customfield_10029', // Story Points (alternativo 2)
+    'customfield_10004', // Story Points (confirmado)
     'customfield_10020', // Sprint
   ].join(',');
 
   console.log(`[Analysis Sync] Iniciando busca paginada com JQL: ${jql}`);
 
-  while (startAt < total) {
-    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&startAt=${startAt}&maxResults=${maxResults}&fields=${fields}`;
+  let nextPageToken: string | null = null;
+  let isLast = false;
+  let pageCount = 0;
+  const maxResults = 100;
+
+  while (!isLast) {
+    let url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&fields=${fields}`;
+    if (nextPageToken) {
+      url += `&nextPageToken=${encodeURIComponent(nextPageToken)}`;
+    }
 
     const response = await fetch(url, {
       method: 'GET',
@@ -53,25 +59,32 @@ async function fetchAllJiraIssuesPaginated(jql: string): Promise<any[]> {
     }
 
     const data = await response.json();
-    total = data.total || 0;
+    pageCount++;
 
-    if (!data.issues || data.issues.length === 0) break;
+    if (!data.issues || data.issues.length === 0) {
+      console.log(`[Analysis Sync] Página ${pageCount}: sem issues, parando`);
+      break;
+    }
 
     allIssues.push(...data.issues);
-    startAt += data.issues.length;
+    nextPageToken = data.nextPageToken || null;
+    isLast = data.isLast === true;
 
-    console.log(`[Analysis Sync] Página carregada: ${allIssues.length}/${total} issues`);
+    console.log(`[Analysis Sync] Página ${pageCount}: ${data.issues.length} issues (total: ${allIssues.length}, isLast: ${isLast})`);
   }
 
-  console.log(`[Analysis Sync] Total de issues baixadas: ${allIssues.length}`);
+  console.log(`[Analysis Sync] Total de issues baixadas: ${allIssues.length} em ${pageCount} páginas`);
   return allIssues;
 }
 
 /**
- * Extrai story points de uma issue do JIRA (tenta múltiplos campos)
+ * Extrai story points de uma issue do JIRA
+ * Campo confirmado: customfield_10004
  */
 function extractStoryPoints(fields: any): number {
-  return fields.customfield_10016 || fields.customfield_10028 || fields.customfield_10029 || 0;
+  const sp = fields.customfield_10004;
+  if (sp != null && typeof sp === 'number' && sp > 0) return sp;
+  return 0;
 }
 
 /**
@@ -80,7 +93,6 @@ function extractStoryPoints(fields: any): number {
 function extractSprint(fields: any): { name: string; state: string } | null {
   const sprints = fields.customfield_10020;
   if (!sprints || !Array.isArray(sprints) || sprints.length === 0) return null;
-  // Pegar o sprint mais recente
   const latest = sprints[sprints.length - 1];
   return {
     name: latest.name || 'Sem nome',
@@ -94,6 +106,7 @@ function extractSprint(fields: any): { name: string; state: string } | null {
 function jiraIssueToDbRow(issue: any, jqlSource: string) {
   const f = issue.fields;
   const sprint = extractSprint(f);
+  const sp = extractStoryPoints(f);
 
   return {
     issueKey: issue.key,
@@ -104,7 +117,7 @@ function jiraIssueToDbRow(issue: any, jqlSource: string) {
     assignee: f.assignee?.displayName || null,
     reporter: f.reporter?.displayName || null,
     project: f.project?.key || null,
-    storyPoints: String(extractStoryPoints(f)),
+    storyPoints: String(sp),
     sprintName: sprint?.name || null,
     sprintState: sprint?.state || null,
     labels: f.labels && f.labels.length > 0 ? JSON.stringify(f.labels) : null,
@@ -124,7 +137,7 @@ function jiraIssueToDbRow(issue: any, jqlSource: string) {
 export const analysisRouter = {
   /**
    * Sincroniza issues do JIRA para o banco local
-   * Faz paginação completa para buscar TODAS as issues
+   * Usa paginação por token para buscar TODAS as issues sem limite
    */
   syncJiraData: protectedProcedure
     .input(z.object({
@@ -146,7 +159,7 @@ export const analysisRouter = {
       const syncLogId = logResult.insertId;
 
       try {
-        // Buscar TODAS as issues do JIRA com paginação
+        // Buscar TODAS as issues do JIRA com paginação por token
         const jiraIssues = await fetchAllJiraIssuesPaginated(cleanJql);
 
         // Limpar issues anteriores com mesmo JQL
@@ -225,7 +238,7 @@ export const analysisRouter = {
     }),
 
   /**
-   * Retorna todas as issues persistidas no banco
+   * Retorna todas as issues persistidas no banco com filtros
    */
   getIssues: protectedProcedure
     .input(z.object({
@@ -233,6 +246,10 @@ export const analysisRouter = {
       assignee: z.string().optional(),
       issueType: z.string().optional(),
       project: z.string().optional(),
+      issueTypes: z.array(z.string()).optional(),
+      projects: z.array(z.string()).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
     }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
@@ -243,6 +260,18 @@ export const analysisRouter = {
       if (input?.assignee) conditions.push(eq(analysisIssues.assignee, input.assignee));
       if (input?.issueType) conditions.push(eq(analysisIssues.issueType, input.issueType));
       if (input?.project) conditions.push(eq(analysisIssues.project, input.project));
+      if (input?.issueTypes && input.issueTypes.length > 0) {
+        conditions.push(inArray(analysisIssues.issueType, input.issueTypes));
+      }
+      if (input?.projects && input.projects.length > 0) {
+        conditions.push(inArray(analysisIssues.project, input.projects));
+      }
+      if (input?.startDate) {
+        conditions.push(gte(analysisIssues.createdAt, new Date(input.startDate)));
+      }
+      if (input?.endDate) {
+        conditions.push(lte(analysisIssues.createdAt, new Date(input.endDate)));
+      }
 
       const query = conditions.length > 0
         ? db.select().from(analysisIssues).where(and(...conditions))
@@ -252,37 +281,81 @@ export const analysisRouter = {
     }),
 
   /**
-   * Métricas de velocidade do time por sprint
+   * Métricas de velocidade do time por sprint com filtros
    */
   getVelocityMetrics: protectedProcedure
-    .query(async () => {
+    .input(z.object({
+      issueTypes: z.array(z.string()).optional(),
+      projects: z.array(z.string()).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }).optional())
+    .query(async ({ input }) => {
       const db = await getDb();
-      if (!db) return { sprints: [], avgVelocity: 0 };
+      if (!db) return { sprints: [], avgVelocity: 0, totalStoryPoints: 0 };
+
+      // Buscar todas as issues e filtrar em memória para flexibilidade
+      let issues = await db.select().from(analysisIssues);
+
+      // Aplicar filtros
+      if (input?.issueTypes && input.issueTypes.length > 0) {
+        issues = issues.filter(i => input.issueTypes!.includes(i.issueType || ''));
+      }
+      if (input?.projects && input.projects.length > 0) {
+        issues = issues.filter(i => input.projects!.includes(i.project || ''));
+      }
+      if (input?.startDate) {
+        const start = new Date(input.startDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) >= start);
+      }
+      if (input?.endDate) {
+        const end = new Date(input.endDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) <= end);
+      }
 
       // Agrupar por sprint
-      const sprintData = await db.select({
-        sprintName: analysisIssues.sprintName,
-        sprintState: analysisIssues.sprintState,
-        totalIssues: sql<number>`count(*)`,
-        totalStoryPoints: sql<number>`COALESCE(sum(CAST(${analysisIssues.storyPoints} AS DECIMAL(10,2))), 0)`,
-        completedIssues: sql<number>`sum(case when ${analysisIssues.status} in ('DONE', 'Done', 'Closed') then 1 else 0 end)`,
-        completedStoryPoints: sql<number>`sum(case when ${analysisIssues.status} in ('DONE', 'Done', 'Closed') then CAST(${analysisIssues.storyPoints} AS DECIMAL(10,2)) else 0 end)`,
-      })
-        .from(analysisIssues)
-        .where(isNotNull(analysisIssues.sprintName))
-        .groupBy(analysisIssues.sprintName, analysisIssues.sprintState);
+      const sprintMap = new Map<string, {
+        name: string;
+        state: string;
+        totalIssues: number;
+        totalStoryPoints: number;
+        completedIssues: number;
+        completedStoryPoints: number;
+      }>();
 
-      const sprints = sprintData
-        .filter(s => s.sprintName && s.sprintName !== 'Sem Sprint')
+      const doneStatuses = ['DONE', 'Done', 'Closed'];
+
+      issues.forEach(issue => {
+        const sprintName = issue.sprintName || 'Sem Sprint';
+        const sp = Number(issue.storyPoints) || 0;
+        const isDone = doneStatuses.includes(issue.status || '');
+
+        if (!sprintMap.has(sprintName)) {
+          sprintMap.set(sprintName, {
+            name: sprintName,
+            state: issue.sprintState || 'unknown',
+            totalIssues: 0,
+            totalStoryPoints: 0,
+            completedIssues: 0,
+            completedStoryPoints: 0,
+          });
+        }
+
+        const s = sprintMap.get(sprintName)!;
+        s.totalIssues += 1;
+        s.totalStoryPoints += sp;
+        if (isDone) {
+          s.completedIssues += 1;
+          s.completedStoryPoints += sp;
+        }
+      });
+
+      const sprints = Array.from(sprintMap.values())
+        .filter(s => s.name !== 'Sem Sprint')
         .map(s => ({
-          name: s.sprintName!,
-          state: s.sprintState || 'unknown',
-          totalIssues: Number(s.totalIssues),
-          totalStoryPoints: Number(s.totalStoryPoints),
-          completedIssues: Number(s.completedIssues),
-          completedStoryPoints: Number(s.completedStoryPoints),
+          ...s,
           completionRate: s.totalIssues > 0
-            ? Math.round((Number(s.completedIssues) / Number(s.totalIssues)) * 100)
+            ? Math.round((s.completedIssues / s.totalIssues) * 100)
             : 0,
         }));
 
@@ -290,42 +363,95 @@ export const analysisRouter = {
         ? Math.round(sprints.reduce((sum, s) => sum + s.completedStoryPoints, 0) / sprints.length)
         : 0;
 
-      return { sprints, avgVelocity };
+      const totalStoryPoints = issues.reduce((sum, i) => sum + (Number(i.storyPoints) || 0), 0);
+      const completedStoryPoints = issues
+        .filter(i => doneStatuses.includes(i.status || ''))
+        .reduce((sum, i) => sum + (Number(i.storyPoints) || 0), 0);
+
+      return { sprints, avgVelocity, totalStoryPoints, completedStoryPoints };
     }),
 
   /**
-   * Métricas de capacidade do time
+   * Métricas de capacidade do time com filtros
    */
   getCapacityMetrics: protectedProcedure
-    .query(async () => {
+    .input(z.object({
+      issueTypes: z.array(z.string()).optional(),
+      projects: z.array(z.string()).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }).optional())
+    .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return { members: [], summary: {} };
 
+      let issues = await db.select().from(analysisIssues);
+
+      // Aplicar filtros
+      if (input?.issueTypes && input.issueTypes.length > 0) {
+        issues = issues.filter(i => input.issueTypes!.includes(i.issueType || ''));
+      }
+      if (input?.projects && input.projects.length > 0) {
+        issues = issues.filter(i => input.projects!.includes(i.project || ''));
+      }
+      if (input?.startDate) {
+        const start = new Date(input.startDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) >= start);
+      }
+      if (input?.endDate) {
+        const end = new Date(input.endDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) <= end);
+      }
+
+      const doneStatuses = ['DONE', 'Done', 'Closed'];
+      const inProgressStatuses = ['CODE DOING', 'Code Doing', 'In Progress', 'CODE REVIEW', 'Code Review'];
+
       // Issues por membro
-      const memberData = await db.select({
-        assignee: analysisIssues.assignee,
-        totalIssues: sql<number>`count(*)`,
-        totalStoryPoints: sql<number>`COALESCE(sum(CAST(${analysisIssues.storyPoints} AS DECIMAL(10,2))), 0)`,
-        completedIssues: sql<number>`sum(case when ${analysisIssues.status} in ('DONE', 'Done', 'Closed') then 1 else 0 end)`,
-        completedStoryPoints: sql<number>`sum(case when ${analysisIssues.status} in ('DONE', 'Done', 'Closed') then CAST(${analysisIssues.storyPoints} AS DECIMAL(10,2)) else 0 end)`,
-        inProgressIssues: sql<number>`sum(case when ${analysisIssues.status} in ('CODE DOING', 'Code Doing', 'In Progress', 'CODE REVIEW', 'Code Review') then 1 else 0 end)`,
-      })
-        .from(analysisIssues)
-        .groupBy(analysisIssues.assignee);
+      const memberMap = new Map<string, {
+        name: string;
+        totalIssues: number;
+        totalStoryPoints: number;
+        completedIssues: number;
+        completedStoryPoints: number;
+        inProgressIssues: number;
+      }>();
 
-      const members = memberData.map(m => ({
-        name: m.assignee || 'Não atribuído',
-        totalIssues: Number(m.totalIssues),
-        totalStoryPoints: Number(m.totalStoryPoints),
-        completedIssues: Number(m.completedIssues),
-        completedStoryPoints: Number(m.completedStoryPoints),
-        inProgressIssues: Number(m.inProgressIssues),
-        completionRate: m.totalIssues > 0
-          ? Math.round((Number(m.completedIssues) / Number(m.totalIssues)) * 100)
-          : 0,
-      })).sort((a, b) => b.completedStoryPoints - a.completedStoryPoints);
+      issues.forEach(issue => {
+        const name = issue.assignee || 'Não atribuído';
+        const sp = Number(issue.storyPoints) || 0;
 
-      // Resumo geral
+        if (!memberMap.has(name)) {
+          memberMap.set(name, {
+            name,
+            totalIssues: 0,
+            totalStoryPoints: 0,
+            completedIssues: 0,
+            completedStoryPoints: 0,
+            inProgressIssues: 0,
+          });
+        }
+
+        const m = memberMap.get(name)!;
+        m.totalIssues += 1;
+        m.totalStoryPoints += sp;
+        if (doneStatuses.includes(issue.status || '')) {
+          m.completedIssues += 1;
+          m.completedStoryPoints += sp;
+        }
+        if (inProgressStatuses.includes(issue.status || '')) {
+          m.inProgressIssues += 1;
+        }
+      });
+
+      const members = Array.from(memberMap.values())
+        .map(m => ({
+          ...m,
+          completionRate: m.totalIssues > 0
+            ? Math.round((m.completedIssues / m.totalIssues) * 100)
+            : 0,
+        }))
+        .sort((a, b) => b.completedStoryPoints - a.completedStoryPoints);
+
       const totalIssues = members.reduce((sum, m) => sum + m.totalIssues, 0);
       const totalSP = members.reduce((sum, m) => sum + m.totalStoryPoints, 0);
       const completedIssues = members.reduce((sum, m) => sum + m.completedIssues, 0);
@@ -346,22 +472,39 @@ export const analysisRouter = {
     }),
 
   /**
-   * Throughput - issues concluídas por período (semana/mês)
+   * Throughput - issues concluídas por período (semana/mês) com filtros
    */
   getThroughput: protectedProcedure
     .input(z.object({
       periodType: z.enum(['week', 'month']).default('month'),
+      issueTypes: z.array(z.string()).optional(),
+      projects: z.array(z.string()).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
     }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
 
       const periodType = input?.periodType || 'month';
+      let issues = await db.select().from(analysisIssues);
 
-      // Buscar issues com data de resolução
-      const issues = await db.select().from(analysisIssues);
+      // Aplicar filtros
+      if (input?.issueTypes && input.issueTypes.length > 0) {
+        issues = issues.filter(i => input.issueTypes!.includes(i.issueType || ''));
+      }
+      if (input?.projects && input.projects.length > 0) {
+        issues = issues.filter(i => input.projects!.includes(i.project || ''));
+      }
+      if (input?.startDate) {
+        const start = new Date(input.startDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) >= start);
+      }
+      if (input?.endDate) {
+        const end = new Date(input.endDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) <= end);
+      }
 
-      // Agrupar por período usando data de criação
       const periodMap = new Map<string, {
         period: string;
         created: number;
@@ -370,6 +513,8 @@ export const analysisRouter = {
         resolvedSP: number;
         netFlow: number;
       }>();
+
+      const doneStatuses = ['DONE', 'Done', 'Closed'];
 
       issues.forEach(issue => {
         if (!issue.createdAt) return;
@@ -400,15 +545,12 @@ export const analysisRouter = {
         p.created += 1;
         p.createdSP += Number(issue.storyPoints) || 0;
 
-        // Contar resolvidas
-        const doneStatuses = ['DONE', 'Done', 'Closed', 'Cancelled', 'Canceled'];
         if (doneStatuses.includes(issue.status || '')) {
           p.resolved += 1;
           p.resolvedSP += Number(issue.storyPoints) || 0;
         }
       });
 
-      // Converter e ordenar
       const periods = Array.from(periodMap.values())
         .map(p => ({
           ...p,
@@ -420,17 +562,38 @@ export const analysisRouter = {
     }),
 
   /**
-   * Cycle time médio por tipo de issue
+   * Cycle time médio por tipo de issue com filtros
    */
   getCycleTimeMetrics: protectedProcedure
-    .query(async () => {
+    .input(z.object({
+      issueTypes: z.array(z.string()).optional(),
+      projects: z.array(z.string()).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }).optional())
+    .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
 
-      const issues = await db.select().from(analysisIssues)
+      let issues = await db.select().from(analysisIssues)
         .where(isNotNull(analysisIssues.resolvedAt));
 
-      // Calcular cycle time (created -> resolved) por tipo
+      // Aplicar filtros
+      if (input?.issueTypes && input.issueTypes.length > 0) {
+        issues = issues.filter(i => input.issueTypes!.includes(i.issueType || ''));
+      }
+      if (input?.projects && input.projects.length > 0) {
+        issues = issues.filter(i => input.projects!.includes(i.project || ''));
+      }
+      if (input?.startDate) {
+        const start = new Date(input.startDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) >= start);
+      }
+      if (input?.endDate) {
+        const end = new Date(input.endDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) <= end);
+      }
+
       const typeMap = new Map<string, { times: number[]; count: number }>();
 
       issues.forEach(issue => {
@@ -441,7 +604,7 @@ export const analysisRouter = {
         const resolved = new Date(issue.resolvedAt).getTime();
         const cycleDays = (resolved - created) / (1000 * 60 * 60 * 24);
 
-        if (cycleDays < 0 || cycleDays > 365) return; // Ignorar outliers
+        if (cycleDays < 0 || cycleDays > 365) return;
 
         if (!typeMap.has(type)) {
           typeMap.set(type, { times: [], count: 0 });
@@ -473,25 +636,47 @@ export const analysisRouter = {
     }),
 
   /**
-   * Cumulative Flow Diagram data
+   * Cumulative Flow Diagram data com filtros
    */
   getCumulativeFlow: protectedProcedure
     .input(z.object({
       periodType: z.enum(['week', 'month']).default('month'),
+      issueTypes: z.array(z.string()).optional(),
+      projects: z.array(z.string()).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
     }).optional())
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
 
       const periodType = input?.periodType || 'month';
-      const issues = await db.select().from(analysisIssues);
+      let issues = await db.select().from(analysisIssues);
 
-      // Definir categorias de status
+      // Aplicar filtros
+      if (input?.issueTypes && input.issueTypes.length > 0) {
+        issues = issues.filter(i => input.issueTypes!.includes(i.issueType || ''));
+      }
+      if (input?.projects && input.projects.length > 0) {
+        issues = issues.filter(i => input.projects!.includes(i.project || ''));
+      }
+      if (input?.startDate) {
+        const start = new Date(input.startDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) >= start);
+      }
+      if (input?.endDate) {
+        const end = new Date(input.endDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) <= end);
+      }
+
       const statusCategories: Record<string, string> = {
         'Backlog': 'Backlog',
         'OPENED': 'Backlog',
         'Prioritized': 'Backlog',
+        'USER STORY REFINEMENT': 'Backlog',
+        'USER STORY WRITTEN': 'Backlog',
         'Ready to Sprint': 'To Do',
+        'READY TO SPRINT': 'To Do',
         'Dev To Do': 'To Do',
         'Dev to Do': 'To Do',
         'CODE DOING': 'Em Desenvolvimento',
@@ -501,6 +686,7 @@ export const analysisRouter = {
         'Code Review': 'Em Revisão',
         'In Review': 'Em Revisão',
         'TEST TO DO': 'Em QA',
+        'Test To Do': 'Em QA',
         'Test to Do': 'Em QA',
         'TEST DOING': 'Em QA',
         'Test Doing': 'Em QA',
@@ -513,7 +699,6 @@ export const analysisRouter = {
         'Canceled': 'Cancelado',
       };
 
-      // Agrupar por período
       const periodMap = new Map<string, Record<string, number>>();
 
       issues.forEach(issue => {
@@ -554,38 +739,52 @@ export const analysisRouter = {
     }),
 
   /**
-   * Distribuição por status, tipo, prioridade
+   * Distribuição por status, tipo, prioridade com filtros
    */
   getDistributions: protectedProcedure
-    .query(async () => {
+    .input(z.object({
+      issueTypes: z.array(z.string()).optional(),
+      projects: z.array(z.string()).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }).optional())
+    .query(async ({ input }) => {
       const db = await getDb();
-      if (!db) return { byStatus: [], byType: [], byPriority: [], byProject: [] };
+      if (!db) return { byStatus: [], byType: [], byPriority: [], byProject: [], totalIssues: 0 };
 
-      const issues = await db.select().from(analysisIssues);
+      let issues = await db.select().from(analysisIssues);
 
-      // Por status
+      // Aplicar filtros
+      if (input?.issueTypes && input.issueTypes.length > 0) {
+        issues = issues.filter(i => input.issueTypes!.includes(i.issueType || ''));
+      }
+      if (input?.projects && input.projects.length > 0) {
+        issues = issues.filter(i => input.projects!.includes(i.project || ''));
+      }
+      if (input?.startDate) {
+        const start = new Date(input.startDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) >= start);
+      }
+      if (input?.endDate) {
+        const end = new Date(input.endDate);
+        issues = issues.filter(i => i.createdAt && new Date(i.createdAt) <= end);
+      }
+
       const statusMap = new Map<string, number>();
       const typeMap = new Map<string, number>();
       const priorityMap = new Map<string, number>();
       const projectMap = new Map<string, number>();
 
       issues.forEach(issue => {
-        const status = issue.status || 'Desconhecido';
-        statusMap.set(status, (statusMap.get(status) || 0) + 1);
-
-        const type = issue.issueType || 'Desconhecido';
-        typeMap.set(type, (typeMap.get(type) || 0) + 1);
-
-        const priority = issue.priority || 'Desconhecido';
-        priorityMap.set(priority, (priorityMap.get(priority) || 0) + 1);
-
-        const project = issue.project || 'Desconhecido';
-        projectMap.set(project, (projectMap.get(project) || 0) + 1);
+        statusMap.set(issue.status || 'Desconhecido', (statusMap.get(issue.status || 'Desconhecido') || 0) + 1);
+        typeMap.set(issue.issueType || 'Desconhecido', (typeMap.get(issue.issueType || 'Desconhecido') || 0) + 1);
+        priorityMap.set(issue.priority || 'Desconhecido', (priorityMap.get(issue.priority || 'Desconhecido') || 0) + 1);
+        projectMap.set(issue.project || 'Desconhecido', (projectMap.get(issue.project || 'Desconhecido') || 0) + 1);
       });
 
       const mapToArray = (map: Map<string, number>) =>
         Array.from(map.entries())
-          .map(([name, count]) => ({ name, count, percentage: Math.round((count / issues.length) * 100) }))
+          .map(([name, count]) => ({ name, count, percentage: issues.length > 0 ? Math.round((count / issues.length) * 100) : 0 }))
           .sort((a, b) => b.count - a.count);
 
       return {
@@ -594,78 +793,6 @@ export const analysisRouter = {
         byPriority: mapToArray(priorityMap),
         byProject: mapToArray(projectMap),
         totalIssues: issues.length,
-      };
-    }),
-
-  /**
-   * Métricas de produtividade por período (mantém compatibilidade)
-   */
-  getProductivityMetrics: protectedProcedure
-    .input(z.object({
-      periodType: z.enum(['sprint', 'month', 'week']),
-      assignees: z.array(z.string()).optional(),
-      issueTypes: z.array(z.string()).optional(),
-      startDate: z.string().optional(),
-    }))
-    .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) return { periods: [], totalIssues: 0, totalStoryPoints: 0 };
-
-      const { periodType, assignees, issueTypes } = input;
-
-      let issues = await db.select().from(analysisIssues);
-
-      // Aplicar filtros
-      if (assignees && assignees.length > 0) {
-        issues = issues.filter(i => assignees.includes(i.assignee || ''));
-      }
-      if (issueTypes && issueTypes.length > 0) {
-        issues = issues.filter(i => issueTypes.includes(i.issueType || ''));
-      }
-
-      // Agrupar por período
-      const periodMap = new Map<string, any>();
-
-      issues.forEach(issue => {
-        if (!issue.createdAt) return;
-        const created = new Date(issue.createdAt);
-        let periodKey: string;
-
-        if (periodType === 'sprint') {
-          periodKey = issue.sprintName || 'Sem Sprint';
-        } else if (periodType === 'month') {
-          periodKey = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}`;
-        } else {
-          const weekStart = new Date(created);
-          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-          periodKey = weekStart.toISOString().split('T')[0];
-        }
-
-        if (!periodMap.has(periodKey)) {
-          periodMap.set(periodKey, {
-            period: periodKey,
-            quantity: 0,
-            storyPoints: 0,
-            byType: {},
-          });
-        }
-
-        const p = periodMap.get(periodKey);
-        p.quantity += 1;
-        p.storyPoints += Number(issue.storyPoints) || 0;
-
-        const type = issue.issueType || 'Desconhecido';
-        if (!p.byType[type]) p.byType[type] = { quantity: 0, storyPoints: 0 };
-        p.byType[type].quantity += 1;
-        p.byType[type].storyPoints += Number(issue.storyPoints) || 0;
-      });
-
-      const periods = Array.from(periodMap.values()).sort((a, b) => a.period.localeCompare(b.period));
-
-      return {
-        periods,
-        totalIssues: issues.length,
-        totalStoryPoints: issues.reduce((sum, i) => sum + (Number(i.storyPoints) || 0), 0),
       };
     }),
 
@@ -682,6 +809,21 @@ export const analysisRouter = {
         .where(isNotNull(analysisIssues.issueType));
 
       return types.map(t => t.issueType).filter(Boolean).sort() as string[];
+    }),
+
+  /**
+   * Buscar lista de projetos disponíveis
+   */
+  getProjects: protectedProcedure
+    .query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      const projects = await db.selectDistinct({ project: analysisIssues.project })
+        .from(analysisIssues)
+        .where(isNotNull(analysisIssues.project));
+
+      return projects.map(p => p.project).filter(Boolean).sort() as string[];
     }),
 
   /**

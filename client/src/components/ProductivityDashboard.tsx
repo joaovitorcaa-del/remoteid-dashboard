@@ -39,13 +39,15 @@ export default function ProductivityDashboard() {
   // KPIs calculados dos dados persistidos
   const kpis = useMemo(() => {
     if (!issues || issues.length === 0) {
-      return { total: 0, storyPoints: 0, completed: 0, inProgress: 0, avgCycleTime: 0, completionRate: 0 };
+      return { total: 0, storyPoints: 0, completedSP: 0, completed: 0, inProgress: 0, avgCycleTime: 0, completionRate: 0 };
     }
 
     const total = issues.length;
     const storyPoints = issues.reduce((sum: number, i: any) => sum + (Number(i.storyPoints) || 0), 0);
     const doneStatuses = ['DONE', 'Done', 'Closed'];
-    const completed = issues.filter((i: any) => doneStatuses.includes(i.status)).length;
+    const completedIssues = issues.filter((i: any) => doneStatuses.includes(i.status));
+    const completed = completedIssues.length;
+    const completedSP = completedIssues.reduce((sum: number, i: any) => sum + (Number(i.storyPoints) || 0), 0);
     const inProgressStatuses = ['CODE DOING', 'Code Doing', 'In Progress', 'CODE REVIEW', 'Code Review', 'STAGING', 'Staging'];
     const inProgress = issues.filter((i: any) => inProgressStatuses.includes(i.status)).length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -59,7 +61,7 @@ export default function ProductivityDashboard() {
         }, 0) / resolvedIssues.length * 10) / 10
       : 0;
 
-    return { total, storyPoints, completed, inProgress, avgCycleTime, completionRate };
+    return { total, storyPoints, completedSP, completed, inProgress, avgCycleTime, completionRate };
   }, [issues]);
 
   const hasData = issues && issues.length > 0;
@@ -76,63 +78,13 @@ export default function ProductivityDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Sync Bar */}
-      <Card className="border-blue-200 bg-blue-50/50">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-700">Fonte de dados: JIRA</p>
-                <p className="text-xs text-gray-500 max-w-lg truncate" title={analysisJql}>
-                  JQL: {analysisJql}
-                </p>
-              </div>
-              {syncStatus && (
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>|</span>
-                  <span>{syncStatus.issuesInDb} issues no banco</span>
-                  {syncStatus.completedAt && (
-                    <>
-                      <span>|</span>
-                      <span>Última sync: {new Date(syncStatus.completedAt).toLocaleString('pt-BR')}</span>
-                    </>
-                  )}
-                  {syncStatus.durationMs && (
-                    <>
-                      <span>|</span>
-                      <span>{(syncStatus.durationMs / 1000).toFixed(1)}s</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <Button
-              onClick={syncData}
-              disabled={isSyncing}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isSyncing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Sincronizando...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 mr-2" />
-                  Atualizar Dados
-                </>
-              )}
-            </Button>
-          </div>
-          {error && (
-            <div className="mt-2 p-2 bg-red-100 rounded text-red-700 text-sm flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              {error}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Error display */}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
 
       {!hasData && !loading && (
         <Card>
@@ -181,6 +133,7 @@ export default function ProductivityDashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">{kpis.storyPoints}</p>
+                <p className="text-xs text-green-600 mt-1">{kpis.completedSP} entregues</p>
               </CardContent>
             </Card>
             <Card>

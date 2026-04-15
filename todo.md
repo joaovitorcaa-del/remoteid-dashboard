@@ -485,3 +485,12 @@
 - [ ] Testar Visão por Responsável com dados reais
 - [ ] Validar que erro de JQL foi corrigido
 - [ ] Executar testes automatizados
+
+## Correções Página Análise - Paginação, Story Points e Filtros
+- [x] Corrigir paginação para buscar TODAS as 859+ issues (remover limitadores)
+- [x] Corrigir story points zerados - investigar campos customfield corretos
+- [x] Implementar filtros interativos por período (data início/fim)
+- [x] Implementar filtros interativos por issue type
+- [x] Implementar filtros interativos por projeto
+- [x] Testar com todas as 860 issues
+- [x] Validar story points corretos (1408 SP total, 1204 entregues)
