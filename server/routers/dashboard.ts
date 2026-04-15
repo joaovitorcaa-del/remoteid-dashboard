@@ -252,11 +252,21 @@ export const dashboardRouter = router({
         // Garantir que o JQL não termina com and/or antes de concatenar
         cleanJql = cleanJql.replace(/\s+(and|or)\s*$/i, '').trim();
         
+        console.log('[Dashboard Activity] JQL após remover operadores finais:', cleanJql);
+        console.log('[Dashboard Activity] Comprimento após limpeza:', cleanJql.length);
+        
         // Buscar issues atualizadas nas últimas 24h
         const jqlWithTime = `${cleanJql} and updated >= -1d`;
-        console.log('[Dashboard] JQL final completo:', jqlWithTime);
+        console.log('[Dashboard Activity] JQL final completo:', jqlWithTime);
+        console.log('[Dashboard Activity] Comprimento JQL final:', jqlWithTime.length);
+        console.log('[Dashboard Activity] Char na posição 212:', jqlWithTime.charAt(212));
+        console.log('[Dashboard Activity] Contexto posição 212:', jqlWithTime.substring(200, 220));
         
-        const jiraIssues = await fetchJiraIssuesByJql(jqlWithTime);
+        // Sanitizar novamente o JQL final antes de enviar
+        const finalJql = sanitizeJql(jqlWithTime);
+        console.log('[Dashboard Activity] JQL final após sanitização:', finalJql);
+        
+        const jiraIssues = await fetchJiraIssuesByJql(finalJql);
         const issues = convertJiraIssuesToDashboard(jiraIssues);
         
         return {

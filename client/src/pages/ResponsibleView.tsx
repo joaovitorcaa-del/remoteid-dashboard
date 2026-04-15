@@ -1,16 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, RefreshCw, Filter, TrendingUp, Users, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, RefreshCw, TrendingUp, Users, CheckCircle2, Zap, Calendar } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 type PeriodType = 'week' | 'month' | 'sprint';
@@ -21,31 +19,32 @@ interface DeveloperMetrics {
   completedTasks: number;
   inProgressTasks: number;
   totalStoryPoints: number;
+  completedStoryPoints: number;
   completionRate: number;
+  velocity: number;
+  efficiency: number;
   tasksByStatus: Record<string, number>;
   tasksByType: Record<string, number>;
+  tasksBySprint: Record<string, number>;
 }
 
-interface ResponsibleViewData {
+interface PeriodSnapshot {
+  period: string;
+  totalTasks: number;
+  completedTasks: number;
+  totalStoryPoints: number;
   developers: DeveloperMetrics[];
-  summary: {
-    totalTasks: number;
-    totalDevelopers: number;
-    averageCompletionRate: number;
-    totalStoryPoints: number;
-  };
-  lastUpdated: string;
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 export default function ResponsibleView() {
   const [, navigate] = useLocation();
-  const [periodType, setPeriodType] = useState<PeriodType>('month');
-  const [selectedDevelopers, setSelectedDevelopers] = useState<string[]>([]);
+  const [periodType, setPeriodType] = useState<PeriodType>('sprint');
+  const [selectedDeveloper, setSelectedDeveloper] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [allDevelopers, setAllDevelopers] = useState<string[]>([]);
+  const [timelineData, setTimelineData] = useState<PeriodSnapshot[]>([]);
 
   // Calcular datas do período
   const getDateRange = () => {
@@ -63,32 +62,43 @@ export default function ResponsibleView() {
 
   const dateRange = getDateRange();
 
-  // Usar tRPC para buscar dados reais do Jira
+  // Buscar dados reais do Jira
   const metricsQuery = trpc.responsible.getMetricsByPeriod.useQuery(
     {
       startDate: dateRange.start,
       endDate: dateRange.end,
-      assignees: selectedDevelopers.length > 0 ? selectedDevelopers : undefined,
       periodType,
     },
     { enabled: !!dateRange.start && !!dateRange.end }
   );
 
-  // Atualizar estado quando query completa
+  // Processar dados para timeline
   useEffect(() => {
-    if (metricsQuery.data) {
-      const data: ResponsibleViewData = {
-        developers: metricsQuery.data.developers as any,
-        summary: metricsQuery.data.summary as any,
-        lastUpdated: metricsQuery.data.lastUpdated,
-      };
-      setAllDevelopers(data.developers.map(d => d.name));
-    }
-  }, [metricsQuery.data]);
+    if (metricsQuery.data?.developers) {
+      const periods = new Map<string, DeveloperMetrics[]>();
+      
+      metricsQuery.data.developers.forEach((dev: DeveloperMetrics) => {
+        const period = Object.keys(dev.tasksBySprint || {})[0] || format(selectedMonth, 'MMM yyyy', { locale: ptBR });
+        if (!periods.has(period)) {
+          periods.set(period, []);
+        }
+        periods.get(period)!.push(dev);
+      });
 
-  const data = metricsQuery.data as any;
-  const loading = metricsQuery.isLoading;
-  const error = metricsQuery.error?.message || null;
+      const timeline: PeriodSnapshot[] = Array.from(periods.entries()).map(([period, devs]) => ({
+        period,
+        developers: devs,
+        totalTasks: devs.reduce((sum: number, d: DeveloperMetrics) => sum + d.totalTasks, 0),
+        completedTasks: devs.reduce((sum: number, d: DeveloperMetrics) => sum + d.completedTasks, 0),
+        totalStoryPoints: devs.reduce((sum: number, d: DeveloperMetrics) => sum + d.totalStoryPoints, 0),
+      }));
+
+      setTimelineData(timeline);
+      if (!selectedDeveloper && metricsQuery.data.developers.length > 0) {
+        setSelectedDeveloper(metricsQuery.data.developers[0].name);
+      }
+    }
+  }, [metricsQuery.data, selectedMonth]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -99,61 +109,83 @@ export default function ResponsibleView() {
     }
   };
 
-  const toggleDeveloper = (name: string) => {
-    setSelectedDevelopers(prev =>
-      prev.includes(name) ? prev.filter(d => d !== name) : [...prev, name]
-    );
-  };
-
   const handlePreviousPeriod = () => {
     setSelectedMonth(prev => subMonths(prev, 1));
   };
 
   const handleNextPeriod = () => {
-    setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setSelectedMonth(prev => addMonths(prev, 1));
   };
 
-  if (loading && !data) {
+  // Dados agregados
+  const aggregatedMetrics = useMemo(() => {
+    if (!metricsQuery.data?.developers) return null;
+    const developers = metricsQuery.data.developers;
+    return {
+      totalDevelopers: developers.length,
+      totalTasks: developers.reduce((sum: number, d: DeveloperMetrics) => sum + d.totalTasks, 0),
+      completedTasks: developers.reduce((sum: number, d: DeveloperMetrics) => sum + d.completedTasks, 0),
+      totalStoryPoints: developers.reduce((sum: number, d: DeveloperMetrics) => sum + d.totalStoryPoints, 0),
+      averageVelocity: developers.length > 0 ? (developers.reduce((sum: number, d: DeveloperMetrics) => sum + (d.velocity || 0), 0) / developers.length).toFixed(1) : 0,
+      averageEfficiency: developers.length > 0 ? Math.round((developers.reduce((sum: number, d: DeveloperMetrics) => sum + (d.efficiency || 0), 0) / developers.length) * 100) : 0,
+    };
+  }, [metricsQuery.data]);
+
+  // Dados para gráfico de timeline
+  const timelineChartData = useMemo(() => {
+    return timelineData.map((period: PeriodSnapshot) => ({
+      period: period.period.substring(0, 10),
+      total: period.totalTasks,
+      concluídas: period.completedTasks,
+      pontos: period.totalStoryPoints,
+    }));
+  }, [timelineData]);
+
+  // Dados para comparação entre desenvolvedores
+  const comparisonData = useMemo(() => {
+    if (!metricsQuery.data?.developers) return [];
+    return metricsQuery.data.developers.map((dev: DeveloperMetrics) => ({
+      name: dev.name.split(' ')[0],
+      tarefas: dev.totalTasks,
+      concluídas: dev.completedTasks,
+      pontos: dev.totalStoryPoints,
+      eficiência: Math.round((dev.efficiency || 0) * 100),
+      velocidade: (dev.velocity || 0).toFixed(1),
+    }));
+  }, [metricsQuery.data]);
+
+  // Dados do desenvolvedor selecionado
+  const selectedDevMetrics = useMemo(() => {
+    if (!selectedDeveloper || !metricsQuery.data?.developers) return null;
+    return metricsQuery.data.developers.find((d: DeveloperMetrics) => d.name === selectedDeveloper);
+  }, [selectedDeveloper, metricsQuery.data]);
+
+  const statusData = useMemo(() => {
+    if (!selectedDevMetrics?.tasksByStatus) return [];
+    return Object.entries(selectedDevMetrics.tasksByStatus).map(([status, count]) => ({
+      name: status,
+      value: count,
+    }));
+  }, [selectedDevMetrics]);
+
+  const typeData = useMemo(() => {
+    if (!selectedDevMetrics?.tasksByType) return [];
+    return Object.entries(selectedDevMetrics.tasksByType).map(([type, count]) => ({
+      name: type,
+      value: count,
+    }));
+  }, [selectedDevMetrics]);
+
+  if (metricsQuery.isLoading && !metricsQuery.data) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando dados...</p>
-          {error && <p className="text-red-600 text-sm mt-2">Erro: {error}</p>}
+          <p className="text-muted-foreground">Carregando dados de produtividade...</p>
         </div>
       </div>
     );
   }
-
-  const filteredDevelopers = data?.developers.filter((d: any) =>
-    selectedDevelopers.length === 0 || selectedDevelopers.includes(d.name)
-  ) || [];
-
-  // Dados para gráfico de comparação
-  const developerComparison = filteredDevelopers.map((dev: any) => ({
-    name: dev.name.split(' ')[0],
-    tarefas: dev.totalTasks,
-    concluidas: dev.completedTasks,
-    pontos: dev.totalStoryPoints,
-    taxa: Math.round(dev.completionRate),
-  }));
-
-  // Dados para gráfico de status
-  const statusData = filteredDevelopers.map((dev: any) => ({
-    name: dev.name.split(' ')[0],
-    Done: dev.tasksByStatus['Done'] || 0,
-    'In Progress': dev.tasksByStatus['In Progress'] || 0,
-    'To Do': dev.tasksByStatus['To Do'] || 0,
-  }));
-
-  // Dados para gráfico de tipo
-  const typeDistribution = filteredDevelopers.flatMap((dev: any) =>
-    Object.entries(dev.tasksByType || {}).map(([type, count]: any) => ({
-      name: type,
-      value: count,
-      developer: dev.name.split(' ')[0],
-    }))
-  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -170,9 +202,9 @@ export default function ResponsibleView() {
                 Voltar
               </button>
               <div>
-                <h1 className="text-3xl font-display text-foreground">Análise por Responsável</h1>
+                <h1 className="text-3xl font-bold">Visão de Produtividade</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Distribuição de tarefas e performance de cada colaborador
+                  Análise de desempenho por desenvolvedor ao longo do tempo
                 </p>
               </div>
             </div>
@@ -188,14 +220,14 @@ export default function ResponsibleView() {
         </div>
       </header>
 
-      <main className="container py-8">
+      <main className="container py-8 space-y-6">
         {/* Filtros Compactos */}
-        <Card className="mb-8 bg-muted/30">
+        <Card className="bg-muted/30">
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Período */}
               <div>
-                <label className="block text-sm font-semibold mb-2">Período</label>
+                <label className="block text-sm font-semibold mb-2">Tipo de Período</label>
                 <div className="flex gap-2">
                   {(['week', 'month', 'sprint'] as const).map(type => (
                     <Button
@@ -213,7 +245,8 @@ export default function ResponsibleView() {
 
               {/* Navegação de Período */}
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
                   {periodType === 'week' ? 'Semana' : 'Mês'}
                 </label>
                 <div className="flex items-center gap-2">
@@ -231,19 +264,19 @@ export default function ResponsibleView() {
                 </div>
               </div>
 
-              {/* Responsáveis */}
+              {/* Desenvolvedor Selecionado */}
               <div>
-                <label className="block text-sm font-semibold mb-2">Responsáveis</label>
+                <label className="block text-sm font-semibold mb-2">Desenvolvedor</label>
                 <div className="flex flex-wrap gap-2">
-                  {allDevelopers.map(dev => (
+                  {metricsQuery.data?.developers.map((dev: DeveloperMetrics) => (
                     <Button
-                      key={dev}
+                      key={dev.name}
                       size="sm"
-                      variant={selectedDevelopers.includes(dev) ? 'default' : 'outline'}
-                      onClick={() => toggleDeveloper(dev)}
+                      variant={selectedDeveloper === dev.name ? 'default' : 'outline'}
+                      onClick={() => setSelectedDeveloper(dev.name)}
                       className="text-xs"
                     >
-                      {dev.split(' ')[0]}
+                      {dev.name.split(' ')[0]}
                     </Button>
                   ))}
                 </div>
@@ -252,87 +285,112 @@ export default function ResponsibleView() {
           </CardContent>
         </Card>
 
-        {/* KPIs Resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Colaboradores
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{data?.summary.totalDevelopers || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">Selecionados: {selectedDevelopers.length || 'Todos'}</p>
-            </CardContent>
-          </Card>
+        {/* KPIs */}
+        {aggregatedMetrics && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Colaboradores
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{aggregatedMetrics.totalDevelopers}</div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
-                Taxa Média
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{Math.round(data?.summary.averageCompletionRate || 0)}%</div>
-              <p className="text-xs text-muted-foreground mt-1">Conclusão</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Taxa Média
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{aggregatedMetrics.averageVelocity}</div>
+                <p className="text-xs text-muted-foreground mt-1">Eficiência: {aggregatedMetrics.averageEfficiency}%</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Total de Tarefas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{data?.summary.totalTasks || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">Período selecionado</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Total de Tarefas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{aggregatedMetrics.totalTasks}</div>
+                <p className="text-xs text-muted-foreground mt-1">{aggregatedMetrics.completedTasks} concluídas</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Story Points
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{data?.summary.totalStoryPoints || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total</p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Story Points
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{aggregatedMetrics.totalStoryPoints}</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-        {/* Visualizações */}
-        <Tabs defaultValue="comparison" className="space-y-6">
+        {/* Abas de Visualização */}
+        <Tabs defaultValue="timeline" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="comparison">Comparação</TabsTrigger>
             <TabsTrigger value="status">Por Status</TabsTrigger>
-            <TabsTrigger value="types">Por Tipo</TabsTrigger>
             <TabsTrigger value="details">Detalhes</TabsTrigger>
           </TabsList>
 
-          {/* Comparação de Colaboradores */}
-          <TabsContent value="comparison">
+          {/* Timeline de Períodos */}
+          <TabsContent value="timeline" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Comparação de Performance</CardTitle>
-                <CardDescription>Tarefas, pontos e taxa de conclusão por colaborador</CardDescription>
+                <CardTitle>Evolução ao Longo do Tempo</CardTitle>
+                <CardDescription>Tarefas e story points por período</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={developerComparison}>
+                  <ComposedChart data={timelineChartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
+                    <XAxis dataKey="period" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="total" fill="#3b82f6" name="Total" />
+                    <Bar yAxisId="left" dataKey="concluídas" fill="#10b981" name="Concluídas" />
+                    <Line yAxisId="right" type="monotone" dataKey="pontos" stroke="#f59e0b" name="Story Points" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Comparação entre Desenvolvedores */}
+          <TabsContent value="comparison" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Comparação de Produtividade</CardTitle>
+                <CardDescription>Tarefas, pontos e eficiência por desenvolvedor</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={comparisonData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                     <YAxis />
                     <Tooltip />
                     <Legend />
                     <Bar dataKey="tarefas" fill="#3b82f6" name="Tarefas" />
-                    <Bar dataKey="concluidas" fill="#10b981" name="Concluídas" />
+                    <Bar dataKey="concluídas" fill="#10b981" name="Concluídas" />
                     <Bar dataKey="pontos" fill="#f59e0b" name="Story Points" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -341,46 +399,20 @@ export default function ResponsibleView() {
           </TabsContent>
 
           {/* Distribuição por Status */}
-          <TabsContent value="status">
-            <Card>
-              <CardHeader>
-                <CardTitle>Distribuição por Status</CardTitle>
-                <CardDescription>Tarefas agrupadas por status (Done, In Progress, To Do)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={statusData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="Done" fill="#10b981" stackId="a" />
-                    <Bar dataKey="In Progress" fill="#f59e0b" stackId="a" />
-                    <Bar dataKey="To Do" fill="#ef4444" stackId="a" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Distribuição por Tipo */}
-          <TabsContent value="types">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {filteredDevelopers.map((dev: any, idx: any) => (
-                <Card key={dev.name}>
-                  <CardHeader>
-                    <CardTitle className="text-base">{dev.name}</CardTitle>
-                    <CardDescription>Distribuição por tipo de tarefa</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={250}>
+          <TabsContent value="status" className="space-y-4">
+            {selectedDevMetrics ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribuição - {selectedDevMetrics.name}</CardTitle>
+                  <CardDescription>Tarefas agrupadas por status e tipo</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-sm font-semibold mb-4">Por Status</h3>
+                    <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
                         <Pie
-                          data={Object.entries(dev.tasksByType || {}).map(([type, count]) => ({
-                            name: type,
-                            value: count,
-                          }))}
+                          data={statusData}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -389,56 +421,87 @@ export default function ResponsibleView() {
                           fill="#8884d8"
                           dataKey="value"
                         >
-                          {Object.entries(dev.tasksByType || {}).map((_, index) => (
+                          {statusData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold mb-4">Por Tipo</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={typeData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, value }) => `${name}: ${value}`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {typeData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-center text-muted-foreground">Selecione um desenvolvedor para ver detalhes</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
-          {/* Detalhes */}
-          <TabsContent value="details">
+          {/* Tabela de Detalhes */}
+          <TabsContent value="details" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Detalhes de Cada Colaborador</CardTitle>
-                <CardDescription>Resumo completo de métricas</CardDescription>
+                <CardTitle>Detalhes por Desenvolvedor</CardTitle>
+                <CardDescription>Métricas completas de cada colaborador</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Colaborador</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead className="text-right">Concluídas</TableHead>
-                        <TableHead className="text-right">Em Progresso</TableHead>
-                        <TableHead className="text-right">Taxa (%)</TableHead>
-                        <TableHead className="text-right">Story Points</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredDevelopers.map((dev: any) => (
-                        <TableRow key={dev.name}>
-                          <TableCell className="font-medium">{dev.name}</TableCell>
-                          <TableCell className="text-right">{dev.totalTasks}</TableCell>
-                          <TableCell className="text-right text-green-600 font-semibold">{dev.completedTasks}</TableCell>
-                          <TableCell className="text-right text-amber-600">{dev.inProgressTasks}</TableCell>
-                          <TableCell className="text-right">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-semibold">
-                              {Math.round(dev.completionRate)}%
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 px-4">Desenvolvedor</th>
+                        <th className="text-center py-2 px-4">Total</th>
+                        <th className="text-center py-2 px-4">Concluídas</th>
+                        <th className="text-center py-2 px-4">Em Progresso</th>
+                        <th className="text-center py-2 px-4">Story Points</th>
+                        <th className="text-center py-2 px-4">Velocidade</th>
+                        <th className="text-center py-2 px-4">Eficiência</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {metricsQuery.data?.developers.map((dev: DeveloperMetrics) => (
+                        <tr key={dev.name} className="border-b hover:bg-muted/50">
+                          <td className="py-2 px-4 font-medium">{dev.name}</td>
+                          <td className="text-center py-2 px-4">{dev.totalTasks}</td>
+                          <td className="text-center py-2 px-4 text-green-600">{dev.completedTasks}</td>
+                          <td className="text-center py-2 px-4 text-blue-600">{dev.inProgressTasks}</td>
+                          <td className="text-center py-2 px-4">{dev.totalStoryPoints}</td>
+                          <td className="text-center py-2 px-4">{dev.velocity.toFixed(1)}</td>
+                          <td className="text-center py-2 px-4">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${dev.efficiency > 0.7 ? 'bg-green-100 text-green-800' : dev.efficiency > 0.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                              {Math.round(dev.efficiency * 100)}%
                             </span>
-                          </TableCell>
-                          <TableCell className="text-right font-semibold">{dev.totalStoryPoints}</TableCell>
-                        </TableRow>
+                          </td>
+                        </tr>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>

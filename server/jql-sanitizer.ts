@@ -60,6 +60,17 @@ export function sanitizeJql(jql: string): string {
     cleaned = cleaned.replace(/\s+(and|or|not)\s*$/i, '');
   }
 
+  // 8. Reorganizar ORDER BY para o final (Jira requer que ORDER BY seja sempre o último)
+  const orderByMatch = cleaned.match(/\s+order\s+by\s+(.+?)(?=\s+and|\s+or|$)/i);
+  if (orderByMatch) {
+    // Remover order by do meio
+    cleaned = cleaned.replace(/\s+order\s+by\s+.+?(?=\s+and|\s+or|$)/i, '');
+    // Remover espaços extras
+    cleaned = cleaned.trim();
+    // Adicionar order by no final
+    cleaned = `${cleaned} order by ${orderByMatch[1].trim()}`;
+  }
+
   console.log('[JQL Sanitizer] JQL original:', jql);
   console.log('[JQL Sanitizer] JQL sanitizado:', cleaned);
 

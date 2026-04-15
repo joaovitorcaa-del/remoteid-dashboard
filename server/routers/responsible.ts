@@ -41,6 +41,9 @@ export const responsibleRouter = router({
           completedTasks: number;
           inProgressTasks: number;
           totalStoryPoints: number;
+          completedStoryPoints?: number;
+          velocity?: number;
+          efficiency?: number;
           tasksByType: Record<string, number>;
           tasksByStatus: Record<string, number>;
           tasksBySprint: Record<string, number>;
@@ -51,7 +54,11 @@ export const responsibleRouter = router({
           const status = issue.fields?.status?.name || 'Unknown';
           const issueType = issue.fields?.issuetype?.name || 'Unknown';
           const sprint = issue.fields?.sprint?.name || 'Sem Sprint';
-          const storyPoints = issue.fields?.customfield_10016 || 0; // Story Points field
+          // Tentar múltiplos campos de Story Points
+          const storyPoints = issue.fields?.customfield_10016 
+            || issue.fields?.customfield_10005 
+            || issue.fields?.customfield_10004 
+            || 0;
 
           if (!developerMap.has(assignee)) {
             developerMap.set(assignee, {
@@ -68,7 +75,7 @@ export const responsibleRouter = router({
 
           const dev = developerMap.get(assignee)!;
           dev.totalTasks++;
-          dev.totalStoryPoints += storyPoints;
+          dev.totalStoryPoints += (typeof storyPoints === 'number' ? storyPoints : 0);
 
           // Contar por status
           if (status === 'Done') {
@@ -87,11 +94,20 @@ export const responsibleRouter = router({
           dev.tasksBySprint[sprint] = (dev.tasksBySprint[sprint] || 0) + 1;
         });
 
-        // Converter para array e calcular taxa de conclusão
-        const developers = Array.from(developerMap.values()).map(dev => ({
-          ...dev,
-          completionRate: dev.totalTasks > 0 ? (dev.completedTasks / dev.totalTasks) * 100 : 0,
-        }));
+        // Converter para array e calcular métricas
+        const developers = Array.from(developerMap.values()).map(dev => {
+          const completionRate = dev.totalTasks > 0 ? (dev.completedTasks / dev.totalTasks) * 100 : 0;
+          const velocity = dev.totalStoryPoints > 0 ? (dev.completedTasks / dev.totalTasks) * dev.totalStoryPoints : 0;
+          const efficiency = dev.totalTasks > 0 ? dev.completedTasks / dev.totalTasks : 0;
+          
+          return {
+            ...dev,
+            completionRate,
+            velocity: velocity,
+            efficiency: efficiency,
+            completedStoryPoints: Math.round(dev.completedTasks * (dev.totalStoryPoints / Math.max(dev.totalTasks, 1))),
+          };
+        });
 
         // Calcular resumo
         const summary = {
@@ -104,7 +120,7 @@ export const responsibleRouter = router({
         };
 
         return {
-          developers,
+          developers: developers as any,
           summary,
           lastUpdated: new Date().toISOString(),
         };
