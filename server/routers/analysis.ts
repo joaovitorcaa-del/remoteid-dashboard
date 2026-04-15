@@ -42,11 +42,14 @@ export const analysisRouter = {
 
         // Buscar issues do Jira
         const issues = await fetchJiraIssuesByJql(jql);
+        
+        // Limitar a 500 issues para evitar timeout
+        const limitedIssues = issues.slice(0, 500);
 
         // Agrupar issues por período
         const periodMap = new Map<string, any>();
 
-        issues.forEach((issue: any) => {
+        limitedIssues.forEach((issue: any) => {
           const created = new Date(issue.fields.created);
           let periodKey: string;
 
@@ -82,7 +85,7 @@ export const analysisRouter = {
           period.storyPoints += storyPoints;
 
           // Agrupar por tipo
-          const issueType = issue.fields.issuetype.name;
+          const issueType = issue.fields.issuetype?.name || 'Desconhecido';
           if (!period.byType[issueType]) {
             period.byType[issueType] = { quantity: 0, storyPoints: 0 };
           }
@@ -98,11 +101,11 @@ export const analysisRouter = {
           return new Date(a.period).getTime() - new Date(b.period).getTime();
         });
 
-        return {
-          periods,
-          totalIssues: issues.length,
-          totalStoryPoints: issues.reduce((sum: number, i: any) => sum + (i.fields.customfield_10028 || i.fields.customfield_10029 || 0), 0),
-        };
+      return {
+        periods,
+        totalIssues: limitedIssues.length,
+        totalStoryPoints: limitedIssues.reduce((sum: number, i: any) => sum + (i.fields.customfield_10028 || i.fields.customfield_10029 || 0), 0),
+      };
       } catch (error) {
         console.error('Erro ao buscar métricas de produtividade:', error);
         throw new Error(`Erro ao buscar métricas: ${error instanceof Error ? error.message : 'Desconhecido'}`);
@@ -116,10 +119,12 @@ export const analysisRouter = {
         // Buscar issues para extrair tipos únicos
         const jql = 'project IN ("RemoteID", "DesktopID", "Mobile ID") order by created desc';
         const issues = await fetchJiraIssuesByJql(sanitizeJql(jql));
+        const limitedIssues = issues.slice(0, 100);
 
         const types = new Set<string>();
-        issues.forEach((issue: any) => {
-          types.add(issue.fields.issuetype.name);
+        limitedIssues.forEach((issue: any) => {
+          const issueType = issue.fields.issuetype?.name || 'Desconhecido';
+          types.add(issueType);
         });
 
         return Array.from(types).sort();
