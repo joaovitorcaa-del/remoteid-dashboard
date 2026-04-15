@@ -653,3 +653,24 @@
 - [ ] Implementar botão "+Update" para updates manuais por dev
 - [ ] Auto-refresh a cada 5 minutos em background
 - [ ] Integração Slack para postar resumo automático
+
+
+---
+
+# BUG FIXES - Daily Dashboard
+
+## Erro 1: Query de Snapshot com Date Object
+- [x] Identificado: Query passava Date object completo em vez de string YYYY-MM-DD
+- [x] Corrigido: Converter datas para formato YYYY-MM-DD em `saveSnapshot` e `getSnapshot`
+- [x] Impacto: Snapshots agora salvam e carregam corretamente do banco
+
+## Erro 2: JIRA API 410 Gone
+- [x] Identificado: Erro ao buscar issues do JIRA
+- [x] Melhorado: Adicionado logging detalhado para debug
+- [x] Melhorado: Melhor tratamento de erros com status code e error body
+- [x] Próximo: Validar credenciais JIRA no ambiente (JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN)
+
+## Status
+- [x] 116 testes passando
+- [x] Sem regressões
+- [x] Ready para deploy

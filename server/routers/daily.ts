@@ -48,38 +48,55 @@ async function fetchJiraIssues(jql: string) {
   const url = process.env.JIRA_URL;
 
   if (!token || !email || !url) {
+    console.error('[Daily] JIRA credentials missing:', { hasToken: !!token, hasEmail: !!email, hasUrl: !!url });
     throw new Error("JIRA credentials not configured");
   }
 
-  const response = await fetch(`${url}/rest/api/3/search`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      jql,
-      fields: [
-        "key",
-        "summary",
-        "status",
-        "assignee",
-        "updated",
-        "duedate",
-        "flagged",
-        "customfield_10004", // Story Points
-        "changelog",
-      ],
-      expand: ["changelog"],
-      maxResults: 100,
-    }),
-  });
+  try {
+    console.log('[Daily] Fetching JIRA issues with JQL:', jql.substring(0, 100));
+    
+    const response = await fetch(`${url}/rest/api/3/search`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jql,
+        fields: [
+          "key",
+          "summary",
+          "status",
+          "assignee",
+          "updated",
+          "duedate",
+          "flagged",
+          "customfield_10004", // Story Points
+          "changelog",
+        ],
+        expand: ["changelog"],
+        maxResults: 100,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`JIRA API error: ${response.statusText}`);
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'No error body');
+      console.error('[Daily] JIRA API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: url,
+        errorBody: errorBody.substring(0, 200),
+      });
+      throw new Error(`JIRA API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[Daily] JIRA fetch successful, issues found:', data.issues?.length || 0);
+    return data;
+  } catch (error) {
+    console.error('[Daily] Error fetching JIRA issues:', error);
+    throw error;
   }
-
-  return response.json();
 }
 
 // Helper to calculate time difference in human-readable format
@@ -362,12 +379,14 @@ export const dailyRouter = router({
       }
 
       const id = uuidv4();
-      const snapshotDate = new Date(input.date);
+      // Ensure date is in YYYY-MM-DD format for database
+      const dateObj = new Date(input.date);
+      const snapshotDate = dateObj.toISOString().split('T')[0];
 
       await db.insert(dailySnapshots).values({
         id,
         sprintId: input.sprintId,
-        snapshotDate,
+        snapshotDate: new Date(snapshotDate),
         metricsJson: input.metricsJson,
         devsData: input.devsData,
         issuesCritical: input.issuesCritical,
@@ -387,11 +406,14 @@ export const dailyRouter = router({
         return null;
       }
 
-      const snapshotDate = new Date(input.date);
+      // Ensure date is in YYYY-MM-DD format for database query
+      const dateObj = new Date(input.date);
+      const snapshotDate = dateObj.toISOString().split('T')[0];
+      
       const result = await db
         .select()
         .from(dailySnapshots)
-        .where(eq(dailySnapshots.snapshotDate, snapshotDate))
+        .where(eq(dailySnapshots.snapshotDate, new Date(snapshotDate)))
         .limit(1);
 
       return result.length > 0 ? result[0] : null;
