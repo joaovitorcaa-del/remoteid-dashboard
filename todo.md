@@ -695,3 +695,20 @@
 - [x] Sem regressões
 - [x] Daily Dashboard funcional
 - [x] Pronto para deploy
+
+
+---
+
+# BUG: Daily Dashboard - Erro ao buscar dados com JQL
+
+- [x] Auditar erro atual ao buscar dados
+- [x] Verificar se endpoint getActive retorna JQL correto
+- [x] Corrigir getDailyData para usar JQL da configuração
+- [x] Testar integração com JIRA
+- [x] Validar dados retornados
+
+**Mudanças Implementadas:**
+- Removido `project = "RemoteID"` do JQL padrão (pode variar por instância)
+- Adicionada validação de JQL vazio
+- Adicionado logging detalhado para debug
+- 116 testes passando sem regressões

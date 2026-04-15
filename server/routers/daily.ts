@@ -181,9 +181,18 @@ export const dailyRouter = router({
         yesterday.setDate(yesterday.getDate() - 1);
 
         // Use provided JQL or default to active sprint
-        const jqlQuery = input.jql || `project = "RemoteID" AND sprint in openSprints() ORDER BY updated DESC`;
+        let jqlQuery = input.jql || `sprint in openSprints() ORDER BY updated DESC`;
+        
+        // Validate JQL is not empty
+        if (!jqlQuery || jqlQuery.trim().length === 0) {
+          console.warn('[Daily] JQL is empty, using default');
+          jqlQuery = `sprint in openSprints() ORDER BY updated DESC`;
+        }
+        
+        console.log('[Daily] getDailyData - Using JQL:', jqlQuery.substring(0, 150));
         const data = await fetchJiraIssues(jqlQuery);
         const issues = data.issues || [];
+        console.log('[Daily] getDailyData - Got', issues.length, 'issues');
 
         // Calculate metrics
         const todayIssues = issues.filter((issue: any) => {
