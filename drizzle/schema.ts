@@ -182,6 +182,8 @@ export const analysisIssues = mysqlTable("analysisIssues", {
   storyPoints: decimal("storyPoints", { precision: 10, scale: 2 }),
   sprintName: varchar("sprintName", { length: 255 }),
   sprintState: varchar("sprintState", { length: 50 }),
+  sprintStartDate: timestamp("sprintStartDate"),
+  sprintEndDate: timestamp("sprintEndDate"),
   labels: text("labels"), // JSON array
   components: text("components"), // JSON array
   resolution: varchar("resolution", { length: 100 }),

@@ -50,6 +50,13 @@
       "when": 1776228122152,
       "tag": "0006_new_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1776258139166,
+      "tag": "0007_large_tyger_tiger",
+      "breakpoints": true
     }
   ]
 }

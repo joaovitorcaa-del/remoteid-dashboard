@@ -91,13 +91,15 @@ function extractStoryPoints(fields: any): number {
  * Extrai informações de sprint de uma issue
  * Campo correto: customfield_10007 (não customfield_10020)
  */
-function extractSprint(fields: any): { name: string; state: string } | null {
+function extractSprint(fields: any): { name: string; state: string; startDate?: Date; endDate?: Date } | null {
   const sprints = fields.customfield_10007;
   if (!sprints || !Array.isArray(sprints) || sprints.length === 0) return null;
   const latest = sprints[sprints.length - 1];
   return {
     name: latest.name || 'Sem nome',
     state: latest.state || 'unknown',
+    startDate: latest.startDate ? new Date(latest.startDate) : undefined,
+    endDate: latest.endDate ? new Date(latest.endDate) : undefined,
   };
 }
 
@@ -121,6 +123,8 @@ function jiraIssueToDbRow(issue: any, jqlSource: string) {
     storyPoints: String(sp),
     sprintName: sprint?.name || null,
     sprintState: sprint?.state || null,
+    sprintStartDate: sprint?.startDate || null,
+    sprintEndDate: sprint?.endDate || null,
     labels: f.labels && f.labels.length > 0 ? JSON.stringify(f.labels) : null,
     components: f.components && f.components.length > 0
       ? JSON.stringify(f.components.map((c: any) => c.name))
@@ -318,6 +322,8 @@ export const analysisRouter = {
       const sprintMap = new Map<string, {
         name: string;
         state: string;
+        startDate: any;
+        endDate: any;
         totalIssues: number;
         totalStoryPoints: number;
         completedIssues: number;
@@ -335,6 +341,8 @@ export const analysisRouter = {
           sprintMap.set(sprintName, {
             name: sprintName,
             state: issue.sprintState || 'unknown',
+            startDate: issue.sprintStartDate,
+            endDate: issue.sprintEndDate,
             totalIssues: 0,
             totalStoryPoints: 0,
             completedIssues: 0,
@@ -360,10 +368,11 @@ export const analysisRouter = {
             : 0,
         }))
         .sort((a, b) => {
-          // Ordenar por: (1) sprints fechadas primeiro, (2) sprints ativas por último, (3) por nome em ordem normal (antigas primeiro)
-          if (a.state !== 'active' && b.state === 'active') return -1;
-          if (a.state === 'active' && b.state !== 'active') return 1;
-          // Para sprints com mesmo estado, ordenar por nome em ordem normal (antigas primeiro)
+          // Ordenar por startDate (antigas primeiro), depois por estado
+          if (a.startDate && b.startDate) {
+            return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+          }
+          // Fallback para nome se nao houver data
           return a.name.localeCompare(b.name);
         });
 
