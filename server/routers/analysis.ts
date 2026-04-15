@@ -360,11 +360,11 @@ export const analysisRouter = {
             : 0,
         }))
         .sort((a, b) => {
-          // Ordenar por: (1) sprints ativas primeiro, (2) sprints fechadas por nome (que contém data)
-          if (a.state === 'active' && b.state !== 'active') return -1;
-          if (a.state !== 'active' && b.state === 'active') return 1;
-          // Para sprints com mesmo estado, ordenar por nome em ordem reversa (mais recentes primeiro)
-          return b.name.localeCompare(a.name);
+          // Ordenar por: (1) sprints fechadas primeiro, (2) sprints ativas por último, (3) por nome em ordem normal (antigas primeiro)
+          if (a.state !== 'active' && b.state === 'active') return -1;
+          if (a.state === 'active' && b.state !== 'active') return 1;
+          // Para sprints com mesmo estado, ordenar por nome em ordem normal (antigas primeiro)
+          return a.name.localeCompare(b.name);
         });
 
       const avgVelocity = sprints.length > 0

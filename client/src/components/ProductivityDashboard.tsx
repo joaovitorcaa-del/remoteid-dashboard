@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, ComposedChart, AreaChart, Area, PieChart, Pie, Cell,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Label,
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -221,9 +221,9 @@ export default function ProductivityDashboard() {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="totalStoryPoints" fill="#93c5fd" name="SP Planejados" />
-                    <Bar dataKey="completedStoryPoints" fill="#3b82f6" name="SP Completados" />
-                    <Line type="monotone" dataKey="completionRate" stroke="#f59e0b" name="Taxa Conclusão (%)" strokeWidth={2} dot={{ r: 4 }} />
+                    <Bar dataKey="totalStoryPoints" fill="#93c5fd" name="SP Planejados" label={{ position: 'top', fontSize: 11, fill: '#000' }} />
+                    <Bar dataKey="completedStoryPoints" fill="#3b82f6" name="SP Completados" label={{ position: 'top', fontSize: 11, fill: '#fff' }} />
+                    <Line type="monotone" dataKey="completionRate" stroke="#f59e0b" name="Taxa Conclusão (%)" strokeWidth={2} dot={{ r: 4 }} label={{ position: 'top', fontSize: 10, fill: '#f59e0b' }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </CardContent>
