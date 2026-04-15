@@ -42,12 +42,13 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     } else {
       setAnalysisJqlState(DEFAULT_ANALYSIS_JQL);
     }
+    setIsInitialized(true);
   }, []);
 
   // tRPC query para buscar métricas
   const metricsQuery = trpc.dashboard.getMetricsByJql.useQuery(
     { jql: analysisJql || '' },
-    { enabled: !!analysisJql }
+    { enabled: !!analysisJql && isInitialized }
   );
 
   // Atualizar estado quando query retorna dados
@@ -58,50 +59,36 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         issues: metricsQuery.data.issues || [],
       });
       setLastUpdated(new Date().toLocaleTimeString('pt-BR'));
+      setError(null);
     }
   }, [metricsQuery.data]);
 
+  // Capturar estado de loading da query
+  useEffect(() => {
+    setLoading(metricsQuery.isLoading);
+  }, [metricsQuery.isLoading]);
+
+  // Capturar erros da query
+  useEffect(() => {
+    if (metricsQuery.error) {
+      const errorMessage = metricsQuery.error.message || 'Erro ao buscar métricas';
+      setError(errorMessage);
+      console.error('Erro em AnalysisContext:', errorMessage);
+    }
+  }, [metricsQuery.error]);
+
   // Função para refetch manual
   const refreshData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
     try {
-      // Refetch com timeout de 30 segundos
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout ao buscar dados')), 30000)
-      );
-      
-      await Promise.race([
-        metricsQuery.refetch(),
-        timeoutPromise,
-      ]);
-
-      setLastUpdated(new Date().toLocaleTimeString('pt-BR'));
       setError(null);
+      await metricsQuery.refetch();
+      setLastUpdated(new Date().toLocaleTimeString('pt-BR'));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar dados';
-      console.warn('Aviso ao atualizar dados:', errorMessage);
-      // Não mostrar erro se for timeout
-      if (!errorMessage.includes('Timeout')) {
-        setError(errorMessage);
-      }
-    } finally {
-      setLoading(false);
+      console.error('Erro ao atualizar dados:', errorMessage);
+      setError(errorMessage);
     }
   }, [metricsQuery]);
-
-  // Auto-refresh quando o JQL mudar (apenas uma vez na inicialização)
-  useEffect(() => {
-    if (analysisJql && !isInitialized) {
-      setIsInitialized(true);
-      // Usar um pequeno delay para evitar race conditions
-      const timer = setTimeout(() => {
-        refreshData();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [analysisJql, isInitialized, refreshData]);
 
   // Salvar JQL customizado no localStorage quando mudar
   const setAnalysisJql = (jql: string) => {
@@ -123,7 +110,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         resetAnalysisJql,
         defaultAnalysisJql: DEFAULT_ANALYSIS_JQL,
         metricsData,
-        loading: loading || metricsQuery.isLoading,
+        loading,
         error,
         lastUpdated,
         refreshData,
