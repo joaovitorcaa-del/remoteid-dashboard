@@ -12,14 +12,18 @@ export const analysisRouter = {
         periodType: z.enum(['sprint', 'month', 'week']),
         assignees: z.array(z.string()).optional(),
         issueTypes: z.array(z.string()).optional(),
+        startDate: z.string().optional(),
       })
     )
     .query(async ({ input }) => {
       try {
         const { periodType, assignees, issueTypes } = input;
 
-        // Construir JQL base
+        // Usar JQL correto fornecido
         let jql = 'project IN ("RemoteID", "DesktopID", "Mobile ID")';
+
+        // Adicionar filtro de data (usar 2025-07-01 como padrão)
+        jql += ' and created >= "2025-07-01"';
 
         // Adicionar filtro de assignees se fornecido
         if (assignees && assignees.length > 0) {
@@ -33,9 +37,8 @@ export const analysisRouter = {
           jql += ` and type in (${typeList})`;
         }
 
-        // Adicionar filtro de data (últimos 12 meses)
-        const startDate = format(subMonths(new Date(), 12), 'yyyy-MM-dd');
-        jql += ` and created >= "${startDate}"`;
+        // Adicionar ordenação por prioridade
+        jql += ' order by priority desc';
 
         // Sanitizar JQL
         jql = sanitizeJql(jql);

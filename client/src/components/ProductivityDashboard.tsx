@@ -6,6 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { RefreshCw, TrendingUp } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type PeriodType = 'sprint' | 'month' | 'week';
 type ChartMetric = 'quantity' | 'storyPoints' | 'both';
@@ -20,19 +27,20 @@ interface PeriodData {
 
 export default function ProductivityDashboard() {
   const [periodType, setPeriodType] = useState<PeriodType>('month');
-  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('');
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<string[]>([]);
   const [chartMetric, setChartMetric] = useState<ChartMetric>('both');
   const [showTrendline, setShowTrendline] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [periodRange, setPeriodRange] = useState({ start: 0, end: 100 });
+  const [startDate, setStartDate] = useState('2025-07-01');
 
   // Buscar dados de produtividade
   const productivityQuery = trpc.analysis.getProductivityMetrics.useQuery(
     {
       periodType,
-      assignees: selectedAssignees.length > 0 ? selectedAssignees : undefined,
+      assignees: selectedAssignee ? [selectedAssignee] : undefined,
       issueTypes: selectedIssueTypes.length > 0 ? selectedIssueTypes : undefined,
+      startDate,
     }
   );
 
@@ -51,14 +59,6 @@ export default function ProductivityDashboard() {
     }
   };
 
-  const toggleAssignee = (assignee: string) => {
-    setSelectedAssignees(prev =>
-      prev.includes(assignee)
-        ? prev.filter(a => a !== assignee)
-        : [...prev, assignee]
-    );
-  };
-
   const toggleIssueType = (type: string) => {
     setSelectedIssueTypes(prev =>
       prev.includes(type)
@@ -72,31 +72,26 @@ export default function ProductivityDashboard() {
     if (!productivityQuery.data?.periods) return [];
 
     const allData = productivityQuery.data.periods as PeriodData[];
-    
-    // Aplicar filtro de período arrastável
-    const startIdx = Math.floor((allData.length * periodRange.start) / 100);
-    const endIdx = Math.ceil((allData.length * periodRange.end) / 100);
-    const filteredData = allData.slice(startIdx, endIdx);
 
     // Calcular linha de tendência se ativada
     if (showTrendline) {
-      const n = filteredData.length;
+      const n = allData.length;
       const sumX = (n * (n - 1)) / 2;
-      const sumY = filteredData.reduce((sum: number, d: PeriodData) => sum + d.quantity, 0);
-      const sumXY = filteredData.reduce((sum: number, d: PeriodData, i: number) => sum + i * d.quantity, 0);
+      const sumY = allData.reduce((sum: number, d: PeriodData) => sum + d.quantity, 0);
+      const sumXY = allData.reduce((sum: number, d: PeriodData, i: number) => sum + i * d.quantity, 0);
       const sumX2 = (n * (n - 1) * (2 * n - 1)) / 6;
 
       const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
       const intercept = (sumY - slope * sumX) / n;
 
-      return filteredData.map((d: PeriodData, i: number) => ({
+      return allData.map((d: PeriodData, i: number) => ({
         ...d,
         trend: slope * i + intercept,
       }));
     }
 
-    return filteredData;
-  }, [productivityQuery.data, periodRange, showTrendline]);
+    return allData;
+  }, [productivityQuery.data, showTrendline]);
 
   // Calcular estatísticas
   const stats = useMemo(() => {
@@ -144,82 +139,86 @@ export default function ProductivityDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Filtros */}
+      {/* Filtros - Compactos */}
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Período */}
-          <div>
-            <label className="block text-sm font-semibold mb-3">Período:</label>
-            <div className="flex gap-2">
-              {(['sprint', 'month', 'week'] as const).map(type => (
-                <Button
-                  key={type}
-                  onClick={() => setPeriodType(type)}
-                  variant={periodType === type ? 'default' : 'outline'}
-                  size="sm"
-                >
-                  {type === 'sprint' ? 'Sprint' : type === 'month' ? 'Mês' : 'Semana'}
-                </Button>
-              ))}
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Período */}
+            <div>
+              <label className="block text-sm font-semibold mb-2">Período:</label>
+              <div className="flex gap-2">
+                {(['sprint', 'month', 'week'] as const).map(type => (
+                  <Button
+                    key={type}
+                    onClick={() => setPeriodType(type)}
+                    variant={periodType === type ? 'default' : 'outline'}
+                    size="sm"
+                  >
+                    {type === 'sprint' ? 'Sprint' : type === 'month' ? 'Mês' : 'Semana'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Data de Início */}
+            <div>
+              <label className="block text-sm font-semibold mb-2">Data de Início:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-md text-sm"
+              />
+            </div>
+
+            {/* Dropdown de Responsável */}
+            <div>
+              <label className="block text-sm font-semibold mb-2">Responsável:</label>
+              <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {assigneesQuery.data?.map(assignee => (
+                    <SelectItem key={assignee} value={assignee}>
+                      {assignee}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tipo de Issue */}
+            <div>
+              <label className="block text-sm font-semibold mb-2">Tipo de Issue:</label>
+              <Select value={selectedIssueTypes.join(',')} onValueChange={(value) => {
+                if (value === '') {
+                  setSelectedIssueTypes([]);
+                } else {
+                  setSelectedIssueTypes(value.split(','));
+                }
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {issueTypesQuery.data?.map((type: string) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Seletor de Responsáveis */}
-          <div>
-            <label className="block text-sm font-semibold mb-3">Filtrar por Responsável:</label>
-            <div className="flex flex-wrap gap-2">
-              {assigneesQuery.data?.map(assignee => (
-                <Button
-                  key={assignee}
-                  onClick={() => toggleAssignee(assignee)}
-                  variant={selectedAssignees.includes(assignee) ? 'default' : 'outline'}
-                  size="sm"
-                >
-                  {assignee.split(' ')[0]}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Seletor de Tipos de Issue */}
-          <div>
-            <label className="block text-sm font-semibold mb-3">Filtrar por Tipo de Issue:</label>
-            <div className="flex flex-wrap gap-2">
-              {issueTypesQuery.data?.map((type: string) => (
-                <Button
-                  key={type}
-                  onClick={() => toggleIssueType(type)}
-                  variant={selectedIssueTypes.includes(type) ? 'default' : 'outline'}
-                  size="sm"
-                >
-                  {type}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Métrica do Gráfico */}
-          <div>
-            <label className="block text-sm font-semibold mb-3">Visualizar:</label>
-            <div className="flex gap-2">
-              {(['quantity', 'storyPoints', 'both'] as const).map(metric => (
-                <Button
-                  key={metric}
-                  onClick={() => setChartMetric(metric)}
-                  variant={chartMetric === metric ? 'default' : 'outline'}
-                  size="sm"
-                >
-                  {metric === 'quantity' ? 'Quantidade' : metric === 'storyPoints' ? 'Story Points' : 'Ambos'}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Linha de Tendência */}
-          <div className="flex items-center gap-4">
+          {/* Opções Adicionais */}
+          <div className="flex gap-2 mt-4">
             <Button
               onClick={() => setShowTrendline(!showTrendline)}
               variant={showTrendline ? 'default' : 'outline'}
@@ -238,38 +237,6 @@ export default function ProductivityDashboard() {
               Atualizar
             </Button>
           </div>
-
-          {/* Seletor de Período Arrastável */}
-          <div>
-            <label className="block text-sm font-semibold mb-3">Intervalo de Período:</label>
-            <div className="space-y-2">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={periodRange.start}
-                onChange={(e) => setPeriodRange(prev => ({
-                  ...prev,
-                  start: Math.min(Number(e.target.value), prev.end)
-                }))}
-                className="w-full"
-              />
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={periodRange.end}
-                onChange={(e) => setPeriodRange(prev => ({
-                  ...prev,
-                  end: Math.max(Number(e.target.value), prev.start)
-                }))}
-                className="w-full"
-              />
-              <p className="text-xs text-gray-500">
-                Mostrando períodos {Math.floor((chartData.length * periodRange.start) / 100)} a {Math.ceil((chartData.length * periodRange.end) / 100)} de {productivityQuery.data?.periods?.length || 0}
-              </p>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -277,42 +244,39 @@ export default function ProductivityDashboard() {
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Total de Issues</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Total de Tarefas</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">{stats.totalQuantity}</div>
-              <p className="text-xs text-gray-500 mt-2">Média: {stats.avgQuantity} por período</p>
+              <div className="text-2xl font-bold">{stats.totalQuantity}</div>
+              <p className="text-xs text-muted-foreground">Média: {stats.avgQuantity}</p>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Story Points</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Story Points</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-600">{stats.totalStoryPoints}</div>
-              <p className="text-xs text-gray-500 mt-2">Média: {stats.avgStoryPoints} por período</p>
+              <div className="text-2xl font-bold">{stats.totalStoryPoints}</div>
+              <p className="text-xs text-muted-foreground">Média: {stats.avgStoryPoints}</p>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Períodos Analisados</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Períodos</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{chartData.length}</div>
-              <p className="text-xs text-gray-500 mt-2">Intervalo selecionado</p>
+              <div className="text-2xl font-bold">{chartData.length}</div>
+              <p className="text-xs text-muted-foreground">Períodos analisados</p>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Viradas de Desempenho</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Viradas de Desempenho</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-600">{stats.performanceShifts.length}</div>
-              <p className="text-xs text-gray-500 mt-2">Mudanças {'>'}30%</p>
+              <div className="text-2xl font-bold">{stats.performanceShifts.length}</div>
+              <p className="text-xs text-muted-foreground">Mudanças detectadas</p>
             </CardContent>
           </Card>
         </div>
@@ -322,44 +286,32 @@ export default function ProductivityDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Produtividade ao Longo do Tempo</CardTitle>
-          <CardDescription>
-            {periodType === 'sprint' ? 'Por Sprint' : periodType === 'month' ? 'Por Mês' : 'Por Semana'}
-          </CardDescription>
+          <CardDescription>Visualização de quantidade e story points por período</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={400}>
             {chartMetric === 'both' ? (
               <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" angle={-45} textAnchor="end" height={100} />
+                <XAxis dataKey="period" />
                 <YAxis yAxisId="left" />
                 <YAxis yAxisId="right" orientation="right" />
                 <Tooltip />
                 <Legend />
                 <Bar yAxisId="left" dataKey="quantity" fill="#3b82f6" name="Quantidade" />
-                <Bar yAxisId="right" dataKey="storyPoints" fill="#8b5cf6" name="Story Points" />
-                {showTrendline && <Line yAxisId="left" type="monotone" dataKey="trend" stroke="#ef4444" strokeDasharray="5 5" name="Tendência" />}
-              </ComposedChart>
-            ) : chartMetric === 'quantity' ? (
-              <ComposedChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" angle={-45} textAnchor="end" height={100} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="quantity" fill="#3b82f6" name="Quantidade" />
-                {showTrendline && <Line type="monotone" dataKey="trend" stroke="#ef4444" strokeDasharray="5 5" name="Tendência" />}
+                <Bar yAxisId="right" dataKey="storyPoints" fill="#10b981" name="Story Points" />
+                {showTrendline && <Line yAxisId="left" type="monotone" dataKey="trend" stroke="#f59e0b" name="Tendência" strokeDasharray="5 5" />}
               </ComposedChart>
             ) : (
-              <ComposedChart data={chartData}>
+              <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" angle={-45} textAnchor="end" height={100} />
+                <XAxis dataKey="period" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="storyPoints" fill="#8b5cf6" name="Story Points" />
-                {showTrendline && <Line type="monotone" dataKey="trend" stroke="#ef4444" strokeDasharray="5 5" name="Tendência" />}
-              </ComposedChart>
+                <Bar dataKey={chartMetric === 'quantity' ? 'quantity' : 'storyPoints'} fill="#3b82f6" name={chartMetric === 'quantity' ? 'Quantidade' : 'Story Points'} />
+                {showTrendline && <Line type="monotone" dataKey="trend" stroke="#f59e0b" name="Tendência" strokeDasharray="5 5" />}
+              </BarChart>
             )}
           </ResponsiveContainer>
         </CardContent>
@@ -369,21 +321,15 @@ export default function ProductivityDashboard() {
       {stats && stats.performanceShifts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Viradas de Desempenho</CardTitle>
-            <CardDescription>Períodos com mudanças significativas ({'>'}30%)</CardDescription>
+            <CardTitle>Viradas de Desempenho Detectadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {stats.performanceShifts.map((shift: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <span className="font-medium">{shift.period}</span>
-                  <span className={`px-3 py-1 rounded text-sm font-semibold ${
-                    shift.type === 'increase'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {shift.type === 'increase' ? '↑' : '↓'} {shift.change}%
-                  </span>
+                <div key={idx} className={`p-3 rounded-md ${shift.type === 'increase' ? 'bg-green-50' : 'bg-red-50'}`}>
+                  <p className={`font-semibold ${shift.type === 'increase' ? 'text-green-700' : 'text-red-700'}`}>
+                    {shift.period}: {shift.type === 'increase' ? '↑' : '↓'} {Math.abs(shift.change)}%
+                  </p>
                 </div>
               ))}
             </div>
