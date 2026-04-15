@@ -177,12 +177,12 @@ export default function ProductivityDashboard() {
             {/* Dropdown de Responsável */}
             <div>
               <label className="block text-sm font-semibold mb-2">Responsável:</label>
-              <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+              <Select value={selectedAssignee || 'all'} onValueChange={(value) => setSelectedAssignee(value === 'all' ? '' : value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecionar..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {assigneesQuery.data?.map(assignee => (
                     <SelectItem key={assignee} value={assignee}>
                       {assignee}
@@ -195,8 +195,8 @@ export default function ProductivityDashboard() {
             {/* Tipo de Issue */}
             <div>
               <label className="block text-sm font-semibold mb-2">Tipo de Issue:</label>
-              <Select value={selectedIssueTypes.join(',')} onValueChange={(value) => {
-                if (value === '') {
+              <Select value={selectedIssueTypes.length === 0 ? 'all' : selectedIssueTypes.join(',')} onValueChange={(value) => {
+                if (value === 'all') {
                   setSelectedIssueTypes([]);
                 } else {
                   setSelectedIssueTypes(value.split(','));
@@ -206,7 +206,7 @@ export default function ProductivityDashboard() {
                   <SelectValue placeholder="Selecionar..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {issueTypesQuery.data?.map((type: string) => (
                     <SelectItem key={type} value={type}>
                       {type}
