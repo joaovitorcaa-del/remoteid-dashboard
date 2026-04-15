@@ -729,3 +729,31 @@
 - [x] Quadro de itens impedidos consolidado
 - [x] Quadro de itens atrasados (+3 dias no mesmo status)
 - [x] Cards enriquecidos com chaves de issues (hoje e ontem)
+
+---
+
+# PERSISTÊNCIA DE REGISTROS DA DAILY
+
+- [ ] Criar tabelas `dailyMeetings` e `dailyDevTurns` no schema Drizzle
+- [ ] Executar migração do banco de dados
+- [ ] Criar endpoints tRPC: salvar reunião, salvar turno, listar histórico
+- [ ] Integrar Daily.tsx: salvar ao clicar "Registrar Daily" e "Concluir Daily"
+- [ ] Criar página de histórico `/daily/history`
+- [ ] Escrever testes unitários para os novos endpoints
+
+
+---
+
+# PERSISTÊNCIA DE REGISTROS DA DAILY [CONCLUÍDO - 2026-04-15]
+
+- [x] Criar tabelas `dailyMeetings` e `dailyDevTurns` no schema Drizzle
+- [x] Executar migração via SQL direto (tabelas criadas no banco)
+- [x] Criar helper functions em server/db.ts (createDailyMeeting, updateDailyMeeting, upsertDailyDevTurn, etc.)
+- [x] Criar router `dailyHistory.ts` com 7 endpoints tRPC
+- [x] Registrar `dailyHistoryRouter` em server/routers.ts
+- [x] Integrar Daily.tsx: persistir ao iniciar, ao registrar turno, ao concluir
+- [x] Criar página DailyHistory.tsx com lista de reuniões, cards expansíveis, stats e impedimentos
+- [x] Registrar rota /daily-history no App.tsx
+- [x] Adicionar botão "Histórico" no header do Daily
+- [x] Escrever 10 testes unitários para dailyHistory (todos passando)
+- [x] 126 testes passando (1 timeout pré-existente em jira.test.ts não relacionado)

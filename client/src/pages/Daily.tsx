@@ -5,7 +5,7 @@ import { trpc } from '@/lib/trpc';
 import {
   ArrowLeft, RefreshCw, Share2, Play, Square, ChevronLeft, ChevronRight,
   Flag, CheckCircle2, Clock, AlertTriangle, ChevronDown, ChevronUp, Loader2,
-  User, MessageSquare, Zap
+  User, MessageSquare, Zap, History as HistoryIcon
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, addDays, subDays } from 'date-fns';
@@ -302,8 +302,14 @@ export default function Daily() {
     { enabled: !!activeJqlFilter?.jql }
   );
 
+  // Persistence state
+  const [currentMeetingId, setCurrentMeetingId] = useState<number | null>(null);
+
   // Mutations
   const generateReportMutation = trpc.daily.generateDailyReport.useMutation();
+  const startMeetingMutation = trpc.dailyHistory.startMeeting.useMutation();
+  const saveTurnMutation = trpc.dailyHistory.saveTurn.useMutation();
+  const concludeMeetingMutation = trpc.dailyHistory.concludeMeeting.useMutation();
 
   // ── Timer ──
   useEffect(() => {
@@ -316,7 +322,7 @@ export default function Daily() {
   }, [dailyMode]);
 
   // ── Initialize dev turns when daily starts ──
-  const handleStartDaily = useCallback(() => {
+  const handleStartDaily = useCallback(async () => {
     if (!dailyData?.developers) return;
     const turns: DevTurn[] = dailyData.developers.map((dev: any) => ({
       devId: dev.id,
@@ -337,7 +343,20 @@ export default function Daily() {
     setTimerSeconds(0);
     setDailyMode('active');
     setAiReport(null);
-  }, [dailyData]);
+
+    // Persist meeting start to DB
+    try {
+      const result = await startMeetingMutation.mutateAsync({
+        meetingDate: dateString,
+        jqlUsed: activeJqlFilter?.jql,
+        totalDevs: turns.length,
+        metricsSnapshot: dailyData?.metrics ?? null,
+      });
+      setCurrentMeetingId(result.meetingId);
+    } catch (err) {
+      console.warn('[Daily] Could not persist meeting start:', err);
+    }
+  }, [dailyData, dateString, activeJqlFilter, startMeetingMutation]);
 
   // ── Update a field in a dev turn ──
   const handleTurnChange = useCallback((devIndex: number, field: keyof DevTurn, value: any) => {
@@ -345,12 +364,38 @@ export default function Daily() {
   }, []);
 
   // ── Register dev turn ──
-  const handleRegisterTurn = useCallback((devIndex: number) => {
+  const handleRegisterTurn = useCallback(async (devIndex: number) => {
+    const turn = devTurns[devIndex];
     setDevTurns(prev => prev.map((t, i) => i === devIndex ? { ...t, registered: true } : t));
     // Move to next unregistered dev
     const nextIdx = devTurns.findIndex((t, i) => i > devIndex && !t.registered);
     setActiveDevIndex(nextIdx >= 0 ? nextIdx : null);
-  }, [devTurns]);
+
+    // Persist turn to DB
+    if (currentMeetingId && turn) {
+      try {
+        await saveTurnMutation.mutateAsync({
+          meetingId: currentMeetingId,
+          turn: {
+            devName: turn.devName,
+            devId: turn.devId,
+            currentTask: turn.currentTask,
+            currentTaskComment: turn.currentTaskComment,
+            nextTask: turn.nextTask,
+            nextTaskComment: turn.nextTaskComment,
+            hasImpediment: turn.hasImpediment,
+            impedimentIssue: turn.impedimentIssue,
+            impedimentComment: turn.impedimentComment,
+            summary: turn.summary,
+            issuesData: turn.issues,
+            registered: true,
+          },
+        });
+      } catch (err) {
+        console.warn('[Daily] Could not persist turn:', err);
+      }
+    }
+  }, [devTurns, currentMeetingId, saveTurnMutation]);
 
   // ── Select a dev from the list ──
   const handleSelectDev = useCallback((devIndex: number) => {
@@ -369,6 +414,7 @@ export default function Daily() {
     setDailyMode('concluded');
     setIsGeneratingReport(true);
 
+    let reportText: string | null = null;
     try {
       const result = await generateReportMutation.mutateAsync({
         devTurns: devTurns.filter(d => d.registered),
@@ -376,14 +422,31 @@ export default function Daily() {
         criticalIssues: dailyData?.criticalIssues ?? [],
         issues: dailyData?.issues ?? [],
       });
-      setAiReport(typeof result?.report === 'string' ? result.report : null);
+      reportText = typeof result?.report === 'string' ? result.report : null;
+      setAiReport(reportText);
     } catch (err) {
       console.error('Error generating report:', err);
-      setAiReport('Não foi possível gerar o resumo automático.');
+      reportText = 'Não foi possível gerar o resumo automático.';
+      setAiReport(reportText);
     } finally {
       setIsGeneratingReport(false);
     }
-  }, [devTurns, dailyData, generateReportMutation]);
+
+    // Persist meeting conclusion to DB
+    if (currentMeetingId) {
+      try {
+        await concludeMeetingMutation.mutateAsync({
+          meetingId: currentMeetingId,
+          durationSeconds: timerSeconds,
+          registeredDevs: devTurns.filter(d => d.registered).length,
+          silentDevs: silent,
+          aiReport: reportText ?? undefined,
+        });
+      } catch (err) {
+        console.warn('[Daily] Could not persist meeting conclusion:', err);
+      }
+    }
+  }, [devTurns, dailyData, generateReportMutation, currentMeetingId, timerSeconds, concludeMeetingMutation]);
 
   // ── Date navigation ──
   const handleDateChange = (days: number) => {
@@ -482,6 +545,10 @@ export default function Daily() {
             <div className="flex gap-2">
               {dailyMode === 'view' && (
                 <>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/daily-history')}>
+                    <HistoryIcon className="w-4 h-4 mr-2" />
+                    Histórico
+                  </Button>
                   <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
                     <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                     Atualizar

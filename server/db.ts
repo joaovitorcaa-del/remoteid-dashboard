@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, InsertRetroAction, retroActions, RetroAction, InsertQualityMetric, qualityMetrics, QualityMetric, InsertBlockingPattern, blockingPatterns, BlockingPattern, InsertDailySnapshot, dailySnapshots, DailySnapshot, InsertActivityLogEntry, activityLog, ActivityLogEntry, InsertImpediment, impediments, Impediment } from "../drizzle/schema";
+import { InsertUser, users, InsertRetroAction, retroActions, RetroAction, InsertQualityMetric, qualityMetrics, QualityMetric, InsertBlockingPattern, blockingPatterns, BlockingPattern, InsertDailySnapshot, dailySnapshots, DailySnapshot, InsertActivityLogEntry, activityLog, ActivityLogEntry, InsertImpediment, impediments, Impediment, dailyMeetings, DailyMeeting, InsertDailyMeeting, dailyDevTurns, DailyDevTurn, InsertDailyDevTurn } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -371,4 +371,66 @@ export async function updateBlockingPattern(id: number, updates: Partial<InsertB
   
   const updated = await db.select().from(blockingPatterns).where(eq(blockingPatterns.id, id)).limit(1);
   return updated.length > 0 ? updated[0] : undefined;
+}
+
+// ─── Daily Meetings ────────────────────────────────────────────────────────────
+
+export async function createDailyMeeting(data: InsertDailyMeeting): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  const [result] = await db.insert(dailyMeetings).values(data);
+  return Number((result as any).insertId);
+}
+
+export async function updateDailyMeeting(id: number, updates: Partial<InsertDailyMeeting>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  await db.update(dailyMeetings).set(updates).where(eq(dailyMeetings.id, id));
+}
+
+export async function getDailyMeetingById(id: number): Promise<DailyMeeting | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(dailyMeetings).where(eq(dailyMeetings.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function listDailyMeetings(limit = 20, offset = 0): Promise<DailyMeeting[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const { desc } = await import('drizzle-orm');
+  return db.select().from(dailyMeetings)
+    .orderBy(desc(dailyMeetings.meetingDate), desc(dailyMeetings.createdAt))
+    .limit(limit).offset(offset);
+}
+
+// ─── Daily Dev Turns ───────────────────────────────────────────────────────────
+
+export async function upsertDailyDevTurn(meetingId: number, devName: string, data: Partial<InsertDailyDevTurn>): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+
+  const existing = await db.select().from(dailyDevTurns)
+    .where(eq(dailyDevTurns.meetingId, meetingId))
+    .limit(100);
+
+  const found = existing.find(t => t.devName === devName);
+
+  if (found) {
+    await db.update(dailyDevTurns).set(data).where(eq(dailyDevTurns.id, found.id));
+    return found.id;
+  } else {
+    const [result] = await db.insert(dailyDevTurns).values({
+      meetingId,
+      devName,
+      ...data,
+    } as InsertDailyDevTurn);
+    return Number((result as any).insertId);
+  }
+}
+
+export async function getDailyDevTurnsByMeetingId(meetingId: number): Promise<DailyDevTurn[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dailyDevTurns).where(eq(dailyDevTurns.meetingId, meetingId));
 }

@@ -220,6 +220,49 @@ export const analysisSyncLog = mysqlTable("analysisSyncLog", {
 export type AnalysisSyncLog = typeof analysisSyncLog.$inferSelect;
 export type InsertAnalysisSyncLog = typeof analysisSyncLog.$inferInsert;
 
+// Daily Meetings - registro de cada reunião diária
+export const dailyMeetings = mysqlTable("dailyMeetings", {
+  id: int("id").autoincrement().primaryKey(),
+  meetingDate: date("meetingDate").notNull(),
+  jqlUsed: text("jqlUsed"),
+  durationSeconds: int("durationSeconds").default(0).notNull(),
+  totalDevs: int("totalDevs").default(0).notNull(),
+  registeredDevs: int("registeredDevs").default(0).notNull(),
+  silentDevs: json("silentDevs").$type<string[]>().default([]),
+  aiReport: text("aiReport"),
+  metricsSnapshot: json("metricsSnapshot").$type<any>(),
+  status: mysqlEnum("status", ["in_progress", "concluded"]).default("in_progress").notNull(),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DailyMeeting = typeof dailyMeetings.$inferSelect;
+export type InsertDailyMeeting = typeof dailyMeetings.$inferInsert;
+
+// Daily Dev Turns - turnos individuais de cada desenvolvedor
+export const dailyDevTurns = mysqlTable("dailyDevTurns", {
+  id: int("id").autoincrement().primaryKey(),
+  meetingId: int("meetingId").notNull(),
+  devName: varchar("devName", { length: 255 }).notNull(),
+  devId: varchar("devId", { length: 255 }),
+  currentTask: text("currentTask"),
+  currentTaskComment: text("currentTaskComment"),
+  nextTask: text("nextTask"),
+  nextTaskComment: text("nextTaskComment"),
+  hasImpediment: int("hasImpediment").default(0).notNull(), // 0 = false, 1 = true
+  impedimentIssue: varchar("impedimentIssue", { length: 255 }),
+  impedimentComment: text("impedimentComment"),
+  summary: text("summary"),
+  issuesData: json("issuesData").$type<Array<{ key: string; title: string; status: string; lastUpdate: string }>>(),
+  registered: int("registered").default(0).notNull(), // 0 = false, 1 = true
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DailyDevTurn = typeof dailyDevTurns.$inferSelect;
+export type InsertDailyDevTurn = typeof dailyDevTurns.$inferInsert;
+
 // Shared Links - links públicos para compartilhar snapshots
 export const sharedLinks = mysqlTable("sharedLinks", {
   id: varchar("id", { length: 36 }).primaryKey(),
