@@ -23,13 +23,13 @@ async function fetchAllJiraIssuesPaginated(jql: string): Promise<any[]> {
 
   // Campos expandidos para capturar máximo de dados
   // customfield_10004 = Story Points (confirmado via /rest/api/3/field)
-  // customfield_10020 = Sprint
+  // customfield_10007 = Sprint (confirmado via /rest/api/3/field - não customfield_10020)
   const fields = [
     'summary', 'status', 'assignee', 'reporter', 'created', 'updated',
     'priority', 'issuetype', 'project', 'labels', 'components',
     'resolution', 'resolutiondate', 'statuscategorychangedate',
     'customfield_10004', // Story Points (confirmado)
-    'customfield_10020', // Sprint
+    'customfield_10007', // Sprint (confirmado - não customfield_10020)
   ].join(',');
 
   console.log(`[Analysis Sync] Iniciando busca paginada com JQL: ${jql}`);
@@ -89,9 +89,10 @@ function extractStoryPoints(fields: any): number {
 
 /**
  * Extrai informações de sprint de uma issue
+ * Campo correto: customfield_10007 (não customfield_10020)
  */
 function extractSprint(fields: any): { name: string; state: string } | null {
-  const sprints = fields.customfield_10020;
+  const sprints = fields.customfield_10007;
   if (!sprints || !Array.isArray(sprints) || sprints.length === 0) return null;
   const latest = sprints[sprints.length - 1];
   return {
