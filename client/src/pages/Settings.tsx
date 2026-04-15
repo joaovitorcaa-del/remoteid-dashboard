@@ -8,13 +8,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFilter } from '@/contexts/FilterContext';
 import { trpc } from '@/lib/trpc';
-import { ArrowLeft, Plus, Trash2, Save, Eye } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Eye, Edit2, Star } from 'lucide-react';
 
 interface JqlFilter {
   id: number;
   nome: string;
   jql: string;
   descricao?: string;
+  isDefault?: boolean;
 }
 
 export default function Settings() {
@@ -35,7 +36,8 @@ export default function Settings() {
     const saved = localStorage.getItem('jqlFilters');
     if (saved) {
       try {
-        setSavedFilters(JSON.parse(saved));
+        const filters = JSON.parse(saved);
+        setSavedFilters(filters);
       } catch (e) {
         console.error('Erro ao carregar filtros:', e);
       }
@@ -58,8 +60,6 @@ export default function Settings() {
     setPreviewError(null);
 
     try {
-      // Aqui você pode chamar um endpoint tRPC para buscar dados com o JQL
-      // Por enquanto, vou usar um fetch direto
       const response = await fetch('/api/trpc/dashboard.getIssuesByJql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,19 +89,18 @@ export default function Settings() {
     let newFilters: JqlFilter[];
 
     if (editingId !== null) {
-      // Editar filtro existente
       newFilters = savedFilters.map(f =>
         f.id === editingId
           ? { ...f, jql: jqlInput, nome: nomeInput, descricao: descricaoInput }
           : f
       );
     } else {
-      // Criar novo filtro
       const newFilter: JqlFilter = {
         id: Date.now(),
         nome: nomeInput,
         jql: jqlInput,
         descricao: descricaoInput,
+        isDefault: false,
       };
       newFilters = [...savedFilters, newFilter];
     }
@@ -109,7 +108,6 @@ export default function Settings() {
     saveFiltersToStorage(newFilters);
     setAllJqlFilters(newFilters);
     
-    // Limpar formulário
     setJqlInput('');
     setNomeInput('');
     setDescricaoInput('');
@@ -122,6 +120,11 @@ export default function Settings() {
   };
 
   const handleDeleteFilter = (id: number) => {
+    // Não permitir deletar Sprint Ativa
+    if (id === 0) {
+      alert('Não é possível deletar o filtro padrão "Sprint Ativa"');
+      return;
+    }
     const newFilters = savedFilters.filter(f => f.id !== id);
     saveFiltersToStorage(newFilters);
     setAllJqlFilters(newFilters);
@@ -141,6 +144,15 @@ export default function Settings() {
     setEditingId(null);
   };
 
+  const handleSetAsDefault = (filter: JqlFilter) => {
+    const newFilters = savedFilters.map(f => ({
+      ...f,
+      isDefault: f.id === filter.id
+    }));
+    saveFiltersToStorage(newFilters);
+    setAllJqlFilters(newFilters);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -155,9 +167,9 @@ export default function Settings() {
               Voltar
             </button>
             <div>
-              <h1 className="text-3xl font-display text-foreground">Configuração de Filtros JQL</h1>
+              <h1 className="text-3xl font-display text-foreground">Gerenciador de Filtros JQL</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Gerencie seus filtros JQL personalizados
+                Crie e gerencie filtros JQL personalizados para o dashboard
               </p>
             </div>
           </div>
@@ -165,54 +177,57 @@ export default function Settings() {
       </header>
 
       <main className="container py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Formulário de Criação/Edição */}
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          {/* Editor JQL - Coluna Esquerda (3 colunas) */}
+          <div className="lg:col-span-3">
             <Card>
               <CardHeader>
-                <CardTitle>{editingId ? 'Editar Filtro' : 'Novo Filtro JQL'}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  {editingId ? 'Editar Filtro' : 'Novo Filtro JQL'}
+                </CardTitle>
                 <CardDescription>
-                  {editingId ? 'Atualize os dados do filtro' : 'Crie um novo filtro personalizado'}
+                  {editingId ? 'Atualize os dados do filtro' : 'Crie um novo filtro personalizado para o dashboard'}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 {/* Nome do Filtro */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Nome do Filtro</label>
+                  <label className="block text-sm font-semibold mb-2">Nome do Filtro</label>
                   <Input
-                    placeholder="Ex: Sprint Ativa, Meus Bugs, etc"
+                    placeholder="Ex: Sprint Ativa, Meus Bugs, Issues em QA"
                     value={nomeInput}
                     onChange={(e) => setNomeInput(e.target.value)}
+                    className="font-medium"
                   />
                 </div>
 
                 {/* Descrição */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Descrição (opcional)</label>
+                  <label className="block text-sm font-semibold mb-2">Descrição (opcional)</label>
                   <Input
-                    placeholder="Descrição do filtro"
+                    placeholder="Descrição breve do filtro"
                     value={descricaoInput}
                     onChange={(e) => setDescricaoInput(e.target.value)}
                   />
                 </div>
 
-                {/* JQL */}
+                {/* JQL Editor */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">JQL Query</label>
+                  <label className="block text-sm font-semibold mb-2">JQL Query</label>
                   <Textarea
-                    placeholder="Ex: sprint in openSprints() AND project = REMOTEID"
+                    placeholder="Ex: sprint in openSprints() AND project = REMOTEID AND status != Done"
                     value={jqlInput}
                     onChange={(e) => setJqlInput(e.target.value)}
-                    rows={6}
-                    className="font-mono text-sm"
+                    rows={8}
+                    className="font-mono text-sm bg-muted/50 border-border"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    Digite sua query JQL. Você pode usar qualquer sintaxe válida do Jira.
+                    💡 Digite sua query JQL. Você pode usar qualquer sintaxe válida do Jira.
                   </p>
                 </div>
 
                 {/* Botões de Ação */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 pt-4 border-t border-border">
                   <Button
                     onClick={handlePreview}
                     variant="outline"
@@ -220,7 +235,7 @@ export default function Settings() {
                     className="flex items-center gap-2"
                   >
                     <Eye className="w-4 h-4" />
-                    {previewLoading ? 'Buscando...' : 'Preview'}
+                    {previewLoading ? 'Buscando...' : 'Testar JQL'}
                   </Button>
                   <Button
                     onClick={handleSaveFilter}
@@ -242,8 +257,8 @@ export default function Settings() {
 
                 {/* Preview Error */}
                 {previewError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                    {previewError}
+                  <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+                    ⚠️ {previewError}
                   </div>
                 )}
               </CardContent>
@@ -253,7 +268,7 @@ export default function Settings() {
             {previewData.length > 0 && (
               <Card className="mt-6">
                 <CardHeader>
-                  <CardTitle>Preview dos Resultados</CardTitle>
+                  <CardTitle className="text-lg">Preview dos Resultados</CardTitle>
                   <CardDescription>
                     {previewData.length} issue(s) encontrada(s)
                   </CardDescription>
@@ -266,23 +281,29 @@ export default function Settings() {
                           <TableHead>Chave</TableHead>
                           <TableHead>Resumo</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Assignee</TableHead>
+                          <TableHead>Responsável</TableHead>
+                          <TableHead>Sprint</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {previewData.slice(0, 10).map((issue: any) => (
                           <TableRow key={issue.chave}>
-                            <TableCell className="font-mono text-sm">{issue.chave}</TableCell>
+                            <TableCell className="font-mono text-sm font-semibold">{issue.chave}</TableCell>
                             <TableCell className="text-sm">{issue.resumo}</TableCell>
-                            <TableCell className="text-sm">{issue.status}</TableCell>
+                            <TableCell className="text-sm">
+                              <span className="px-2 py-1 bg-muted rounded text-xs font-medium">
+                                {issue.status}
+                              </span>
+                            </TableCell>
                             <TableCell className="text-sm">{issue.responsavel || '-'}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{issue.sprint || '-'}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
                   {previewData.length > 10 && (
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-xs text-muted-foreground mt-3">
                       Mostrando 10 de {previewData.length} resultados
                     </p>
                   )}
@@ -291,95 +312,111 @@ export default function Settings() {
             )}
           </div>
 
-          {/* Filtros Salvos */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Filtros Salvos</CardTitle>
-                <CardDescription>
-                  {savedFilters.length} filtro(s) salvo(s)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {savedFilters.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhum filtro salvo ainda</p>
-                ) : (
-                  <div className="space-y-2">
-                    {savedFilters.map((filter) => (
-                      <div
-                        key={filter.id}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          activeJqlFilter?.id === filter.id
-                            ? 'bg-primary/10 border-primary'
-                            : 'bg-muted/50 border-border hover:bg-muted'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div
-                            className="flex-1 min-w-0"
-                            onClick={() => handleSelectFilter(filter)}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={activeJqlFilter?.id === filter.id}
-                                onCheckedChange={() => handleSelectFilter(filter)}
-                              />
-                              <p className="font-medium text-sm truncate">{filter.nome}</p>
-                            </div>
-                            {filter.descricao && (
-                              <p className="text-xs text-muted-foreground mt-1 truncate">
-                                {filter.descricao}
-                              </p>
-                            )}
-                            <p className="text-xs text-muted-foreground mt-1 font-mono truncate">
-                              {filter.jql}
-                            </p>
-                          </div>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => handleEditFilter(filter)}
-                              className="p-1 hover:bg-muted rounded transition-colors"
-                              title="Editar"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteFilter(filter.id)}
-                              className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
-                              title="Deletar"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
+          {/* Filtros Salvos - Coluna Direita (2 colunas) */}
+          <div className="lg:col-span-2 space-y-6">
             {/* Filtro Ativo */}
-            <Card className="mt-6">
+            <Card className="border-primary/50 bg-primary/5">
               <CardHeader>
-                <CardTitle>Filtro Ativo</CardTitle>
+                <CardTitle className="text-base">Filtro Ativo</CardTitle>
               </CardHeader>
               <CardContent>
                 {activeJqlFilter ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-muted-foreground">Nome</p>
-                      <p className="font-medium">{activeJqlFilter.nome}</p>
+                      <p className="text-xs text-muted-foreground font-semibold">Nome</p>
+                      <p className="font-semibold text-foreground">{activeJqlFilter.nome}</p>
                     </div>
+                    {activeJqlFilter.descricao && (
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Descrição</p>
+                        <p className="text-sm text-foreground">{activeJqlFilter.descricao}</p>
+                      </div>
+                    )}
                     <div>
-                      <p className="text-xs text-muted-foreground">JQL</p>
-                      <p className="text-xs font-mono bg-muted p-2 rounded break-words">
+                      <p className="text-xs text-muted-foreground font-semibold">JQL</p>
+                      <p className="text-xs font-mono bg-background p-3 rounded border border-border break-words">
                         {activeJqlFilter.jql}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">Nenhum filtro ativo</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Lista de Filtros Salvos */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Filtros Salvos</CardTitle>
+                <CardDescription>
+                  {savedFilters.length} filtro(s)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+                {savedFilters.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">Nenhum filtro salvo ainda</p>
+                ) : (
+                  savedFilters.map((filter) => (
+                    <div
+                      key={filter.id}
+                      className={`p-3 border rounded-lg transition-all cursor-pointer ${
+                        activeJqlFilter?.id === filter.id
+                          ? 'bg-primary/10 border-primary shadow-sm'
+                          : 'bg-muted/30 border-border hover:bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div
+                          className="flex-1 min-w-0"
+                          onClick={() => handleSelectFilter(filter)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={activeJqlFilter?.id === filter.id}
+                              onCheckedChange={() => handleSelectFilter(filter)}
+                            />
+                            <p className="font-medium text-sm truncate">{filter.nome}</p>
+                            {filter.isDefault && (
+                              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+                                Padrão
+                              </span>
+                            )}
+                          </div>
+                          {filter.descricao && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
+                              {filter.descricao}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleSetAsDefault(filter)}
+                            className="p-1.5 hover:bg-amber-100 text-amber-600 rounded transition-colors"
+                            title="Marcar como padrão"
+                          >
+                            <Star className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEditFilter(filter)}
+                            className="p-1.5 hover:bg-blue-100 text-blue-600 rounded transition-colors"
+                            title="Editar"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          {filter.id !== 0 && (
+                            <button
+                              onClick={() => handleDeleteFilter(filter.id)}
+                              className="p-1.5 hover:bg-red-100 text-red-600 rounded transition-colors"
+                              title="Deletar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
                 )}
               </CardContent>
             </Card>

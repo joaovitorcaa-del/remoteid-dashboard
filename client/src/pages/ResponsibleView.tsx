@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ScatterChart, Scatter,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, RefreshCw, Filter } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ArrowLeft, RefreshCw, Filter, TrendingUp, Users, CheckCircle2, Clock } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -22,9 +22,8 @@ interface DeveloperMetrics {
   inProgressTasks: number;
   totalStoryPoints: number;
   completionRate: number;
-  tasksByType: Record<string, number>;
   tasksByStatus: Record<string, number>;
-  tasksBySprint: Record<string, number>;
+  tasksByType: Record<string, number>;
 }
 
 interface ResponsibleViewData {
@@ -37,6 +36,8 @@ interface ResponsibleViewData {
   };
   lastUpdated: string;
 }
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 export default function ResponsibleView() {
   const [, navigate] = useLocation();
@@ -51,9 +52,8 @@ export default function ResponsibleView() {
 
   // Construir JQL baseado nos filtros
   const buildJql = (): string => {
-    let jql = 'project = REM AND created >= 2025-07-01';
+    let jql = 'project = REMOTEID AND created >= 2025-07-01';
 
-    // Adicionar filtro de período
     if (periodType === 'month') {
       const start = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
       const end = format(endOfMonth(selectedMonth), 'yyyy-MM-dd');
@@ -64,7 +64,6 @@ export default function ResponsibleView() {
       jql += ` AND updated >= ${start} AND updated <= ${end}`;
     }
 
-    // Adicionar filtro de responsáveis
     if (selectedDevelopers.length > 0) {
       const assignees = selectedDevelopers.map(dev => `"${dev}"`).join(', ');
       jql += ` AND assignee IN (${assignees})`;
@@ -80,10 +79,8 @@ export default function ResponsibleView() {
 
     try {
       const jql = buildJql();
-      console.log('JQL:', jql);
-
-      // Aqui você pode chamar um endpoint tRPC para buscar dados
-      // Por enquanto, vou usar dados mockados
+      
+      // Dados mockados para demonstração (em produção, chamar endpoint tRPC)
       const mockData: ResponsibleViewData = {
         developers: [
           {
@@ -93,9 +90,8 @@ export default function ResponsibleView() {
             inProgressTasks: 3,
             totalStoryPoints: 34,
             completionRate: 66.7,
-            tasksByType: { Bug: 2, Feature: 7, Task: 3 },
             tasksByStatus: { 'Done': 8, 'In Progress': 3, 'To Do': 1 },
-            tasksBySprint: { 'Sprint 1': 5, 'Sprint 2': 7 },
+            tasksByType: { 'Bug': 2, 'Feature': 7, 'Task': 3 },
           },
           {
             name: 'Maria Santos',
@@ -104,9 +100,8 @@ export default function ResponsibleView() {
             inProgressTasks: 4,
             totalStoryPoints: 42,
             completionRate: 66.7,
-            tasksByType: { Bug: 3, Feature: 9, Task: 3 },
             tasksByStatus: { 'Done': 10, 'In Progress': 4, 'To Do': 1 },
-            tasksBySprint: { 'Sprint 1': 8, 'Sprint 2': 7 },
+            tasksByType: { 'Bug': 3, 'Feature': 9, 'Task': 3 },
           },
           {
             name: 'Pedro Oliveira',
@@ -115,9 +110,8 @@ export default function ResponsibleView() {
             inProgressTasks: 2,
             totalStoryPoints: 28,
             completionRate: 70,
-            tasksByType: { Bug: 1, Feature: 6, Task: 3 },
             tasksByStatus: { 'Done': 7, 'In Progress': 2, 'To Do': 1 },
-            tasksBySprint: { 'Sprint 1': 5, 'Sprint 2': 5 },
+            tasksByType: { 'Bug': 1, 'Feature': 6, 'Task': 3 },
           },
         ],
         summary: {
@@ -181,14 +175,31 @@ export default function ResponsibleView() {
     selectedDevelopers.length === 0 || selectedDevelopers.includes(d.name)
   ) || [];
 
+  // Dados para gráfico de comparação
   const developerComparison = filteredDevelopers.map(dev => ({
     name: dev.name.split(' ')[0],
     tarefas: dev.totalTasks,
     concluidas: dev.completedTasks,
     pontos: dev.totalStoryPoints,
+    taxa: Math.round(dev.completionRate),
   }));
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+  // Dados para gráfico de status
+  const statusData = filteredDevelopers.map(dev => ({
+    name: dev.name.split(' ')[0],
+    Done: dev.tasksByStatus['Done'] || 0,
+    'In Progress': dev.tasksByStatus['In Progress'] || 0,
+    'To Do': dev.tasksByStatus['To Do'] || 0,
+  }));
+
+  // Dados para gráfico de tipo
+  const typeDistribution = filteredDevelopers.flatMap(dev =>
+    Object.entries(dev.tasksByType || {}).map(([type, count]) => ({
+      name: type,
+      value: count,
+      developer: dev.name.split(' ')[0],
+    }))
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -205,9 +216,9 @@ export default function ResponsibleView() {
                 Voltar
               </button>
               <div>
-                <h1 className="text-3xl font-display text-foreground">Visão por Responsável</h1>
+                <h1 className="text-3xl font-display text-foreground">Análise por Responsável</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Análise de distribuição de tarefas por desenvolvedor
+                  Distribuição de tarefas e performance de cada colaborador
                 </p>
               </div>
             </div>
@@ -217,203 +228,220 @@ export default function ResponsibleView() {
               className="gap-2"
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Sincronizando...' : 'Sincronizar'}
+              {isRefreshing ? 'Sincronizando...' : 'Atualizar'}
             </Button>
           </div>
         </div>
       </header>
 
       <main className="container py-8">
-        {/* Filtros */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Período */}
-            <div>
-              <label className="block text-sm font-medium mb-3">Tipo de Período</label>
-              <div className="flex gap-2">
-                {(['week', 'month', 'sprint'] as const).map(type => (
-                  <Button
-                    key={type}
-                    variant={periodType === type ? 'default' : 'outline'}
-                    onClick={() => setPeriodType(type)}
-                    className="capitalize"
-                  >
-                    {type === 'week' ? 'Semana' : type === 'month' ? 'Mês' : 'Sprint'}
+        {/* Filtros Compactos */}
+        <Card className="mb-8 bg-muted/30">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Período */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">Período</label>
+                <div className="flex gap-2">
+                  {(['week', 'month', 'sprint'] as const).map(type => (
+                    <Button
+                      key={type}
+                      size="sm"
+                      variant={periodType === type ? 'default' : 'outline'}
+                      onClick={() => setPeriodType(type)}
+                      className="capitalize text-xs"
+                    >
+                      {type === 'week' ? 'Semana' : type === 'month' ? 'Mês' : 'Sprint'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Navegação de Período */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">
+                  {periodType === 'week' ? 'Semana' : 'Mês'}
+                </label>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={handlePreviousPeriod}>
+                    ←
                   </Button>
-                ))}
+                  <span className="text-sm font-medium min-w-[150px] text-center">
+                    {periodType === 'week'
+                      ? `${format(startOfWeek(selectedMonth), 'dd/MM', { locale: ptBR })} - ${format(endOfWeek(selectedMonth), 'dd/MM', { locale: ptBR })}`
+                      : format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
+                  </span>
+                  <Button size="sm" variant="outline" onClick={handleNextPeriod}>
+                    →
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            {/* Seletor de Mês */}
-            <div>
-              <label className="block text-sm font-medium mb-3">
-                {periodType === 'week' ? 'Semana' : 'Mês'}
-              </label>
-              <div className="flex items-center gap-4">
-                <Button variant="outline" onClick={handlePreviousPeriod}>
-                  ← Anterior
-                </Button>
-                <span className="text-sm font-medium min-w-[200px] text-center">
-                  {periodType === 'week'
-                    ? `${format(startOfWeek(selectedMonth), 'dd/MM', { locale: ptBR })} - ${format(endOfWeek(selectedMonth), 'dd/MM', { locale: ptBR })}`
-                    : format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
-                </span>
-                <Button variant="outline" onClick={handleNextPeriod}>
-                  Próximo →
-                </Button>
-              </div>
-            </div>
-
-            {/* Seleção de Responsáveis */}
-            <div>
-              <label className="block text-sm font-medium mb-3">Responsáveis</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {allDevelopers.map(dev => (
-                  <div key={dev} className="flex items-center gap-2">
-                    <Checkbox
-                      checked={selectedDevelopers.includes(dev)}
-                      onCheckedChange={() => toggleDeveloper(dev)}
-                    />
-                    <label className="text-sm cursor-pointer">{dev}</label>
-                  </div>
-                ))}
+              {/* Responsáveis */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">Responsáveis</label>
+                <div className="flex flex-wrap gap-2">
+                  {allDevelopers.map(dev => (
+                    <Button
+                      key={dev}
+                      size="sm"
+                      variant={selectedDevelopers.includes(dev) ? 'default' : 'outline'}
+                      onClick={() => toggleDeveloper(dev)}
+                      className="text-xs"
+                    >
+                      {dev.split(' ')[0]}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* KPIs */}
+        {/* KPIs Resumo */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total de Tarefas</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Colaboradores
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">
-                {filteredDevelopers.reduce((sum, d) => sum + d.totalTasks, 0)}
-              </div>
+              <div className="text-3xl font-bold">{data?.summary.totalDevelopers || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Selecionados: {selectedDevelopers.length || 'Todos'}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Concluídas</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                Taxa Média
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">
-                {filteredDevelopers.reduce((sum, d) => sum + d.completedTasks, 0)}
-              </div>
+              <div className="text-3xl font-bold">{Math.round(data?.summary.averageCompletionRate || 0)}%</div>
+              <p className="text-xs text-muted-foreground mt-1">Conclusão</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Conclusão</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Total de Tarefas
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-emerald-600">
-                {filteredDevelopers.length > 0
-                  ? (filteredDevelopers.reduce((sum, d) => sum + d.completionRate, 0) / filteredDevelopers.length).toFixed(1)
-                  : 0}%
-              </div>
+              <div className="text-3xl font-bold">{data?.summary.totalTasks || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Período selecionado</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Story Points</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Story Points
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-600">
-                {filteredDevelopers.reduce((sum, d) => sum + d.totalStoryPoints, 0)}
-              </div>
+              <div className="text-3xl font-bold">{data?.summary.totalStoryPoints || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Total</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Gráficos */}
-        <Tabs defaultValue="comparacao" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-muted">
-            <TabsTrigger value="comparacao">Comparação</TabsTrigger>
-            <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
-            <TabsTrigger value="detalhes">Detalhes</TabsTrigger>
+        {/* Visualizações */}
+        <Tabs defaultValue="comparison" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="comparison">Comparação</TabsTrigger>
+            <TabsTrigger value="status">Por Status</TabsTrigger>
+            <TabsTrigger value="types">Por Tipo</TabsTrigger>
+            <TabsTrigger value="details">Detalhes</TabsTrigger>
           </TabsList>
 
-          {/* Comparação */}
-          <TabsContent value="comparacao" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tarefas por Desenvolvedor</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={developerComparison}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="tarefas" fill="#3b82f6" />
-                      <Bar dataKey="concluidas" fill="#10b981" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Story Points</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={developerComparison}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="pontos" fill="#8b5cf6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
+          {/* Comparação de Colaboradores */}
+          <TabsContent value="comparison">
+            <Card>
+              <CardHeader>
+                <CardTitle>Comparação de Performance</CardTitle>
+                <CardDescription>Tarefas, pontos e taxa de conclusão por colaborador</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={developerComparison}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="tarefas" fill="#3b82f6" name="Tarefas" />
+                    <Bar dataKey="concluidas" fill="#10b981" name="Concluídas" />
+                    <Bar dataKey="pontos" fill="#f59e0b" name="Story Points" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Distribuição */}
-          <TabsContent value="distribuicao" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Distribuição por Status */}
+          <TabsContent value="status">
+            <Card>
+              <CardHeader>
+                <CardTitle>Distribuição por Status</CardTitle>
+                <CardDescription>Tarefas agrupadas por status (Done, In Progress, To Do)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={statusData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="Done" fill="#10b981" stackId="a" />
+                    <Bar dataKey="In Progress" fill="#f59e0b" stackId="a" />
+                    <Bar dataKey="To Do" fill="#ef4444" stackId="a" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Distribuição por Tipo */}
+          <TabsContent value="types">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {filteredDevelopers.map((dev, idx) => (
                 <Card key={dev.name}>
                   <CardHeader>
                     <CardTitle className="text-base">{dev.name}</CardTitle>
-                    <CardDescription>{dev.completionRate.toFixed(1)}% concluído</CardDescription>
+                    <CardDescription>Distribuição por tipo de tarefa</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full"
-                          style={{ width: `${dev.completionRate}%` }}
-                        ></div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Total</p>
-                          <p className="font-bold text-lg">{dev.totalTasks}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Concluídas</p>
-                          <p className="font-bold text-lg text-green-600">{dev.completedTasks}</p>
-                        </div>
-                      </div>
-                    </div>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={Object.entries(dev.tasksByType || {}).map(([type, count]) => ({
+                            name: type,
+                            value: count,
+                          }))}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, value }) => `${name}: ${value}`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {Object.entries(dev.tasksByType || {}).map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </CardContent>
                 </Card>
               ))}
@@ -421,34 +449,45 @@ export default function ResponsibleView() {
           </TabsContent>
 
           {/* Detalhes */}
-          <TabsContent value="detalhes" className="space-y-4">
-            {filteredDevelopers.map(dev => (
-              <Card key={dev.name}>
-                <CardHeader>
-                  <CardTitle>{dev.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total</p>
-                      <p className="text-2xl font-bold">{dev.totalTasks}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Concluídas</p>
-                      <p className="text-2xl font-bold text-green-600">{dev.completedTasks}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Em Progresso</p>
-                      <p className="text-2xl font-bold text-yellow-600">{dev.inProgressTasks}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Story Points</p>
-                      <p className="text-2xl font-bold text-purple-600">{dev.totalStoryPoints}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <TabsContent value="details">
+            <Card>
+              <CardHeader>
+                <CardTitle>Detalhes de Cada Colaborador</CardTitle>
+                <CardDescription>Resumo completo de métricas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Colaborador</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Concluídas</TableHead>
+                        <TableHead className="text-right">Em Progresso</TableHead>
+                        <TableHead className="text-right">Taxa (%)</TableHead>
+                        <TableHead className="text-right">Story Points</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredDevelopers.map(dev => (
+                        <TableRow key={dev.name}>
+                          <TableCell className="font-medium">{dev.name}</TableCell>
+                          <TableCell className="text-right">{dev.totalTasks}</TableCell>
+                          <TableCell className="text-right text-green-600 font-semibold">{dev.completedTasks}</TableCell>
+                          <TableCell className="text-right text-amber-600">{dev.inProgressTasks}</TableCell>
+                          <TableCell className="text-right">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-semibold">
+                              {Math.round(dev.completionRate)}%
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{dev.totalStoryPoints}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>

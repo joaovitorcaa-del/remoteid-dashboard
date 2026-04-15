@@ -1,4 +1,4 @@
-import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles, Target, Users, Code, TestTube, Shield, Calendar } from 'lucide-react';
+import { AlertCircle, TrendingUp, CheckCircle2, Clock, Zap, RefreshCw, Sparkles, Target, Users, Code, TestTube, Shield, Calendar, Settings, BarChart3, Lightbulb, ChevronDown } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 import { useState, useEffect } from 'react';
@@ -61,6 +61,7 @@ export default function Home() {
   const [doneIssues, setDoneIssues] = useState<any[]>([]);
   const [jiraBacklogIssues, setJiraBacklogIssues] = useState<any[]>([]);
   const [backlogLoading, setBacklogLoading] = useState(false);
+  const [showSprintMenu, setShowSprintMenu] = useState(false);
   
   // Aplicar filtro aos dados
   const filteredData = useFilteredData(metrics, statusDistribution, criticalIssues, allIssues || []);
@@ -168,90 +169,116 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container py-6">
-          <div className="flex items-center justify-between">
+        <div className="container py-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-display text-foreground">App Certisign Dashboard</h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Acompanhamento de Riscos e Progresso do Projeto
               </p>
             </div>
-            <div className="flex flex-col items-end gap-3">
+            <div className="flex flex-col items-end gap-2">
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Status do Projeto</p>
+                <p className="text-xs text-muted-foreground mb-1">Status do Projeto</p>
                 <StatusBadge status={metrics.projectHealth} label="Crítico" />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate('/planning')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
-                >
-                  <Calendar className="w-4 h-4" />
-                  Planning
-                </button>
-                <button
-                  onClick={() => setShowAIInsight(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Insight de IA
-                </button>
-                <button
-                  onClick={() => navigate('/settings')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm font-medium"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Configuração
-                </button>
-                <button
-                  onClick={() => navigate('/daily')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 transition-colors text-sm font-medium"
-                >
-                  <Clock className="w-4 h-4" />
-                  Daily
-                </button>
-                <button
-                  onClick={() => navigate('/review')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-medium"
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  Review
-                </button>
-                <button
-                  onClick={() => navigate('/retrospective')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-pink-600 text-white hover:bg-pink-700 transition-colors text-sm font-medium"
-                >
-                  <Target className="w-4 h-4" />
-                  Retrospectiva
-                </button>
-                <button
-                  onClick={() => navigate('/responsible')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-sm font-medium"
-                >
-                  <Users className="w-4 h-4" />
-                  Visão por Responsável
-                </button>
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefreshing || loading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity text-sm font-medium"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
-                  Atualizar Dados
-                </button>
               </div>
               {lastUpdated && (
                 <p className="text-xs text-muted-foreground">
                   Última atualização: {lastUpdated}
                 </p>
               )}
-              {error && (
-                <p className="text-xs text-red-600">
-                  Erro: {error}
-                </p>
-              )}
             </div>
           </div>
+
+          {/* Navegação Premium - Agrupada por Fluxo */}
+          <nav className="flex items-center gap-1 flex-wrap">
+            {/* Sprint Flow */}
+            <div className="relative group">
+              <button
+                onClick={() => setShowSprintMenu(!showSprintMenu)}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors border border-transparent hover:border-border"
+              >
+                <Calendar className="w-4 h-4" />
+                Sprint
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {showSprintMenu && (
+                <div className="absolute left-0 mt-0 w-48 bg-popover border border-border rounded-md shadow-lg z-50">
+                  <button
+                    onClick={() => { navigate('/planning'); setShowSprintMenu(false); }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 border-b border-border"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Planning
+                  </button>
+                  <button
+                    onClick={() => { navigate('/daily'); setShowSprintMenu(false); }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 border-b border-border"
+                  >
+                    <Clock className="w-4 h-4" />
+                    Daily
+                  </button>
+                  <button
+                    onClick={() => { navigate('/review'); setShowSprintMenu(false); }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 border-b border-border"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    Review
+                  </button>
+                  <button
+                    onClick={() => { navigate('/retrospective'); setShowSprintMenu(false); }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                  >
+                    <Target className="w-4 h-4" />
+                    Retrospectiva
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Análise */}
+            <button
+              onClick={() => navigate('/responsible')}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors border border-transparent hover:border-border"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Análise
+            </button>
+
+            {/* Configuração */}
+            <button
+              onClick={() => navigate('/settings')}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors border border-transparent hover:border-border"
+            >
+              <Settings className="w-4 h-4" />
+              Configuração
+            </button>
+
+            {/* Insight de IA */}
+            <button
+              onClick={() => setShowAIInsight(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors border border-transparent hover:border-border"
+            >
+              <Lightbulb className="w-4 h-4" />
+              Insight IA
+            </button>
+
+            {/* Atualizar Dados */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || loading}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50 transition-colors border border-transparent hover:border-border ml-auto"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </button>
+          </nav>
+
+          {error && (
+            <p className="text-xs text-red-600 mt-2">
+              Erro: {error}
+            </p>
+          )}
         </div>
       </header>
 
