@@ -218,6 +218,9 @@ export const dashboardRouter = router({
         console.log("[Dashboard] JQL length:", input.jql.length);
         console.log("[Dashboard] JQL char codes:", Array.from(input.jql).map(c => c.charCodeAt(0)).join(','));
         
+        console.log('[Dashboard] Input JQL recebido:', JSON.stringify(input.jql));
+        console.log('[Dashboard] Comprimento do JQL:', input.jql?.length);
+        
         // Limpar JQL: remover quebras de linha, espaços extras e caracteres especiais
         let cleanJql = input.jql
           .trim()
@@ -226,6 +229,8 @@ export const dashboardRouter = router({
           .replace(/\t/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
+        
+        console.log('[Dashboard] JQL após limpeza:', cleanJql);
         
         // Remover AND/OR duplicados no final
         cleanJql = cleanJql.replace(/\s+(AND|OR)\s*$/i, '');
@@ -240,7 +245,8 @@ export const dashboardRouter = router({
         
         // Buscar issues atualizadas nas últimas 24h
         const jqlWithTime = `${cleanJql} AND updated >= -1d`;
-        console.log("[Dashboard] JQL final:", jqlWithTime);
+        console.log('[Dashboard] JQL final completo:', jqlWithTime);
+        console.log('[Dashboard] Comprimento do JQL final:', jqlWithTime.length);
         
         const jiraIssues = await fetchJiraIssuesByJql(jqlWithTime);
         const issues = convertJiraIssuesToDashboard(jiraIssues);

@@ -395,3 +395,48 @@
 - [x] Refatorar DoneIssuesModal para usar endpoint tRPC com JQL
 - [x] Testar todos os modais com dados do Jira
 - [x] Validar que filtros funcionam corretamente
+
+
+---
+
+# REFATORAÇÃO PROFISSIONAL COMPLETA
+
+## Fase 1: Navegação Premium
+- [ ] Redesenhar barra de navegação com menos botões e melhor organização
+- [ ] Criar menu dropdown para agrupar funcionalidades relacionadas
+- [ ] Implementar breadcrumb ou indicador de página atual
+- [ ] Remover cores excessivas, usar paleta profissional
+
+## Fase 2: Tela de Configuração (Padrão Jira)
+- [ ] Redesenhar Settings.tsx com layout profissional tipo Jira
+- [ ] Implementar editor de JQL com syntax highlighting
+- [ ] Criar preview de resultados em tabela interativa
+- [ ] Implementar CRUD de filtros (criar, editar, deletar, salvar)
+- [ ] Adicionar opção de marcar filtro como padrão
+- [ ] Adicionar validação de JQL em tempo real
+
+## Fase 3: Corrigir Erro de JQL
+- [ ] Debugar e corrigir "Expecting ',' but got 'AND'" na posição 144
+- [ ] Validar todos os JQLs em FilterContext, dashboard.ts, jira-sync.ts
+- [ ] Testar com diferentes JQLs e status
+- [ ] Re-habilitar getActivityByJql com validação robusta
+
+## Fase 4: Visão por Responsável - Refatoração Completa
+- [ ] Redesenhar layout com cards organizados
+- [ ] Implementar múltiplas visualizações (status, story points, sprint, mês, semana)
+- [ ] Criar gráficos por distribuição (não apenas filtros)
+- [ ] Mostrar quantidade de issues por responsável com análise temporal
+- [ ] Integrar dados reais do Jira
+
+## Fase 5: Integração com Dados Reais
+- [ ] Criar endpoints tRPC para buscar dados reais de responsáveis
+- [ ] Integrar ResponsibleView com dados do Jira
+- [ ] Testar com múltiplos responsáveis e períodos
+- [ ] Validar que dados estão sendo buscados corretamente
+
+## Fase 6: Testes e Validação
+- [ ] Testar navegação em todas as páginas
+- [ ] Testar criação e edição de filtros
+- [ ] Testar Visão por Responsável com dados reais
+- [ ] Validar que erro de JQL foi corrigido
+- [ ] Executar testes automatizados

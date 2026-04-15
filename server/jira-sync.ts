@@ -142,11 +142,22 @@ export async function fetchJiraIssuesByJql(jql: string): Promise<JiraIssue[]> {
   }
 
   try {
+    // IMPORTANTE: Remover quebras de linha e espaços extras do JQL
+    // O Jira não aceita quebras de linha no JQL
+    const cleanJql = jql
+      .replace(/\n/g, ' ')
+      .replace(/\r/g, ' ')
+      .replace(/\t/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
     console.log('[Jira] Buscando issues com JQL customizado...');
-    console.log('[Jira] JQL:', jql);
+    console.log('[Jira] JQL original:', jql);
+    console.log('[Jira] JQL limpo:', cleanJql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
-    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,created,updated,priority,customfield_10016`;
+    const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(cleanJql)}&maxResults=500&fields=summary,status,assignee,created,updated,priority,customfield_10016`;
     console.log('[Jira] URL:', url);
+    console.log('[Jira] JQL limpo enviado:', cleanJql);
 
     const response = await fetch(url, {
       method: 'GET',
