@@ -142,14 +142,16 @@ export async function fetchJiraIssuesByJql(jql: string): Promise<JiraIssue[]> {
   }
 
   try {
-    // IMPORTANTE: Remover quebras de linha e espaços extras do JQL
-    // O Jira não aceita quebras de linha no JQL
-    const cleanJql = jql
-      .replace(/\n/g, ' ')
-      .replace(/\r/g, ' ')
-      .replace(/\t/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    // Importar sanitizador de JQL
+    const { sanitizeJql, validateJql } = await import('./jql-sanitizer');
+    
+    // Sanitizar e validar JQL
+    const cleanJql = sanitizeJql(jql);
+    const validation = validateJql(cleanJql);
+    
+    if (!validation.valid) {
+      throw new Error(`JQL inválido: ${validation.error}`);
+    }
     
     console.log('[Jira] Buscando issues com JQL customizado...');
     console.log('[Jira] JQL original:', jql);
@@ -201,7 +203,7 @@ export async function fetchJiraBacklogIssues(): Promise<JiraIssue[]> {
 
   try {
     console.log('[Jira Backlog] Iniciando busca de issues do backlog...');
-    const jql = `SPRINT is EMPTY AND project in ("RemoteID", "DesktopID", "Mobile ID") AND status NOT IN (OPENED, Prioritized, "USER STORY WRITTEN", "USER STORY REFINEMENT", PREPLANNING, DONE, Canceled) AND issuetype NOT IN (EPIC, "Technical Task") ORDER BY priority desc`;
+    const jql = `sprint is empty AND project in ("RemoteID", "DesktopID", "Mobile ID") AND status not in (OPENED, Prioritized, "USER STORY WRITTEN", "USER STORY REFINEMENT", PREPLANNING, DONE, Canceled) AND issuetype not in (EPIC, "Technical Task") order by priority desc`;
     console.log('[Jira Backlog] JQL:', jql);
     const baseUrl = jiraUrl.endsWith('/') ? jiraUrl.slice(0, -1) : jiraUrl;
     const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,created,updated,priority`;

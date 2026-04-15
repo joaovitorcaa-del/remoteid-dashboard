@@ -182,13 +182,11 @@ export const dashboardRouter = router({
       try {
         console.log("[Dashboard] Buscando issues por status com JQL:", input.jql);
         
-        // Limpar JQL
-        const cleanJql = input.jql.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
+        // Importar builders de JQL
+        const { buildStatusJql } = await import('../jql-sanitizer');
         
-        // Construir JQL com filtro de status
-        // Em Jira JQL, status com espaços devem estar entre aspas simples
-        const statusFilter = input.statuses.map(s => `'${s}'`).join(', ');
-        const jqlWithStatus = `${cleanJql} AND status in (${statusFilter})`;
+        // Construir JQL com filtro de status de forma segura
+        const jqlWithStatus = buildStatusJql(input.jql, input.statuses);
         console.log("[Dashboard] JQL com status:", jqlWithStatus);
         
         const jiraIssues = await fetchJiraIssuesByJql(jqlWithStatus);

@@ -12,7 +12,7 @@ export const issuesRouter = router({
       
       // JQL para buscar issues prontas para planejamento
       // Ordenar por key DESC para trazer as mais recentes primeiro
-      const jql = 'project = REMOTEID AND (status = "Ready to Sprint" OR status = "Dev To Do") ORDER BY key DESC';
+      const jql = 'project = REMOTEID AND (status = "Ready to Sprint" or status = "Dev To Do") order by key desc';
       
       console.log('[Issues] Buscando issues Ready to Sprint com JQL:', jql);
       

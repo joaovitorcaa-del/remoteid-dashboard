@@ -12,18 +12,22 @@ export const responsibleRouter = router({
     }))
     .query(async ({ input }) => {
       try {
-        // Construir JQL
+        // Importar builders de JQL
+        const { buildAssigneeJql, buildDateRangeJql, sanitizeJql } = await import('../jql-sanitizer');
+        
+        // Construir JQL de forma segura
         let jql = 'project = REMOTEID AND created >= 2025-07-01';
 
         // Adicionar filtro de período
         if (input.startDate && input.endDate) {
-          jql += ` AND updated >= ${input.startDate} AND updated <= ${input.endDate}`;
+          jql = buildDateRangeJql(jql, input.startDate, input.endDate);
         }
 
         // Adicionar filtro de responsáveis
         if (input.assignees && input.assignees.length > 0) {
-          const assignees = input.assignees.map(a => `"${a}"`).join(', ');
-          jql += ` AND assignee IN (${assignees})`;
+          jql = buildAssigneeJql(jql, input.assignees);
+        } else {
+          jql = sanitizeJql(jql);
         }
 
         // Buscar issues do Jira
@@ -113,7 +117,8 @@ export const responsibleRouter = router({
     .query(async () => {
       try {
         // Buscar todas as issues desde julho de 2025
-        const jql = 'project = REMOTEID AND created >= 2025-07-01 ORDER BY updated DESC';
+        const { sanitizeJql } = await import('../jql-sanitizer');
+        const jql = sanitizeJql('project = REMOTEID AND created >= 2025-07-01 order by updated desc');
         const issues = await fetchJiraIssuesByJql(jql);
 
         // Extrair responsáveis únicos
