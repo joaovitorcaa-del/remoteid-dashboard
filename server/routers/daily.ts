@@ -520,4 +520,74 @@ Bloqueadores: ${input.metrics.blockers.yesterday} → ${input.metrics.blockers.t
         return null;
       }
     }),
+
+  // Generate full daily report with AI analysis
+  generateDailyReport: protectedProcedure
+    .input(z.object({
+      devTurns: z.array(z.object({
+        devName: z.string(),
+        currentTask: z.string().optional(),
+        currentTaskComment: z.string().optional(),
+        nextTask: z.string().optional(),
+        nextTaskComment: z.string().optional(),
+        hasImpediment: z.boolean().optional(),
+        impedimentIssue: z.string().optional(),
+        impedimentComment: z.string().optional(),
+        summary: z.string().optional(),
+      })),
+      metrics: z.any(),
+      criticalIssues: z.any(),
+      issues: z.any(),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        const devsText = input.devTurns.map(d => {
+          let text = `**${d.devName}**\n`;
+          if (d.currentTask) text += `- Task atual: ${d.currentTask}${d.currentTaskComment ? ` (${d.currentTaskComment})` : ''}\n`;
+          if (d.nextTask) text += `- Próxima task: ${d.nextTask}${d.nextTaskComment ? ` (${d.nextTaskComment})` : ''}\n`;
+          if (d.hasImpediment) text += `- ⚠️ IMPEDIMENTO: ${d.impedimentIssue || 'não especificado'}${d.impedimentComment ? ` - ${d.impedimentComment}` : ''}\n`;
+          if (d.summary) text += `- Resumo: ${d.summary}\n`;
+          return text;
+        }).join('\n');
+
+        const metricsText = input.metrics ? `
+Métricas do Sprint:
+- Taxa de Conclusão: ${input.metrics.completionRate?.today ?? 0}% (${input.metrics.completionRate?.delta >= 0 ? '+' : ''}${input.metrics.completionRate?.delta ?? 0}% vs ontem)
+- Issues Atrasadas: ${input.metrics.overdue?.today ?? 0}
+- Bloqueadores: ${input.metrics.blockers?.today ?? 0}` : '';
+
+        const impediments = input.devTurns.filter(d => d.hasImpediment);
+        const impedimentText = impediments.length > 0
+          ? `\nImpedimentos reportados: ${impediments.map(d => `${d.devName}: ${d.impedimentIssue}`).join(', ')}`
+          : '\nNenhum impedimento reportado.';
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `Você é um Scrum Master experiente que gera resumos executivos de daily standups em português brasileiro. 
+Seu resumo deve incluir:
+1. Visão geral do time (2-3 frases)
+2. Pontos de atenção e riscos identificados
+3. Análise preditiva de conclusão da sprint com base nos padrões apresentados
+4. Recomendações acionáveis para o time
+Seja direto, profissional e focado em valor para o negócio.`,
+            },
+            {
+              role: "user",
+              content: `Gere um resumo executivo da daily standup de hoje com base nos seguintes dados:\n\n${devsText}\n${metricsText}\n${impedimentText}`,
+            },
+          ],
+        });
+
+        return {
+          report: response.choices[0].message.content,
+          impedimentsCount: impediments.length,
+          devsWithTurns: input.devTurns.length,
+        };
+      } catch (error) {
+        console.error("Error generating daily report:", error);
+        throw error;
+      }
+    }),
 });

@@ -713,3 +713,19 @@
 - getDailyData recebe JQL e o utiliza para buscar dados
 - 116 testes passando sem regressões
 - Daily usa EXATAMENTE o mesmo JQL que o Dashboard/Sumário Executivo
+
+
+---
+
+# DAILY INTERATIVO - Modo Daily Meeting
+
+- [x] Botão Iniciar Daily com cronômetro no cabeçalho
+- [x] Lista de desenvolvedores para seleção de turno
+- [x] Card de turno: Task atual + Próxima Task + Impedimento + Resumo
+- [x] Botão Registrar Daily por desenvolvedor (read-only após)
+- [x] Botão Concluir Daily com consolidação
+- [x] Resumo executivo via IA com análise preditiva
+- [x] Quadro de atividades das últimas 24h
+- [x] Quadro de itens impedidos consolidado
+- [x] Quadro de itens atrasados (+3 dias no mesmo status)
+- [x] Cards enriquecidos com chaves de issues (hoje e ontem)
