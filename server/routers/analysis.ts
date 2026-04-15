@@ -42,9 +42,22 @@ export const analysisRouter = {
 
         // Sanitizar JQL
         jql = sanitizeJql(jql);
+        
+        // LOG: Expor JQL e resultado
+        console.log('\n=== ANÁLISE DEBUG ===');
+        console.log('JQL ENVIADO:', jql);
 
         // Buscar issues do Jira
         const issues = await fetchJiraIssuesByJql(jql);
+        
+        console.log('TOTAL DE ISSUES RETORNADAS:', issues.length);
+        console.log('PRIMEIRAS 5 ISSUES:', issues.slice(0, 5).map((i: any) => ({
+          key: i.key,
+          type: i.fields.issuetype?.name,
+          storyPoints: i.fields.customfield_10028 || i.fields.customfield_10029,
+          created: i.fields.created
+        })));
+        console.log('=== FIM DEBUG ===\n');
         
         // Usar todas as issues retornadas (sem limite)
         const limitedIssues = issues;
@@ -112,6 +125,70 @@ export const analysisRouter = {
       } catch (error) {
         console.error('Erro ao buscar métricas de produtividade:', error);
         throw new Error(`Erro ao buscar métricas: ${error instanceof Error ? error.message : 'Desconhecido'}`);
+      }
+    }),
+
+  // DEBUG: Expor JQL e resultado
+  debugProductivityQuery: publicProcedure
+    .input(
+      z.object({
+        periodType: z.enum(['sprint', 'month', 'week']).optional(),
+        assignees: z.array(z.string()).optional(),
+        issueTypes: z.array(z.string()).optional(),
+        startDate: z.string().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      try {
+        const { assignees, issueTypes } = input;
+
+        // Usar JQL correto fornecido
+        let jql = 'project IN ("RemoteID", "DesktopID", "Mobile ID")';
+        jql += ' and created >= "2025-07-01"';
+
+        if (assignees && assignees.length > 0) {
+          const assigneeList = assignees.map(a => `"${a}"`).join(', ');
+          jql += ` and assignee in (${assigneeList})`;
+        }
+
+        if (issueTypes && issueTypes.length > 0) {
+          const typeList = issueTypes.map(t => `"${t}"`).join(', ');
+          jql += ` and type in (${typeList})`;
+        }
+
+        jql += ' order by priority desc';
+        jql = sanitizeJql(jql);
+
+        const issues = await fetchJiraIssuesByJql(jql);
+
+        return {
+          jqlEnviado: jql,
+          totalIssues: issues.length,
+          primeiras5Issues: issues.slice(0, 5).map((i: any) => ({
+            key: i.key,
+            summary: i.fields.summary,
+            type: i.fields.issuetype?.name,
+            status: i.fields.status?.name,
+            storyPoints: i.fields.customfield_10028 || i.fields.customfield_10029 || 0,
+            created: i.fields.created,
+            assignee: i.fields.assignee?.displayName || 'Sem atribuição'
+          })),
+          distribuicaoPorTipo: issues.reduce((acc: any, i: any) => {
+            const type = i.fields.issuetype?.name || 'Desconhecido';
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+          }, {}),
+          distribuicaoPorStatus: issues.reduce((acc: any, i: any) => {
+            const status = i.fields.status?.name || 'Desconhecido';
+            acc[status] = (acc[status] || 0) + 1;
+            return acc;
+          }, {}),
+          totalStoryPoints: issues.reduce((sum: number, i: any) => sum + (i.fields.customfield_10028 || i.fields.customfield_10029 || 0), 0)
+        };
+      } catch (error) {
+        return {
+          erro: error instanceof Error ? error.message : 'Erro desconhecido'
+        };
       }
     }),
 
