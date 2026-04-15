@@ -57,7 +57,12 @@ export default function ProductivityOverviewChart() {
 
   // Gerar dados agrupados por período
   const chartData = useMemo(() => {
-    const completedIssues = dataSource.filter((i: any) => doneStatuses.includes(i.status || ''));
+    let completedIssues = dataSource.filter((i: any) => doneStatuses.includes(i.status || ''));
+    
+    // Se agrupando por sprint, filtrar apenas issues com sprint
+    if (periodMode === 'sprint') {
+      completedIssues = completedIssues.filter((i: any) => i.sprintName && i.sprintName.trim() !== '');
+    }
     const periodMap = new Map<string, PeriodData>();
 
     completedIssues.forEach((issue: any) => {
