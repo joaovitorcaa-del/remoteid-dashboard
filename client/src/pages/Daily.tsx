@@ -2,86 +2,127 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { trpc } from '@/lib/trpc';
-import { OverdueCard } from '@/components/OverdueCard';
-import { BlockersCard } from '@/components/BlockersCard';
-import { ActivityCard } from '@/components/ActivityCard';
-import { DailySummaryCard } from '@/components/DailySummaryCard';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Share2, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { format, addDays, subDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function Daily() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
-  // Fetch data from Jira
-  const { data: backlogData } = trpc.jira.getBacklogIssues.useQuery();
-  const { data: recentActivity = [] } = trpc.daily.getRecentActivity.useQuery({ hoursBack: 24 });
-  const { data: blockers = [] } = trpc.daily.getActiveImpediments.useQuery();
+  // Format date for display
+  const formattedDate = format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR });
+  const dateString = format(selectedDate, 'yyyy-MM-dd');
 
-  const allIssues = backlogData?.issues || [];
-
-  // Calculate metrics
-  const overdueIssues = allIssues.filter((issue: any) => {
-    const dataFim = new Date(issue.dataFim);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    dataFim.setHours(0, 0, 0, 0);
-    return dataFim < today && issue.status?.toLowerCase() !== 'done' && issue.status?.toLowerCase() !== 'cancelled';
+  // Fetch daily data
+  const { data: dailyData, isLoading, refetch } = trpc.daily.getDailyData.useQuery({
+    date: dateString,
   });
 
-  const issuesCompletedToday = allIssues.filter((issue: any) => {
-    const updated = new Date(issue.updated || issue.atualizadoEm);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    updated.setHours(0, 0, 0, 0);
-    return updated.getTime() === today.getTime() && issue.status?.toLowerCase() === 'done';
-  }).length;
+  // Fetch snapshot if it exists
+  const { data: snapshot } = trpc.daily.getSnapshot.useQuery({
+    date: dateString,
+  });
 
-  const issuesInProgress = allIssues.filter((issue: any) => {
-    const status = issue.status?.toLowerCase() || '';
-    return status.includes('doing') || status.includes('code') || status.includes('test');
-  }).length;
+  // Load notes from snapshot if available
+  useEffect(() => {
+    if (snapshot?.notes) {
+      setNotes(snapshot.notes);
+    }
+  }, [snapshot]);
 
-  const completionRate24h = allIssues && allIssues.length > 0 
-    ? Math.round((issuesCompletedToday / allIssues.length) * 100)
-    : 0;
+  const handleDateChange = (days: number) => {
+    const newDate = days > 0 ? addDays(selectedDate, days) : subDays(selectedDate, Math.abs(days));
+    setSelectedDate(newDate);
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Refresh queries - will be handled by React Query
+      await refetch();
       setTimeout(() => setIsRefreshing(false), 1000);
-    } finally {
+    } catch (error) {
+      console.error('Error refreshing:', error);
       setIsRefreshing(false);
     }
   };
 
-  const handleGenerateReport = () => {
-    // TODO: Implement PDF generation
-    console.log('Generating daily report...');
-  };
+  const saveSnapshotMutation = trpc.daily.saveSnapshot.useMutation();
+  const createShareLinkMutation = trpc.daily.createSharedLink.useMutation();
 
-  const handleShare = () => {
-    // TODO: Implement share functionality
-    console.log('Sharing daily summary...');
-  };
+  const handleSaveSnapshot = async () => {
+    if (!dailyData) return;
 
-  const handleResolveBlocker = async (id: number) => {
     try {
-      // TODO: Implement resolve blocker mutation
-      console.log('Resolving blocker:', id);
+      await saveSnapshotMutation.mutateAsync({
+        date: dateString,
+        metricsJson: dailyData.metrics,
+        devsData: dailyData.developers,
+        issuesCritical: dailyData.criticalIssues,
+        notes,
+      });
+      setShowSaveSuccess(true);
+      setTimeout(() => setShowSaveSuccess(false), 3000);
     } catch (error) {
-      console.error('Error resolving blocker:', error);
+      console.error('Error saving snapshot:', error);
     }
   };
+
+  const handleShare = async () => {
+    if (!snapshot?.id) {
+      alert('Salve um snapshot primeiro para compartilhar');
+      return;
+    }
+
+    try {
+      const result = await createShareLinkMutation.mutateAsync({
+        snapshotId: snapshot.id,
+      });
+      const url = `${window.location.origin}/d/${result.url}`;
+      navigator.clipboard.writeText(url);
+      alert(`Link copiado para clipboard! Válido por 7 dias.`);
+    } catch (error) {
+      console.error('Error creating share link:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando dados do Daily...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dailyData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Nenhum dado disponível para esta data</p>
+          <Button onClick={() => navigate('/')} className="mt-4">
+            Voltar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const metrics = dailyData.metrics;
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -91,83 +132,227 @@ export default function Daily() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="text-2xl font-bold">Daily</h1>
+                <h1 className="text-2xl font-bold">Daily Dashboard</h1>
                 <p className="text-sm text-muted-foreground">
                   Acompanhamento diário do time
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShare}
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                Compartilhar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveSnapshot}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Salvar Snapshot
+              </Button>
+            </div>
+          </div>
+
+          {/* Date Navigation */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDateChange(-1)}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <div className="text-center min-w-[200px]">
+                <p className="text-sm font-semibold capitalize">{formattedDate}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDateChange(1)}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+            {showSaveSuccess && (
+              <p className="text-sm text-green-600">✓ Snapshot salvo com sucesso</p>
+            )}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-6">
-            {/* Daily Summary */}
-            <DailySummaryCard
-              data={{
-                completionRate24h,
-                issuesCompletedToday,
-                issuesInProgress,
-                blockedCount: blockers.length,
-                overdueCount: overdueIssues.length,
-              }}
-              onGenerateReport={handleGenerateReport}
-              onShare={handleShare}
-            />
+        {/* Comparison Card: Today vs Yesterday */}
+        <div className="bg-gradient-to-br from-white to-amber-50 rounded-lg p-6 mb-6 border">
+          <h2 className="text-lg font-bold mb-6">Comparação: Hoje vs Ontem</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Completion Rate */}
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-muted-foreground tracking-wider">Taxa de Conclusão</p>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl line-through text-gray-400">{metrics.completionRate.yesterday}%</span>
+                <span className="text-sm">→</span>
+                <span className={`text-3xl font-bold ${metrics.completionRate.delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {metrics.completionRate.today}%
+                </span>
+              </div>
+              <p className={`text-sm font-semibold ${metrics.completionRate.delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {metrics.completionRate.delta >= 0 ? '↑' : '↓'} {Math.abs(metrics.completionRate.delta)}% {metrics.completionRate.delta >= 0 ? 'melhor' : 'pior'}
+              </p>
+            </div>
+
+            {/* Changes */}
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-muted-foreground tracking-wider">Mudanças Registradas</p>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl line-through text-gray-400">{metrics.changes.yesterday}</span>
+                <span className="text-sm">→</span>
+                <span className={`text-3xl font-bold ${metrics.changes.delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {metrics.changes.today}
+                </span>
+              </div>
+              <p className={`text-sm font-semibold ${metrics.changes.delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {metrics.changes.delta >= 0 ? '↑' : '↓'} {Math.abs(metrics.changes.delta)} mudanças
+              </p>
+            </div>
 
             {/* Overdue Issues */}
-            <OverdueCard
-              issues={overdueIssues.map((issue: any) => ({
-                chave: issue.chave || issue.key,
-                resumo: issue.resumo || issue.summary,
-                responsavel: issue.responsavel || issue.assignee,
-                dataFim: issue.dataFim,
-                storyPoints: issue.storyPoints || 0,
-                status: issue.status,
-              }))}
-            />
-          </div>
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-muted-foreground tracking-wider">Issues Atrasadas</p>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl line-through text-gray-400">{metrics.overdue.yesterday}</span>
+                <span className="text-sm">→</span>
+                <span className={`text-3xl font-bold ${metrics.overdue.delta <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {metrics.overdue.today}
+                </span>
+              </div>
+              <p className={`text-sm font-semibold ${metrics.overdue.delta <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {metrics.overdue.delta <= 0 ? '↓' : '↑'} {Math.abs(metrics.overdue.delta)} issues
+              </p>
+            </div>
 
-          {/* Right Column */}
-          <div className="space-y-6">
             {/* Blockers */}
-            <BlockersCard
-              blockers={blockers.map((blocker: any) => ({
-                id: blocker.id,
-                issueKey: blocker.issueKey,
-                issueSummary: blocker.issueSummary,
-                blockedSince: blocker.blockedSince,
-                reason: blocker.reason,
-                impactSp: blocker.impactSp,
-              }))}
-              onResolve={handleResolveBlocker}
-            />
-
-            {/* Recent Activity */}
-            <ActivityCard
-              activities={recentActivity.map((activity: any) => ({
-                id: activity.id,
-                issueKey: activity.issueKey,
-                fromStatus: activity.fromStatus,
-                toStatus: activity.toStatus,
-                changedBy: activity.changedBy,
-                changedAt: activity.changedAt,
-              }))}
-            />
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-muted-foreground tracking-wider">Bloqueadores Ativos</p>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl line-through text-gray-400">{metrics.blockers.yesterday}</span>
+                <span className="text-sm">→</span>
+                <span className={`text-3xl font-bold ${metrics.blockers.delta <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {metrics.blockers.today}
+                </span>
+              </div>
+              <p className={`text-sm font-semibold ${metrics.blockers.delta <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {metrics.blockers.delta <= 0 ? '↓' : '↑'} {Math.abs(metrics.blockers.delta)} bloqueadores
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* Critical Issues */}
+        {dailyData.criticalIssues.length > 0 && (
+          <div className="bg-white rounded-lg p-6 mb-6 border">
+            <h2 className="text-lg font-bold mb-4">Issues Críticas</h2>
+            <div className="space-y-3">
+              {dailyData.criticalIssues.slice(0, 3).map((issue) => (
+                <div key={issue.key} className="flex items-center gap-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{issue.key}</p>
+                    <p className="text-sm text-muted-foreground truncate">{issue.title}</p>
+                  </div>
+                  {issue.daysOverdue > 100 && (
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-red-600">{issue.daysOverdue} dias</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {dailyData.criticalIssues.length > 3 && (
+              <p className="text-sm text-blue-600 mt-4 cursor-pointer hover:underline">
+                Ver todas as {dailyData.criticalIssues.length} issues →
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Developer Progress Grid */}
+        <div className="mb-6">
+          <h2 className="text-lg font-bold mb-4">Progresso por Desenvolvedor</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {dailyData.developers.map((dev) => (
+              <div key={dev.id} className="bg-white rounded-lg p-4 border">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold">
+                      {dev.avatar}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{dev.name}</p>
+                      <p className="text-xs text-muted-foreground">{dev.lastActivity}</p>
+                    </div>
+                  </div>
+                  <div className={`w-3 h-3 rounded-full ${
+                    dev.status === 'active' ? 'bg-green-500' :
+                    dev.status === 'inactive' ? 'bg-gray-400' :
+                    'bg-red-500'
+                  }`}></div>
+                </div>
+
+                <p className="text-xs text-muted-foreground mb-3">
+                  Ontem: {dev.summary.yesterday.inProgress} em progresso, {dev.summary.yesterday.done} concluídas • Hoje: {dev.summary.today.inProgress} em progresso, {dev.summary.today.done} concluídas
+                </p>
+
+                <div className="space-y-2">
+                  {dev.issues.map((issue) => (
+                    <div key={issue.key} className="text-xs p-2 bg-gray-50 rounded">
+                      <p className="font-semibold">{issue.key}</p>
+                      <p className="text-muted-foreground truncate">{issue.title}</p>
+                      <p className="text-xs text-gray-500">{issue.lastUpdate}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {dev.status === 'critical' && (
+                  <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                    ⚠️ Sem atividade há 3+ dias. Verificar bloqueio.
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Notes Section */}
+        <div className="bg-white rounded-lg p-6 border">
+          <h2 className="text-lg font-bold mb-4">Anotações e Decisões</h2>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Adicione decisões, acordos do time, bloqueios externos ou contexto que não está no JIRA..."
+            className="w-full h-32 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <Button
+            onClick={handleSaveSnapshot}
+            className="mt-4"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Salvar Anotações
+          </Button>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, date, decimal } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, date, decimal, json } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -73,16 +73,23 @@ export const jqlFilters = mysqlTable("jqlFilters", {
 export type JqlFilter = typeof jqlFilters.$inferSelect;
 export type InsertJqlFilter = typeof jqlFilters.$inferInsert;
 
-// Daily Snapshots - for tracking daily metrics
+// Daily Snapshots - snapshots diários do dashboard
 export const dailySnapshots = mysqlTable("dailySnapshots", {
-  id: int("id").autoincrement().primaryKey(),
-  sprintId: int("sprintId").notNull(),
+  id: varchar("id", { length: 36 }).primaryKey(),
+  sprintId: int("sprintId"),
   snapshotDate: date("snapshotDate").notNull(),
-  totalSp: int("totalSp"),
-  completedSp: int("completedSp"),
-  inProgressSp: int("inProgressSp"),
-  blockedCount: int("blockedCount"),
-  criadoEm: timestamp("criadoEm").defaultNow().notNull(),
+  metricsJson: json("metricsJson").$type<{
+    completionRate: { yesterday: number; today: number; delta: number };
+    changes: { yesterday: number; today: number; delta: number };
+    overdue: { yesterday: number; today: number; delta: number };
+    blockers: { yesterday: number; today: number; delta: number };
+  }>(),
+  devsData: json("devsData").$type<any>(),
+  issuesCritical: json("issuesCritical").$type<any>(),
+  notes: text("notes"),
+  manualUpdates: json("manualUpdates").$type<any>(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type DailySnapshot = typeof dailySnapshots.$inferSelect;
@@ -212,3 +219,15 @@ export const analysisSyncLog = mysqlTable("analysisSyncLog", {
 
 export type AnalysisSyncLog = typeof analysisSyncLog.$inferSelect;
 export type InsertAnalysisSyncLog = typeof analysisSyncLog.$inferInsert;
+
+// Shared Links - links públicos para compartilhar snapshots
+export const sharedLinks = mysqlTable("sharedLinks", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  snapshotId: varchar("snapshotId", { length: 36 }).notNull(),
+  publicToken: varchar("publicToken", { length: 36 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SharedLink = typeof sharedLinks.$inferSelect;
+export type InsertSharedLink = typeof sharedLinks.$inferInsert;

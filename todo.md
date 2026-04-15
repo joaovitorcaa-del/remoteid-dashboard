@@ -506,3 +506,116 @@
 - [x] Respeitar todos os filtros aplicados
 - [x] Testar filtros combinados
 - [x] Testar gráfico com diferentes toggles e agrupamentos
+
+
+---
+
+# DAILY DASHBOARD - NOVO MVP
+
+## Banco de Dados
+- [ ] Criar tabela daily_snapshots (id, sprint_id, snapshot_date, metrics_json, devs_data, issues_critical, notes, manual_updates, created_at)
+- [ ] Criar tabela shared_links (id, snapshot_id, public_token, expires_at)
+- [ ] Executar migrations com pnpm db:push
+
+## Backend - Routers
+- [ ] Criar router daily.ts com endpoints:
+  - [ ] GET /daily/current - dados do dia atual
+  - [ ] GET /daily/:date - dados de data específica
+  - [ ] POST /daily/snapshot - salvar snapshot
+  - [ ] GET /daily/snapshot/:id - carregar snapshot
+  - [ ] POST /daily/share - gerar link público
+
+## Backend - Integração JIRA
+- [ ] Criar JiraService para buscar:
+  - [ ] Issues do sprint ativo (openSprints)
+  - [ ] Issues atrasadas (due_date < hoje)
+  - [ ] Issues bloqueadas (labels=blocked OR flagged)
+  - [ ] Atividades das últimas 24h (changelog, comentários, worklogs)
+- [ ] Implementar cálculos:
+  - [ ] Taxa de conclusão 24h
+  - [ ] Mudanças registradas (transições + comentários + worklogs)
+  - [ ] Issues atrasadas (dias)
+  - [ ] Status de desenvolvedor (ativo/inativo/crítico)
+
+## Frontend - Componentes
+- [ ] DailyHeader (título, navegação datas, botões compartilhar/snapshot)
+- [ ] ComparisonCard (grid 4 colunas: taxa conclusão, mudanças, atrasadas, bloqueadores)
+- [ ] CriticalIssues (issues bloqueadas + atrasadas com alerta se > 100 dias)
+- [ ] DeveloperCard (avatar, nome, status, resumo ontem/hoje, issues, alerta inativo)
+- [ ] DeveloperGrid (bento grid responsivo 2-3 colunas)
+- [ ] NotesSection (textarea para anotações, botão salvar)
+
+## Frontend - Página Daily
+- [ ] Criar página Daily.tsx com layout completo
+- [ ] Integrar todos os componentes
+- [ ] Implementar navegação temporal (← →)
+- [ ] Auto-refresh a cada 5 minutos
+- [ ] Mostrar timestamp última atualização
+
+## Persistência e Navegação
+- [ ] Carregar snapshot se existir para data selecionada
+- [ ] Buscar dados JIRA se não houver snapshot
+- [ ] Mostrar badge "⚠️ Dados históricos" se data < 7 dias sem snapshot
+- [ ] Salvar estado ao clicar "Salvar Snapshot"
+
+## Testes
+- [ ] Testes para cálculos de métricas
+- [ ] Testes para integração JIRA
+- [ ] Testes para persistência de snapshots
+
+## Design System
+- [ ] Aplicar cores: surface (#fbfbe2), primary (#33210d), secondary (#3e6842), accent-red (#8B3A3A), accent-green (#4A7040)
+- [ ] Tipografia: Noto Serif (títulos), Inter (corpo)
+- [ ] Responsividade: Desktop 4 cols, Tablet 2 cols, Mobile 1 col
+
+
+---
+
+# IMPLEMENTAÇÃO DAILY DASHBOARD MVP - CONCLUÍDA
+
+## Daily Router (server/routers/daily.ts)
+- [x] Criar router com endpoints tRPC
+- [x] getDailyData: Busca dados do dia (métricas, devs, issues críticas)
+- [x] getRecentActivity: Atividades das últimas 24h
+- [x] getActiveImpediments: Issues bloqueadas
+- [x] saveSnapshot: Persiste estado do dia
+- [x] getSnapshot: Carrega snapshot de um dia
+- [x] createSharedLink: Gera link público (7 dias)
+- [x] getSharedSnapshot: Acessa snapshot compartilhado
+- [x] generateSummary: Resumo automático via IA
+
+## Daily Page (client/src/pages/Daily.tsx)
+- [x] Header com navegação de datas (← →)
+- [x] Card de comparação Hoje vs Ontem (4 métricas: taxa conclusão, mudanças, atrasadas, bloqueadores)
+- [x] Issues críticas com indicadores visuais (vermelho, dias atrasados)
+- [x] Grid de desenvolvedores (bento grid com status: ativo/inativo/crítico)
+- [x] Seção de anotações (textarea com botão salvar)
+- [x] Botões de ação (Compartilhar, Salvar Snapshot, Atualizar)
+- [x] Integração com tRPC mutations e queries
+
+## Testes
+- [x] Criar daily.test.ts com 7 testes
+- [x] Testes de cálculo de métricas
+- [x] Testes de identificação de issues críticas
+- [x] Testes de status de desenvolvedores
+- [x] Validar integração JIRA com mocks
+- [x] 116 testes passando (incluindo 7 novos)
+
+## Funcionalidades Implementadas
+- [x] Comparação Hoje vs Ontem com deltas
+- [x] Cálculo automático de métricas do JIRA
+- [x] Navegação temporal (← → para mudar datas)
+- [x] Persistência de snapshots no banco
+- [x] Geração de links compartilháveis (7 dias)
+- [x] Integração com API JIRA v3
+- [x] Suporte a múltiplos desenvolvedores
+- [x] Detecção de status de atividade (ativo/inativo/crítico)
+
+## Próximas Fases (Roadmap)
+- [ ] Implementar compartilhamento público com página read-only
+- [ ] Adicionar modal de detalhes da issue
+- [ ] Implementar botão "+ Update" para updates manuais por dev
+- [ ] Auto-refresh a cada 5 minutos em background
+- [ ] Integração Slack para postar resumo automático
+- [ ] Comparação sprint-over-sprint
+- [ ] Gráfico de burndown integrado

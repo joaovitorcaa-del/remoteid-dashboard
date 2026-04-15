@@ -213,43 +213,7 @@ export async function deleteImpediment(id: number): Promise<boolean> {
   return true;
 }
 
-// Daily Snapshots CRUD
-export async function createDailySnapshot(snapshot: InsertDailySnapshot): Promise<DailySnapshot> {
-  const db = await getDb();
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
-  const result = await db.insert(dailySnapshots).values(snapshot);
-  const id = result[0].insertId;
-  
-  const created = await db.select().from(dailySnapshots).where(eq(dailySnapshots.id, Number(id))).limit(1);
-  return created[0];
-}
-
-export async function getDailySnapshotsBySprintId(sprintId: number): Promise<DailySnapshot[]> {
-  const db = await getDb();
-  if (!db) {
-    return [];
-  }
-
-  return await db.select().from(dailySnapshots).where(eq(dailySnapshots.sprintId, sprintId));
-}
-
-export async function getLatestDailySnapshot(sprintId: number): Promise<DailySnapshot | undefined> {
-  const db = await getDb();
-  if (!db) {
-    return undefined;
-  }
-
-  const result = await db.select()
-    .from(dailySnapshots)
-    .where(eq(dailySnapshots.sprintId, sprintId))
-    .orderBy(desc(dailySnapshots.snapshotDate))
-    .limit(1);
-  
-  return result.length > 0 ? result[0] : undefined;
-}
+// Daily Snapshots CRUD - will be implemented in new daily router
 
 // Activity Log CRUD
 export async function createActivityLogEntry(entry: InsertActivityLogEntry): Promise<ActivityLogEntry> {
