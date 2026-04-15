@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { fetchJiraIssuesByJql } from '../jira-sync';
 
 export const responsibleRouter = router({
-  getResponsibleMetrics: protectedProcedure
+  // Novo nome: getMetricsByPeriod (mais descritivo)
+  getMetricsByPeriod: protectedProcedure
     .input(z.object({
       assignees: z.array(z.string()).optional(),
       startDate: z.string(),

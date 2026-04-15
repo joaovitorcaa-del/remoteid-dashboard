@@ -45,101 +45,55 @@ export default function ResponsibleView() {
   const [selectedDevelopers, setSelectedDevelopers] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [data, setData] = useState<ResponsibleViewData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [allDevelopers, setAllDevelopers] = useState<string[]>([]);
 
-  // Construir JQL baseado nos filtros
-  const buildJql = (): string => {
-    let jql = 'project = REMOTEID AND created >= 2025-07-01';
-
+  // Calcular datas do período
+  const getDateRange = () => {
     if (periodType === 'month') {
       const start = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
       const end = format(endOfMonth(selectedMonth), 'yyyy-MM-dd');
-      jql += ` AND updated >= ${start} AND updated <= ${end}`;
+      return { start, end };
     } else if (periodType === 'week') {
       const start = format(startOfWeek(selectedMonth), 'yyyy-MM-dd');
       const end = format(endOfWeek(selectedMonth), 'yyyy-MM-dd');
-      jql += ` AND updated >= ${start} AND updated <= ${end}`;
+      return { start, end };
     }
-
-    if (selectedDevelopers.length > 0) {
-      const assignees = selectedDevelopers.map(dev => `"${dev}"`).join(', ');
-      jql += ` AND assignee IN (${assignees})`;
-    }
-
-    return jql;
+    return { start: '', end: '' };
   };
 
-  // Buscar dados do Jira
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
+  const dateRange = getDateRange();
 
-    try {
-      const jql = buildJql();
-      
-      // Dados mockados para demonstração (em produção, chamar endpoint tRPC)
-      const mockData: ResponsibleViewData = {
-        developers: [
-          {
-            name: 'João Silva',
-            totalTasks: 12,
-            completedTasks: 8,
-            inProgressTasks: 3,
-            totalStoryPoints: 34,
-            completionRate: 66.7,
-            tasksByStatus: { 'Done': 8, 'In Progress': 3, 'To Do': 1 },
-            tasksByType: { 'Bug': 2, 'Feature': 7, 'Task': 3 },
-          },
-          {
-            name: 'Maria Santos',
-            totalTasks: 15,
-            completedTasks: 10,
-            inProgressTasks: 4,
-            totalStoryPoints: 42,
-            completionRate: 66.7,
-            tasksByStatus: { 'Done': 10, 'In Progress': 4, 'To Do': 1 },
-            tasksByType: { 'Bug': 3, 'Feature': 9, 'Task': 3 },
-          },
-          {
-            name: 'Pedro Oliveira',
-            totalTasks: 10,
-            completedTasks: 7,
-            inProgressTasks: 2,
-            totalStoryPoints: 28,
-            completionRate: 70,
-            tasksByStatus: { 'Done': 7, 'In Progress': 2, 'To Do': 1 },
-            tasksByType: { 'Bug': 1, 'Feature': 6, 'Task': 3 },
-          },
-        ],
-        summary: {
-          totalTasks: 37,
-          totalDevelopers: 3,
-          averageCompletionRate: 67.8,
-          totalStoryPoints: 104,
-        },
-        lastUpdated: new Date().toISOString(),
-      };
+  // Usar tRPC para buscar dados reais do Jira
+  const metricsQuery = trpc.responsible.getMetricsByPeriod.useQuery(
+    {
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+      assignees: selectedDevelopers.length > 0 ? selectedDevelopers : undefined,
+      periodType,
+    },
+    { enabled: !!dateRange.start && !!dateRange.end }
+  );
 
-      setData(mockData);
-      setAllDevelopers(mockData.developers.map(d => d.name));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao buscar dados');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Atualizar estado quando query completa
   useEffect(() => {
-    fetchData();
-  }, [periodType, selectedMonth, selectedDevelopers]);
+    if (metricsQuery.data) {
+      const data: ResponsibleViewData = {
+        developers: metricsQuery.data.developers as any,
+        summary: metricsQuery.data.summary as any,
+        lastUpdated: metricsQuery.data.lastUpdated,
+      };
+      setAllDevelopers(data.developers.map(d => d.name));
+    }
+  }, [metricsQuery.data]);
+
+  const data = metricsQuery.data as any;
+  const loading = metricsQuery.isLoading;
+  const error = metricsQuery.error?.message || null;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await fetchData();
+      await metricsQuery.refetch();
     } finally {
       setIsRefreshing(false);
     }
@@ -171,12 +125,12 @@ export default function ResponsibleView() {
     );
   }
 
-  const filteredDevelopers = data?.developers.filter(d =>
+  const filteredDevelopers = data?.developers.filter((d: any) =>
     selectedDevelopers.length === 0 || selectedDevelopers.includes(d.name)
   ) || [];
 
   // Dados para gráfico de comparação
-  const developerComparison = filteredDevelopers.map(dev => ({
+  const developerComparison = filteredDevelopers.map((dev: any) => ({
     name: dev.name.split(' ')[0],
     tarefas: dev.totalTasks,
     concluidas: dev.completedTasks,
@@ -185,7 +139,7 @@ export default function ResponsibleView() {
   }));
 
   // Dados para gráfico de status
-  const statusData = filteredDevelopers.map(dev => ({
+  const statusData = filteredDevelopers.map((dev: any) => ({
     name: dev.name.split(' ')[0],
     Done: dev.tasksByStatus['Done'] || 0,
     'In Progress': dev.tasksByStatus['In Progress'] || 0,
@@ -193,8 +147,8 @@ export default function ResponsibleView() {
   }));
 
   // Dados para gráfico de tipo
-  const typeDistribution = filteredDevelopers.flatMap(dev =>
-    Object.entries(dev.tasksByType || {}).map(([type, count]) => ({
+  const typeDistribution = filteredDevelopers.flatMap((dev: any) =>
+    Object.entries(dev.tasksByType || {}).map(([type, count]: any) => ({
       name: type,
       value: count,
       developer: dev.name.split(' ')[0],
@@ -413,7 +367,7 @@ export default function ResponsibleView() {
           {/* Distribuição por Tipo */}
           <TabsContent value="types">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {filteredDevelopers.map((dev, idx) => (
+              {filteredDevelopers.map((dev: any, idx: any) => (
                 <Card key={dev.name}>
                   <CardHeader>
                     <CardTitle className="text-base">{dev.name}</CardTitle>
@@ -469,7 +423,7 @@ export default function ResponsibleView() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredDevelopers.map(dev => (
+                      {filteredDevelopers.map((dev: any) => (
                         <TableRow key={dev.name}>
                           <TableCell className="font-medium">{dev.name}</TableCell>
                           <TableCell className="text-right">{dev.totalTasks}</TableCell>

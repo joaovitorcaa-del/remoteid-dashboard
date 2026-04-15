@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFilter } from '@/contexts/FilterContext';
 import { trpc } from '@/lib/trpc';
-import { ArrowLeft, Plus, Trash2, Save, Eye, Edit2, Star } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Eye, Edit2, Star, AlertCircle } from 'lucide-react';
 
 interface JqlFilter {
   id: number;
@@ -30,6 +29,7 @@ export default function Settings() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [savedFilters, setSavedFilters] = useState<JqlFilter[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [testJqlInput, setTestJqlInput] = useState<string | null>(null);
 
   // Carregar filtros salvos do localStorage
   useEffect(() => {
@@ -50,7 +50,13 @@ export default function Settings() {
     setSavedFilters(filters);
   };
 
-  const handlePreview = async () => {
+  // Usar tRPC para testar JQL
+  const testJqlQuery = trpc.dashboard.getIssuesByJql.useQuery(
+    { jql: testJqlInput || '' },
+    { enabled: !!testJqlInput }
+  );
+
+  const handlePreview = () => {
     if (!jqlInput.trim()) {
       setPreviewError('Por favor, insira um JQL válido');
       return;
@@ -58,27 +64,29 @@ export default function Settings() {
 
     setPreviewLoading(true);
     setPreviewError(null);
+    setTestJqlInput(jqlInput.trim());
+  };
 
-    try {
-      const response = await fetch('/api/trpc/dashboard.getIssuesByJql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql: jqlInput.trim() }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar dados');
-      }
-
-      const data = await response.json();
-      setPreviewData(data.result?.data?.issues || []);
-    } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : 'Erro ao buscar dados');
-      setPreviewData([]);
-    } finally {
+  // Atualizar preview quando query completa
+  useEffect(() => {
+    if (testJqlQuery.data) {
+      setPreviewData(testJqlQuery.data.issues || []);
+      setPreviewError(null);
       setPreviewLoading(false);
     }
-  };
+  }, [testJqlQuery.data]);
+
+  useEffect(() => {
+    if (testJqlQuery.error) {
+      setPreviewError(testJqlQuery.error.message || 'Erro ao buscar dados');
+      setPreviewData([]);
+      setPreviewLoading(false);
+    }
+  }, [testJqlQuery.error]);
+
+  useEffect(() => {
+    setPreviewLoading(testJqlQuery.isLoading);
+  }, [testJqlQuery.isLoading]);
 
   const handleSaveFilter = () => {
     if (!jqlInput.trim() || !nomeInput.trim()) {
@@ -215,14 +223,14 @@ export default function Settings() {
                 <div>
                   <label className="block text-sm font-semibold mb-2">JQL Query</label>
                   <Textarea
-                    placeholder="Ex: sprint in openSprints() AND project = REMOTEID AND status != Done"
+                    placeholder="Ex: sprint in openSprints() and project = REMOTEID and status != Done"
                     value={jqlInput}
                     onChange={(e) => setJqlInput(e.target.value)}
                     rows={8}
                     className="font-mono text-sm bg-muted/50 border-border"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    💡 Digite sua query JQL. Você pode usar qualquer sintaxe válida do Jira.
+                    💡 Digite sua query JQL. Use operadores em minúsculas (and, or, not, in).
                   </p>
                 </div>
 
@@ -257,8 +265,9 @@ export default function Settings() {
 
                 {/* Preview Error */}
                 {previewError && (
-                  <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
-                    ⚠️ {previewError}
+                  <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive flex gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>{previewError}</span>
                   </div>
                 )}
               </CardContent>
@@ -282,7 +291,6 @@ export default function Settings() {
                           <TableHead>Resumo</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Responsável</TableHead>
-                          <TableHead>Sprint</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -296,7 +304,6 @@ export default function Settings() {
                               </span>
                             </TableCell>
                             <TableCell className="text-sm">{issue.responsavel || '-'}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{issue.sprint || '-'}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -348,76 +355,68 @@ export default function Settings() {
             {/* Lista de Filtros Salvos */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Filtros Salvos</CardTitle>
-                <CardDescription>
-                  {savedFilters.length} filtro(s)
-                </CardDescription>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Filtros Salvos ({savedFilters.length})
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-                {savedFilters.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">Nenhum filtro salvo ainda</p>
-                ) : (
-                  savedFilters.map((filter) => (
-                    <div
-                      key={filter.id}
-                      className={`p-3 border rounded-lg transition-all cursor-pointer ${
-                        activeJqlFilter?.id === filter.id
-                          ? 'bg-primary/10 border-primary shadow-sm'
-                          : 'bg-muted/30 border-border hover:bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div
-                          className="flex-1 min-w-0"
-                          onClick={() => handleSelectFilter(filter)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              checked={activeJqlFilter?.id === filter.id}
-                              onCheckedChange={() => handleSelectFilter(filter)}
-                            />
-                            <p className="font-medium text-sm truncate">{filter.nome}</p>
+              <CardContent>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {savedFilters.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">
+                      Nenhum filtro salvo ainda
+                    </p>
+                  ) : (
+                    savedFilters.map((filter) => (
+                      <div
+                        key={filter.id}
+                        className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                          activeJqlFilter?.id === filter.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        }`}
+                      >
+                        <div onClick={() => handleSelectFilter(filter)}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm truncate">{filter.nome}</p>
+                              {filter.descricao && (
+                                <p className="text-xs text-muted-foreground truncate">{filter.descricao}</p>
+                              )}
+                            </div>
                             {filter.isDefault && (
-                              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
-                                Padrão
-                              </span>
+                              <Star className="w-4 h-4 text-yellow-500 flex-shrink-0" />
                             )}
                           </div>
-                          {filter.descricao && (
-                            <p className="text-xs text-muted-foreground mt-1 truncate">
-                              {filter.descricao}
-                            </p>
-                          )}
                         </div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleSetAsDefault(filter)}
-                            className="p-1.5 hover:bg-amber-100 text-amber-600 rounded transition-colors"
-                            title="Marcar como padrão"
+                        <div className="flex gap-1 mt-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditFilter(filter);
+                            }}
+                            className="h-7 px-2"
                           >
-                            <Star className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleEditFilter(filter)}
-                            className="p-1.5 hover:bg-blue-100 text-blue-600 rounded transition-colors"
-                            title="Editar"
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFilter(filter.id);
+                            }}
+                            className="h-7 px-2 text-destructive hover:text-destructive"
                           >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          {filter.id !== 0 && (
-                            <button
-                              onClick={() => handleDeleteFilter(filter.id)}
-                              className="p-1.5 hover:bg-red-100 text-red-600 rounded transition-colors"
-                              title="Deletar"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                         </div>
                       </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

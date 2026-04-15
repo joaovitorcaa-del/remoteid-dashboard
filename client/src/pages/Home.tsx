@@ -28,6 +28,8 @@ import { useNextSteps } from '@/hooks/useNextSteps';
 import { useFilteredData } from '@/hooks/useFilteredData';
 import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Moon, Sun } from 'lucide-react';
 
 /**
  * Design Philosophy: Modern Enterprise Analytics
@@ -40,6 +42,7 @@ import { useAuth } from '@/_core/hooks/useAuth';
 export default function Home() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { metrics, statusDistribution, criticalIssues, impediments, backlogItems, loading, error, lastUpdated, refreshData, allIssues } = useDashboard();
   const { steps: dynamicSteps, generateNextSteps } = useNextSteps();
   const { setAvailableIssueTypes } = useFilter();
@@ -262,6 +265,21 @@ export default function Home() {
               <Lightbulb className="w-4 h-4" />
               Insight IA
             </button>
+
+            {/* Dark Mode Toggle */}
+            {toggleTheme && (
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors border border-transparent hover:border-border"
+                title={`Alternar para ${theme === 'dark' ? 'modo claro' : 'modo escuro'}`}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </button>
+            )}
 
             {/* Atualizar Dados */}
             <button
