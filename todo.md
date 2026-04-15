@@ -706,9 +706,10 @@
 - [x] Corrigir getDailyData para usar JQL da configuração
 - [x] Testar integração com JIRA
 - [x] Validar dados retornados
+- [x] Daily.tsx agora usa getMetricsByJql (mesmo que Dashboard)
 
 **Mudanças Implementadas:**
-- Removido `project = "RemoteID"` do JQL padrão (pode variar por instância)
-- Adicionada validação de JQL vazio
-- Adicionado logging detalhado para debug
+- Daily.tsx agora busca JQL ativo e passa para getMetricsByJql (mesmo endpoint do Dashboard)
+- getDailyData recebe JQL e o utiliza para buscar dados
 - 116 testes passando sem regressões
+- Daily usa EXATAMENTE o mesmo JQL que o Dashboard/Sumário Executivo

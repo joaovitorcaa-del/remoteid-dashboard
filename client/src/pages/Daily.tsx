@@ -22,6 +22,12 @@ export default function Daily() {
   // Fetch active JQL filter
   const { data: activeJqlFilter } = trpc.jqlFilters.getActive.useQuery();
 
+  // Fetch metrics using the same JQL as Dashboard
+  const { data: dashboardMetrics, isLoading: metricsLoading } = trpc.dashboard.getMetricsByJql.useQuery(
+    { jql: activeJqlFilter?.jql || '' },
+    { enabled: !!activeJqlFilter?.jql }
+  );
+
   // Fetch daily data with active JQL
   const { data: dailyData, isLoading, refetch } = trpc.daily.getDailyData.useQuery(
     {
