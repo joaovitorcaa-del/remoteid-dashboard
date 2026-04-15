@@ -47,4 +47,9 @@ export const jqlFiltersRouter = router({
     .mutation(async ({ input }) => {
       return await deleteJqlFilter(input.id);
     }),
+
+  getActive: protectedProcedure.query(async ({ ctx }) => {
+    const filters = await getJqlFiltersByUserId(ctx.user.id);
+    return filters.find(f => f.ativo === 1) || filters[0] || null;
+  }),
 });

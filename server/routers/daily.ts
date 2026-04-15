@@ -156,16 +156,16 @@ export const dailyRouter = router({
 
   // Get daily dashboard data for a specific date
   getDailyData: protectedProcedure
-    .input(z.object({ date: z.string().optional() }))
+    .input(z.object({ date: z.string().optional(), jql: z.string().optional() }))
     .query(async ({ input }) => {
       try {
         const targetDate = input.date ? new Date(input.date) : new Date();
         const yesterday = new Date(targetDate);
         yesterday.setDate(yesterday.getDate() - 1);
 
-        // Fetch issues from JIRA
-        const jql = `project = "RemoteID" AND sprint in openSprints() ORDER BY updated DESC`;
-        const data = await fetchJiraIssues(jql);
+        // Use provided JQL or default to active sprint
+        const jqlQuery = input.jql || `project = "RemoteID" AND sprint in openSprints() ORDER BY updated DESC`;
+        const data = await fetchJiraIssues(jqlQuery);
         const issues = data.issues || [];
 
         // Calculate metrics

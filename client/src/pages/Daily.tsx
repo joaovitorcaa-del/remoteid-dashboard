@@ -19,10 +19,19 @@ export default function Daily() {
   const formattedDate = format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR });
   const dateString = format(selectedDate, 'yyyy-MM-dd');
 
-  // Fetch daily data
-  const { data: dailyData, isLoading, refetch } = trpc.daily.getDailyData.useQuery({
-    date: dateString,
-  });
+  // Fetch active JQL filter
+  const { data: activeJqlFilter } = trpc.jqlFilters.getActive.useQuery();
+
+  // Fetch daily data with active JQL
+  const { data: dailyData, isLoading, refetch } = trpc.daily.getDailyData.useQuery(
+    {
+      date: dateString,
+      jql: activeJqlFilter?.jql,
+    },
+    {
+      enabled: !!activeJqlFilter?.jql,
+    }
+  );
 
   // Fetch snapshot if it exists
   const { data: snapshot } = trpc.daily.getSnapshot.useQuery({
@@ -51,6 +60,21 @@ export default function Daily() {
       setIsRefreshing(false);
     }
   };
+
+  // Show message if no JQL filter is configured
+  if (!activeJqlFilter) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <h2 className="text-xl font-bold mb-2">Nenhum Filtro JQL Configurado</h2>
+          <p className="text-muted-foreground mb-4">
+            Configure um filtro JQL na seção de Configuração para usar o Daily Dashboard.
+          </p>
+          <Button onClick={() => navigate('/')}>Voltar ao Dashboard</Button>
+        </div>
+      </div>
+    );
+  }
 
   const saveSnapshotMutation = trpc.daily.saveSnapshot.useMutation();
   const createShareLinkMutation = trpc.daily.createSharedLink.useMutation();

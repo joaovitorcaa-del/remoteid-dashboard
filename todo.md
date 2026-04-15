@@ -619,3 +619,37 @@
 - [ ] Integração Slack para postar resumo automático
 - [ ] Comparação sprint-over-sprint
 - [ ] Gráfico de burndown integrado
+
+
+---
+
+# INTEGRAÇÃO DAILY DASHBOARD COM JQL (Sprint Ativa)
+
+## Implementação
+- [x] Adicionar endpoint `getActive` ao jqlFiltersRouter
+  - Retorna o filtro JQL ativo (ativo: 1) do usuário
+  - Fallback para primeiro filtro se nenhum marcado como ativo
+- [x] Atualizar `getDailyData` para aceitar parâmetro JQL
+  - Parâmetro `jql` opcional
+  - Fallback para sprint ativa se não fornecido
+- [x] Atualizar Daily.tsx para buscar JQL ativo
+  - Usa `trpc.jqlFilters.getActive.useQuery()`
+  - Passa JQL para `getDailyData`
+  - Validação: mostra mensagem se nenhum filtro configurado
+- [x] Testar integração
+  - 116 testes passando
+  - Sem regressões
+
+## Fluxo de Dados
+1. Daily.tsx carrega e busca JQL ativo via `getActive`
+2. Se JQL existe, passa para `getDailyData`
+3. Router daily.ts usa JQL fornecido para buscar issues do JIRA
+4. Dados são processados e retornados para a página
+5. Se nenhum JQL configurado, mostra mensagem ao usuário
+
+## Próximas Melhorias
+- [ ] Implementar compartilhamento público com página read-only
+- [ ] Adicionar modal de detalhes da issue
+- [ ] Implementar botão "+Update" para updates manuais por dev
+- [ ] Auto-refresh a cada 5 minutos em background
+- [ ] Integração Slack para postar resumo automático
