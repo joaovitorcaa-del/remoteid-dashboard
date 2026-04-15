@@ -22,12 +22,12 @@ interface FilterContextType {
   setAllJqlFilters: (filters: JqlFilter[]) => void;
 }
 
-// Filtro padrão: Sprint Ativa
+// Filtro padrão: Todos os Projetos desde 2025-07-01
 const DEFAULT_JQL_FILTER: JqlFilter = {
   id: 0,
-  nome: 'Sprint Ativa',
-  jql: 'sprint in openSprints() and project = REMOTEID',
-  descricao: 'Filtro padrão - Issues da Sprint Ativa',
+  nome: 'Todos os Projetos',
+  jql: 'project in ("RemoteID", "DesktopID", "Mobile ID") and created >= "2025-07-01" order by priority desc',
+  descricao: 'Filtro padrão - Todos os projetos desde julho de 2025',
 };
 
 const FilterContext = createContext<FilterContextType | undefined>(undefined);
