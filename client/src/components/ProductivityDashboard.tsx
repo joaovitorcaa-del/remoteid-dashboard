@@ -41,6 +41,7 @@ export default function ProductivityDashboard() {
   const displayIssues = hasClientFilters ? filteredIssues : issues;
 
   const [periodType, setPeriodType] = useState<'week' | 'month'>('month');
+  const [selectedIssueType, setSelectedIssueType] = useState<string>('all');
 
   // KPIs calculados dos dados persistidos (respeitam filtros de assignee/status/SP)
   const kpis = useMemo(() => {
@@ -260,16 +261,33 @@ export default function ProductivityDashboard() {
           {cycleTimeData && cycleTimeData.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-orange-600" />
-                  Cycle Time por Tipo de Issue
-                </CardTitle>
-                <CardDescription>Tempo médio (dias) entre criação e resolução</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-orange-600" />
+                      Cycle Time por Tipo de Issue
+                    </CardTitle>
+                    <CardDescription>Tempo médio (dias) entre criação e resolução</CardDescription>
+                  </div>
+                  <Select value={selectedIssueType} onValueChange={setSelectedIssueType}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Selecione tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os tipos</SelectItem>
+                      {cycleTimeData.map((item: any) => (
+                        <SelectItem key={item.issueType} value={item.issueType}>
+                          {item.issueType}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={cycleTimeData} layout="vertical">
+                    <BarChart data={selectedIssueType === 'all' ? cycleTimeData : cycleTimeData.filter((item: any) => item.issueType === selectedIssueType)} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis type="number" label={{ value: 'Dias', position: 'insideBottom', offset: -5 }} />
                       <YAxis dataKey="issueType" type="category" width={120} fontSize={11} />
@@ -305,7 +323,7 @@ export default function ProductivityDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {cycleTimeData.map((row: any, idx: number) => (
+                          {(selectedIssueType === 'all' ? cycleTimeData : cycleTimeData.filter((item: any) => item.issueType === selectedIssueType)).map((row: any, idx: number) => (
                             <tr key={idx} className="border-b hover:bg-gray-50">
                               <td className="p-2 font-medium">{row.issueType}</td>
                               <td className="text-right p-2">{row.count}</td>

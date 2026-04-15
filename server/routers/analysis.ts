@@ -358,7 +358,14 @@ export const analysisRouter = {
           completionRate: s.totalIssues > 0
             ? Math.round((s.completedIssues / s.totalIssues) * 100)
             : 0,
-        }));
+        }))
+        .sort((a, b) => {
+          // Ordenar por: (1) sprints ativas primeiro, (2) sprints fechadas por nome (que contém data)
+          if (a.state === 'active' && b.state !== 'active') return -1;
+          if (a.state !== 'active' && b.state === 'active') return 1;
+          // Para sprints com mesmo estado, ordenar por nome em ordem reversa (mais recentes primeiro)
+          return b.name.localeCompare(a.name);
+        });
 
       const avgVelocity = sprints.length > 0
         ? Math.round(sprints.reduce((sum, s) => sum + s.completedStoryPoints, 0) / sprints.length)
