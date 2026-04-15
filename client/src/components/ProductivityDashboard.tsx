@@ -56,6 +56,8 @@ export default function ProductivityDashboard() {
     const periodMap = new Map<string, any>();
 
     issues.forEach((issue: any) => {
+      if (!issue?.fields?.created) return; // Validar se issue.fields existe
+      
       const created = new Date(issue.fields.created);
       let periodKey: string;
 
