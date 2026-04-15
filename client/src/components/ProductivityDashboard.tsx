@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, TrendingUp } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useFilter } from '@/contexts/FilterContext';
+import { useAnalysis } from '@/contexts/AnalysisContext';
 import {
   Select,
   SelectContent,
@@ -27,16 +28,16 @@ interface PeriodData {
 }
 
 export default function ProductivityDashboard() {
-  const { activeJqlFilter } = useFilter();
+  const { analysisJql } = useAnalysis();
   const [periodType, setPeriodType] = useState<PeriodType>('month');
   const [chartMetric, setChartMetric] = useState<ChartMetric>('both');
   const [showTrendline, setShowTrendline] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Buscar métricas usando o mesmo JQL do Dashboard
+  // Buscar métricas usando o JQL customizado da página Análise
   const metricsQuery = trpc.dashboard.getMetricsByJql.useQuery(
-    { jql: activeJqlFilter?.jql || '' },
-    { enabled: !!activeJqlFilter?.jql }
+    { jql: analysisJql || '' },
+    { enabled: !!analysisJql }
   );
 
   const handleRefresh = async () => {
@@ -133,11 +134,11 @@ export default function ProductivityDashboard() {
     return { total, storyPoints, completed, inProgress };
   }, [metricsQuery.data?.issues]);
 
-  if (!activeJqlFilter?.jql) {
+  if (!analysisJql) {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-center text-gray-600">Selecione um filtro JQL nas configurações para visualizar dados</p>
+          <p className="text-center text-gray-600">Nenhum JQL configurado. Clique em 'Configuração JQL' para definir uma query.</p>
         </CardContent>
       </Card>
     );
