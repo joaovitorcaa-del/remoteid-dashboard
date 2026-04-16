@@ -67,7 +67,7 @@ export default function DailyActive() {
   const [, navigate] = useLocation();
 
   // Meeting data
-  const { data: meetingData, isLoading: meetingLoading } = trpc.dailyMeeting.getMeeting.useQuery(
+  const { data: meetingData, isLoading: meetingLoading, error: meetingError, refetch: refetchMeeting } = trpc.dailyMeeting.getMeeting.useQuery(
     { meetingId },
     { enabled: !!meetingId }
   );
@@ -257,7 +257,28 @@ export default function DailyActive() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-          <p className="text-gray-600">Carregando daily...</p>
+          <p className="text-gray-600 font-medium">Carregando daily...</p>
+          <p className="text-gray-400 text-sm mt-1">Buscando dados do sprint e do JIRA</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (meetingError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Ops! Algo deu errado</h3>
+          <p className="text-gray-500 text-sm mb-4">{meetingError.message}</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => refetchMeeting()} className="bg-blue-600 hover:bg-blue-700 text-white">
+              Tentar Novamente
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/daily-entrance')}>
+              Voltar
+            </Button>
+          </div>
         </div>
       </div>
     );

@@ -13,6 +13,8 @@ import {
   XCircle,
   MessageSquare,
   TrendingUp,
+  ArrowLeft,
+  Download,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -320,8 +322,12 @@ function StatsPanel() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+type DateFilter = 'all' | 'week' | 'month';
+
 export default function DailyHistory() {
   const [page, setPage] = useState(0);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [, navigate] = useLocation();
   const limit = 10;
 
   const { data: meetings, isLoading } = trpc.dailyHistory.listMeetings.useQuery({
@@ -329,14 +335,59 @@ export default function DailyHistory() {
     offset: page * limit,
   });
 
+  // Filter meetings client-side based on date filter
+  const filteredMeetings = meetings?.filter((m: any) => {
+    if (dateFilter === 'all') return true;
+    const date = new Date(m.meetingDate);
+    const now = new Date();
+    if (dateFilter === 'week') {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(now.getDate() - 7);
+      return date >= weekAgo;
+    }
+    if (dateFilter === 'month') {
+      const monthAgo = new Date(now);
+      monthAgo.setMonth(now.getMonth() - 1);
+      return date >= monthAgo;
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Calendar className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-bold text-foreground">Histórico de Dailies</h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 text-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar
+              </Button>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-6 h-6 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground">Histórico de Dailies</h1>
+              </div>
+            </div>
+            {/* Date Filters */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Filtrar:</span>
+              {(['all', 'week', 'month'] as DateFilter[]).map((f) => (
+                <Button
+                  key={f}
+                  variant={dateFilter === f ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setDateFilter(f); setPage(0); }}
+                >
+                  {f === 'all' ? 'Tudo' : f === 'week' ? 'Última semana' : 'Último mês'}
+                </Button>
+              ))}
+            </div>
           </div>
           <p className="text-muted-foreground">
             Registro histórico de todas as reuniões diárias realizadas.
@@ -350,9 +401,9 @@ export default function DailyHistory() {
               <div className="space-y-3">
                 {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}
               </div>
-            ) : meetings && meetings.length > 0 ? (
+            ) : filteredMeetings && filteredMeetings.length > 0 ? (
               <>
-                {meetings.map((meeting: any) => (
+                {filteredMeetings.map((meeting: any) => (
                   <MeetingCard key={meeting.id} meeting={meeting} />
                 ))}
 

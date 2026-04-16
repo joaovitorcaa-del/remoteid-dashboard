@@ -813,3 +813,20 @@
 - [x] Rotas registradas no App.tsx: /daily-entrance, /daily-active/:meetingId, /daily-summary/:meetingId
 - [x] 15 novos testes unitários para dailyMeeting.test.ts
 - [x] 143 testes passando (14 arquivos)
+
+
+---
+
+# PRD DAILY DASHBOARD - IMPLEMENTAÇÃO COMPLETA [CONCLUÍDO 16/04/2026]
+
+- [x] Adicionar Daily e Histórico ao menu lateral (DashboardLayout)
+- [x] Rota /daily-entrance como entrada principal do fluxo Daily
+- [x] DailyHistory: botão Voltar para dashboard
+- [x] DailyHistory: filtros de data (Tudo / Última semana / Último mês)
+- [x] DailyActive: error state com botão Tentar Novamente
+- [x] DailyActive: loading state melhorado com subtítulo
+- [x] DailySummary: 5 stats (Duração, Participantes, Impedimentos, Issues Citadas, Média/Dev)
+- [x] DailySummary: seção Próximas Ações derivada dos impedimentos
+- [x] DailySummary: navegação corrigida para /daily-entrance
+- [x] DailyEntrance: skeleton loading, error state, itens de atenção (já implementados)
+- [x] 143 testes passando sem regressões

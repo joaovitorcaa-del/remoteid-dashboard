@@ -129,6 +129,19 @@ export default function DailySummary() {
     ? Math.round((meeting.durationSeconds || 0) / registeredTurns.length)
     : 0;
 
+  // Compute issues mentioned across all turns
+  const allIssuesMentioned = registeredTurns.reduce((acc: string[], t: any) => {
+    const list = Array.isArray(t.issues) ? t.issues : [];
+    return [...acc, ...list];
+  }, []);
+  const uniqueIssues = Array.from(new Set(allIssuesMentioned));
+
+  // Compute next actions from blockers
+  const nextActions = blockerTurns.map((t: any) => ({
+    dev: t.devName,
+    description: t.blockersDescription || t.impedimentComment || 'Resolver impedimento',
+  }));
+
   const dateStr = meeting.meetingDate
     ? format(new Date(meeting.meetingDate), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })
     : '';
@@ -171,7 +184,7 @@ export default function DailySummary() {
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <Card className="text-center">
             <CardContent className="pt-4 pb-4">
               <Clock className="w-5 h-5 text-blue-600 mx-auto mb-1" />
@@ -182,8 +195,8 @@ export default function DailySummary() {
           <Card className="text-center">
             <CardContent className="pt-4 pb-4">
               <Users className="w-5 h-5 text-green-600 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-800">{registeredTurns.length}</p>
-              <p className="text-xs text-gray-500">Participaram</p>
+              <p className="text-2xl font-bold text-gray-800">{registeredTurns.length}/{totalDevs || registeredTurns.length}</p>
+              <p className="text-xs text-gray-500">Participantes</p>
             </CardContent>
           </Card>
           <Card className="text-center">
@@ -191,6 +204,13 @@ export default function DailySummary() {
               <AlertTriangle className="w-5 h-5 text-red-500 mx-auto mb-1" />
               <p className="text-2xl font-bold text-gray-800">{blockerTurns.length}</p>
               <p className="text-xs text-gray-500">Impedimentos</p>
+            </CardContent>
+          </Card>
+          <Card className="text-center">
+            <CardContent className="pt-4 pb-4">
+              <FileText className="w-5 h-5 text-indigo-600 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-gray-800">{uniqueIssues.length}</p>
+              <p className="text-xs text-gray-500">Issues Citadas</p>
             </CardContent>
           </Card>
           <Card className="text-center">
@@ -413,6 +433,29 @@ export default function DailySummary() {
           </CardContent>
         </Card>
 
+        {/* Next Actions */}
+        {nextActions.length > 0 && (
+          <Card className="border-amber-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2 text-amber-700">
+                <Flag className="w-5 h-5" />
+                Próximas Ações
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {nextActions.map((action: any, i: number) => (
+                <div key={i} className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <span className="text-amber-600 font-bold text-sm min-w-[20px]">{i + 1}.</span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">{action.dev}</p>
+                    <p className="text-sm text-amber-800">{action.description}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Footer Actions */}
         <div className="flex gap-3 pb-8">
           <Button
@@ -424,11 +467,11 @@ export default function DailySummary() {
             Ver Histórico
           </Button>
           <Button
-            onClick={() => navigate('/daily')}
+            onClick={() => navigate('/daily-entrance')}
             className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Home className="w-4 h-4" />
-            Voltar ao Início
+            Voltar ao Dashboard
           </Button>
         </div>
       </div>
