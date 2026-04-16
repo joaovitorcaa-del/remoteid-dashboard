@@ -285,7 +285,7 @@ export default function DailyActive() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-900 flex flex-col">
       {/* Header */}
       <div className="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-4">

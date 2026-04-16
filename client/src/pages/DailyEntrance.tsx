@@ -1,22 +1,20 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  RefreshCw, Play, History, AlertTriangle, CheckCircle2,
-  Clock, Users, TrendingUp, AlertCircle, Loader2
-} from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { DashboardHeader } from '@/components/daily/DashboardHeader';
+import { SprintProgress } from '@/components/daily/SprintProgress';
+import { BlockersList } from '@/components/daily/BlockersList';
+import { AttentionItems } from '@/components/daily/AttentionItems';
+import { ActionButtons } from '@/components/daily/ActionButtons';
 
 export default function DailyEntrance() {
   const [, navigate] = useLocation();
   const [isStarting, setIsStarting] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | undefined>();
 
   // Get active JQL filter
   const { data: activeFilter } = trpc.jqlFilters.getActive.useQuery();
@@ -44,255 +42,134 @@ export default function DailyEntrance() {
   });
 
   const handleStartDaily = async () => {
+    if (!activeFilter?.jql) {
+      toast.error('Nenhum filtro JQL ativo. Configure na página de Configuração.');
+      return;
+    }
     setIsStarting(true);
     createMeeting.mutate({
-      jqlUsed: activeFilter?.jql ?? '',
+      jqlUsed: activeFilter.jql,
       totalDevs: 0,
     });
   };
 
-  const handleRefresh = () => {
-    refetchStats();
-    toast.success('Dados atualizados');
+  const handleRefresh = async () => {
+    await refetchStats();
+    setLastUpdated(new Date());
+    toast.success('Dados atualizados com sucesso');
   };
 
-  const todayStr = format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR });
-  const capitalizedToday = todayStr.charAt(0).toUpperCase() + todayStr.slice(1);
+  const handleHistory = () => {
+    navigate('/history');
+  };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Daily Dashboard</h1>
-            <p className="text-sm text-gray-500">{capitalizedToday}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/daily-history')}
-              className="gap-2"
-            >
-              <History className="w-4 h-4" />
-              Histórico
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              className="gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Atualizar
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleStartDaily}
-              disabled={isStarting}
-              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isStarting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Play className="w-4 h-4" />
-              )}
-              Iniciar Daily
-            </Button>
+  const handleViewBoard = () => {
+    navigate('/');
+  };
+
+  if (!activeFilter?.jql) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader
+          onRefresh={handleRefresh}
+          onHistory={handleHistory}
+          onStartDaily={handleStartDaily}
+          isRefreshing={false}
+          isStarting={false}
+        />
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-yellow-900">Nenhum filtro JQL configurado</h3>
+              <p className="text-sm text-yellow-800 mt-1">
+                Configure um filtro JQL na página de Configuração para começar a usar o Daily Dashboard.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/configuracao')}
+                className="mt-3"
+              >
+                Ir para Configuração
+              </Button>
+            </div>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <DashboardHeader
+        onRefresh={handleRefresh}
+        onHistory={handleHistory}
+        onStartDaily={handleStartDaily}
+        isRefreshing={statsLoading}
+        isStarting={isStarting}
+        lastUpdated={lastUpdated}
+      />
 
-        {/* No JQL configured */}
-        {!activeFilter && (
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3 text-yellow-800">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                <div>
-                  <p className="font-medium">Nenhum filtro JQL configurado</p>
-                  <p className="text-sm mt-1">
-                    Configure um filtro JQL na{' '}
-                    <button
-                      onClick={() => navigate('/settings')}
-                      className="underline font-medium"
-                    >
-                      página de Configuração
-                    </button>{' '}
-                    para visualizar os dados do sprint.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Sprint Progress */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
-              Progresso do Sprint
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {statsLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </div>
-            ) : statsError ? (
-              <div className="flex items-center gap-3 text-red-600 py-2">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-sm">Erro ao carregar dados do JIRA</p>
-                  <p className="text-xs text-red-500 mt-1">{statsError.message}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 text-red-600 border-red-300"
-                    onClick={() => refetchStats()}
-                  >
-                    Tentar Novamente
-                  </Button>
-                </div>
-              </div>
-            ) : sprintStats ? (
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      {sprintStats.completion_percentage}% concluído ({sprintStats.completed}/{sprintStats.total_issues} issues)
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {sprintStats.total_issues} total
-                    </span>
-                  </div>
-                  <Progress value={sprintStats.completion_percentage} className="h-3" />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-green-700">{sprintStats.completed}</p>
-                    <p className="text-xs text-green-600">Concluídas</p>
-                  </div>
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <Clock className="w-5 h-5 text-blue-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-blue-700">{sprintStats.in_progress}</p>
-                    <p className="text-xs text-blue-600">Em Progresso</p>
-                  </div>
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <Users className="w-5 h-5 text-gray-500 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-gray-700">{sprintStats.todo}</p>
-                    <p className="text-xs text-gray-500">A Fazer</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 py-2">
-                Configure um filtro JQL para visualizar o progresso do sprint.
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {statsError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mb-6">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-medium text-red-900">Erro ao carregar dados</h3>
+              <p className="text-sm text-red-800 mt-1">
+                {statsError?.message || 'Não foi possível carregar os dados do sprint.'}
               </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Critical Blockers */}
-        {sprintStats && sprintStats.blockers && sprintStats.blockers.length > 0 && (
-          <Card className="border-red-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-red-700">
-                <AlertTriangle className="w-5 h-5" />
-                Bloqueios Críticos ({sprintStats.blockers.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {sprintStats.blockers.map((blocker: any) => (
-                  <div
-                    key={blocker.key}
-                    className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge variant="destructive" className="font-mono text-xs">
-                        {blocker.key}
-                      </Badge>
-                      <span className="text-sm text-red-800">{blocker.assignee}</span>
-                    </div>
-                    <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
-                      {blocker.days_blocked} dias parado
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                className="mt-3 gap-2"
+              >
+                <Loader2 className="w-4 h-4" />
+                Tentar Novamente
+              </Button>
+            </div>
+          </div>
         )}
 
-        {/* Attention Items */}
-        {sprintStats && (
-          <Card className="border-yellow-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-yellow-700">
-                <AlertCircle className="w-5 h-5" />
-                Itens de Atenção
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {sprintStats.in_progress > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-yellow-800 p-2 bg-yellow-50 rounded">
-                    <Clock className="w-4 h-4 flex-shrink-0" />
-                    <span>{sprintStats.in_progress} issues em progresso</span>
-                  </div>
-                )}
-                {sprintStats.todo > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-gray-700 p-2 bg-gray-50 rounded">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>{sprintStats.todo} issues ainda não iniciadas</span>
-                  </div>
-                )}
-                {sprintStats.blockers && sprintStats.blockers.length > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-red-700 p-2 bg-red-50 rounded">
-                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                    <span>{sprintStats.blockers.length} issues paradas há mais de 3 dias</span>
-                  </div>
-                )}
-                {sprintStats.total_issues === 0 && (
-                  <p className="text-sm text-gray-500">Nenhum item de atenção no momento.</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <div className="space-y-6">
+          {statsLoading ? (
+            <>
+              <Skeleton className="h-40" />
+              <Skeleton className="h-40" />
+              <Skeleton className="h-40" />
+            </>
+          ) : sprintStats ? (
+            <>
+              <SprintProgress
+                total={sprintStats.total_issues}
+                completed={sprintStats.completed}
+                inProgress={sprintStats.in_progress}
+                todo={sprintStats.todo}
+              />
 
-        {/* Action Buttons */}
-        <div className="flex gap-4 pt-2">
-          <Button
-            size="lg"
-            onClick={handleStartDaily}
-            disabled={isStarting}
-            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white flex-1"
-          >
-            {isStarting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Play className="w-5 h-5" />
-            )}
-            Iniciar Daily
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={() => navigate('/')}
-            className="gap-2"
-          >
-            Ver Board Completo
-          </Button>
+              <BlockersList
+                blockers={sprintStats.blockers || []}
+                isLoading={statsLoading}
+              />
+
+              <AttentionItems
+                unassignedCount={0}
+                devsWithoutUpdate={0}
+                prsAwaitingReview={0}
+                blockersCount={sprintStats.blockers?.length || 0}
+                isLoading={statsLoading}
+              />
+
+              <ActionButtons
+                onStartDaily={handleStartDaily}
+                onViewBoard={handleViewBoard}
+                isStarting={isStarting}
+                disabled={!sprintStats}
+              />
+            </>
+          ) : null}
         </div>
       </div>
     </div>

@@ -830,3 +830,61 @@
 - [x] DailySummary: navegação corrigida para /daily-entrance
 - [x] DailyEntrance: skeleton loading, error state, itens de atenção (já implementados)
 - [x] 143 testes passando sem regressões
+
+
+---
+
+# AUDITORIA: pasted_content_3.txt - Especificação de Telas
+
+## Tela 1: Dashboard de Entrada (/dashboard)
+- [ ] Componente DashboardHeader.tsx (data, botões Histórico/Atualizar/Iniciar)
+- [ ] Componente SprintProgress.tsx (barra de progresso + métricas)
+- [ ] Componente BlockersList.tsx (lista de bloqueios críticos)
+- [ ] Componente AttentionItems.tsx (alertas de atenção)
+- [ ] Componente ActionButtons.tsx (botões primários)
+- [ ] Rota /dashboard como entrada principal (não /daily-entrance)
+- [ ] Skeleton loading ao carregar
+- [ ] Error state com botão "Tentar Novamente"
+- [ ] Botão [Atualizar] com spinner
+- [ ] Botão [Iniciar Daily] cria registro e redireciona para /daily/{id}
+
+## Tela 2: Daily Ativa (/daily/{daily_id})
+- [ ] Layout split-screen 40/60 (Board Context | Daily Flow)
+- [ ] Painel esquerdo: SprintProgressMini, BlockersList, DailyQueue, MiniKanban
+- [ ] Painel direito: CurrentDev, IssuesList, QuickStatus, SummaryInput, BlockersInput, NavigationButtons
+- [ ] Rodapé: RegisteredTurns (timeline de turnos concluídos)
+- [ ] Timer duplo (total + por dev) no header
+- [ ] Buscar issues do JIRA em tempo real ao trocar de dev
+- [ ] Validação antes de salvar turno (summary obrigatório, blockers_description se tem_bloqueio)
+- [ ] Botão [Próximo Dev] salva turno e avança
+- [ ] Botão [Concluir Daily] aparece quando todos completarem
+- [ ] Tratamento de erros de JIRA sem bloquear interface
+
+## Tela 3: Histórico (/history)
+- [ ] Botão [← Voltar] no header que navega para /dashboard
+- [ ] Filtros de data (Última semana, Último mês, Tudo)
+- [ ] Cards com stats: Duração, Participantes, Bloqueios, Issues Concluídas
+- [ ] Botão [Ver Ata] abre modal com Markdown
+- [ ] Botão [Ver Detalhes] (não especificado, mas mencionado)
+- [ ] Paginação com [Carregar mais...]
+- [ ] Endpoint GET /api/dailies?status=completed&limit=10&offset=0
+
+## Tela 4: Resumo (/daily/{daily_id}/summary)
+- [ ] 5 stats: Duração total, Participantes, Média/pessoa, Issues mencionadas, Bloqueios reportados
+- [ ] Seção "Próximas Ações" derivada dos impedimentos
+- [ ] Ata em Markdown com botões [Copiar], [Baixar PDF], [Compartilhar]
+- [ ] Botões [Voltar ao Dashboard], [Ver Histórico]
+- [ ] Endpoint GET /api/dailies/:id/minutes para gerar ata
+
+## Endpoints de API Faltantes
+- [ ] POST /api/dailies - Criar nova daily
+- [ ] GET /api/dailies - Listar com paginação
+- [ ] GET /api/dailies/:id - Buscar específica
+- [ ] PATCH /api/dailies/:id - Atualizar/finalizar
+- [ ] GET /api/dailies/:id/minutes - Gerar ata Markdown
+- [ ] POST /api/dailies/:id/turns - Salvar turno
+- [ ] GET /api/dailies/:id/turns - Listar turnos
+- [ ] GET /api/jira/issues - Buscar issues (assignee, sprint)
+- [ ] GET /api/jira/sprint/stats - Stats do sprint
+- [ ] POST /api/jira/refresh - Forçar atualização cache
+- [ ] GET /api/developers - Lista de devs com username JIRA
