@@ -246,16 +246,31 @@ export const dailyDevTurns = mysqlTable("dailyDevTurns", {
   meetingId: int("meetingId").notNull(),
   devName: varchar("devName", { length: 255 }).notNull(),
   devId: varchar("devId", { length: 255 }),
+  jiraUsername: varchar("jiraUsername", { length: 100 }),
+  turnOrder: int("turnOrder").default(0).notNull(),
+  startedAt: timestamp("startedAt"),
+  finishedAt: timestamp("finishedAt"),
+  durationSeconds: int("durationSeconds").default(0),
+  // Issues trabalhadas (JSON array de strings)
+  issues: json("issues").$type<string[]>().default([]),
+  // Status rápido (checkboxes)
+  completedTasks: int("completedTasks").default(0),
+  hasWorkInProgress: int("hasWorkInProgress").default(0),
+  willStartNewTask: int("willStartNewTask").default(0),
+  hasBlockers: int("hasBlockers").default(0),
+  // Textos livres
+  summary: text("summary"),
+  blockersDescription: text("blockersDescription"),
+  // Legacy fields (kept for backward compat)
   currentTask: text("currentTask"),
   currentTaskComment: text("currentTaskComment"),
   nextTask: text("nextTask"),
   nextTaskComment: text("nextTaskComment"),
-  hasImpediment: int("hasImpediment").default(0).notNull(), // 0 = false, 1 = true
+  hasImpediment: int("hasImpediment").default(0).notNull(),
   impedimentIssue: varchar("impedimentIssue", { length: 255 }),
   impedimentComment: text("impedimentComment"),
-  summary: text("summary"),
-  issuesData: json("issuesData").$type<Array<{ key: string; title: string; status: string; lastUpdate: string }>>(),
-  registered: int("registered").default(0).notNull(), // 0 = false, 1 = true
+  issuesData: json("issuesData").$type<Array<{ key: string; title: string; status: string; lastUpdate: string }>>()
+,  registered: int("registered").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

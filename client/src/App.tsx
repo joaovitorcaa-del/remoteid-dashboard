@@ -15,6 +15,9 @@ import ResponsibleView from "./pages/ResponsibleView";
 import Settings from "./pages/Settings";
 import Analysis from "./pages/Analysis";
 import DailyHistory from "./pages/DailyHistory";
+import DailyEntrance from "./pages/DailyEntrance";
+import DailyActive from "./pages/DailyActive";
+import DailySummary from "./pages/DailySummary";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -29,6 +32,9 @@ function Router() {
       <Route path="/analysis" component={Analysis} />
       <Route path="/settings" component={Settings} />
       <Route path="/daily-history" component={DailyHistory} />
+      <Route path="/daily-entrance" component={DailyEntrance} />
+      <Route path="/daily-active/:meetingId" component={DailyActive} />
+      <Route path="/daily-summary/:meetingId" component={DailySummary} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

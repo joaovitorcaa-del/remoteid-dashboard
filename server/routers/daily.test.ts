@@ -124,8 +124,8 @@ describe("Daily Router", () => {
     });
 
     it("should identify overdue issues", async () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+      // Use a fixed date clearly before the test date 2026-04-15
+      const dueDateBeforeTestDate = "2026-04-10"; // 5 days before test date
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
@@ -138,7 +138,7 @@ describe("Daily Router", () => {
                 status: { name: "In Progress" },
                 assignee: { displayName: "John" },
                 updated: new Date().toISOString(),
-                duedate: yesterday.toISOString().split("T")[0],
+                duedate: dueDateBeforeTestDate,
                 flagged: false,
                 labels: [],
               },

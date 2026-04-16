@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Streamdown } from 'streamdown';
+import { useLocation } from 'wouter';
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -37,6 +38,7 @@ function formatDate(date: Date | string): string {
 function MeetingCard({ meeting }: { meeting: any }) {
   const [open, setOpen] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [, navigate] = useLocation();
 
   const { data: detail, isLoading } = trpc.dailyHistory.getMeetingDetail.useQuery(
     { meetingId: meeting.id },
@@ -74,6 +76,19 @@ function MeetingCard({ meeting }: { meeting: any }) {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* View Summary Link */}
+                {meeting.status === 'concluded' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-7 px-2 gap-1"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/daily-summary/${meeting.id}`); }}
+                  >
+                    <TrendingUp className="w-3 h-3" />
+                    Resumo
+                  </Button>
+                )}
+
                 {/* Status */}
                 <Badge variant={meeting.status === 'concluded' ? 'default' : 'secondary'}>
                   {meeting.status === 'concluded' ? 'Concluída' : 'Em Progresso'}

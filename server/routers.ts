@@ -14,6 +14,7 @@ import { retrospectiveRouter } from "./routers/retrospective";
 import { responsibleRouter } from "./routers/responsible";
 import { analysisRouter } from "./routers/analysis";
 import { dailyHistoryRouter } from "./routers/dailyHistory";
+import { dailyMeetingRouter } from "./routers/dailyMeeting";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -40,6 +41,7 @@ export const appRouter = router({
   responsible: responsibleRouter,
   analysis: analysisRouter,
   dailyHistory: dailyHistoryRouter,
+  dailyMeeting: dailyMeetingRouter,
 
   // TODO: add feature routers here, e.g.
   // todo: router({

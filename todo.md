@@ -757,3 +757,59 @@
 - [x] Adicionar botão "Histórico" no header do Daily
 - [x] Escrever 10 testes unitários para dailyHistory (todos passando)
 - [x] 126 testes passando (1 timeout pré-existente em jira.test.ts não relacionado)
+
+
+---
+
+# PRD DAILY DASHBOARD - IMPLEMENTAÇÃO COMPLETA
+
+## Backend
+- [ ] Criar tabelas dailies e daily_turns no banco (via SQL)
+- [ ] Criar helper functions em server/db.ts para dailies e turns
+- [ ] Criar router dailyMeeting.ts com endpoints CRUD
+- [ ] Implementar endpoint GET /daily/:id/minutes (gerar ata Markdown)
+- [ ] Implementar endpoint JIRA issues por assignee com cache 5min
+- [ ] Implementar endpoint JIRA sprint stats
+
+## Frontend - Tela de Entrada
+- [ ] Criar DailyEntrance.tsx com progresso sprint, bloqueios, itens de atenção
+- [ ] Integrar com JIRA sprint stats
+- [ ] Botão Iniciar Daily cria registro no banco e redireciona
+
+## Frontend - Daily Ativa
+- [ ] Criar DailyActive.tsx com split-screen 40/60
+- [ ] Painel esquerdo: SprintProgress, Bloqueios, Fila de devs, Mini Kanban
+- [ ] Painel direito: Dev atual, Issues JIRA, Status rápido, Resumo, Impedimentos
+- [ ] Timer total + timer por dev
+- [ ] Issues carregam em tempo real ao trocar de dev
+- [ ] Validação antes de avançar (summary obrigatório, impedimento obrigatório se marcado)
+- [ ] Rodapé com turnos registrados
+
+## Frontend - Resumo
+- [ ] Criar DailySummary.tsx com estatísticas, ata Markdown, próximas ações
+- [ ] Botão copiar Markdown
+- [ ] Botão voltar ao dashboard
+
+## Frontend - Histórico
+- [ ] Atualizar DailyHistory.tsx com botão voltar, filtros, cards com [Ver Ata]
+- [ ] Modal de ata em Markdown renderizado
+
+## Testes
+- [ ] Testes para endpoints dailies e turns
+- [ ] Testar fluxo completo end-to-end
+
+
+---
+
+# PRD DAILY DASHBOARD - IMPLEMENTAÇÃO COMPLETA [CONCLUÍDO]
+
+- [x] Tela de Entrada (DailyEntrance.tsx) - progresso sprint, bloqueios, atenção
+- [x] Tela de Daily Ativa (DailyActive.tsx) - split-screen 40/60, timer duplo, turnos
+- [x] Tela de Resumo (DailySummary.tsx) - stats, ata Markdown, resumo IA
+- [x] Histórico atualizado (DailyHistory.tsx) - link para resumo de cada daily
+- [x] Router dailyMeeting.ts com endpoints: createMeeting, saveTurn, concludeMeeting, getMeeting, getMinutes, getSprintStats
+- [x] Schema atualizado com campos PRD: completedTasks, willStartNewTask, hasBlockers, jiraUsername, turnOrder, startedAt, finishedAt
+- [x] Migração SQL executada para novos campos
+- [x] Rotas registradas no App.tsx: /daily-entrance, /daily-active/:meetingId, /daily-summary/:meetingId
+- [x] 15 novos testes unitários para dailyMeeting.test.ts
+- [x] 143 testes passando (14 arquivos)
