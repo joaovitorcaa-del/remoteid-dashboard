@@ -888,3 +888,30 @@
 - [ ] GET /api/jira/sprint/stats - Stats do sprint
 - [ ] POST /api/jira/refresh - Forçar atualização cache
 - [ ] GET /api/developers - Lista de devs com username JIRA
+
+
+---
+
+# IMPLEMENTAÇÃO EXATA DO PRD pasted_content_3.txt
+
+## Componentes Painel Esquerdo (Board Context)
+- [ ] SprintProgressMini.tsx - Barra de progresso mini
+- [ ] DailyQueue.tsx - Lista de devs com status (✓ completo, → atual, • pendente)
+- [ ] MiniKanban.tsx - Kanban resumido (TODO|DOING|DONE com números)
+
+## Componentes Painel Direito (Daily Flow)
+- [ ] CurrentDev.tsx - Nome do dev atual em destaque
+- [ ] IssuesList.tsx - Issues do JIRA do dev atual
+- [ ] QuickStatus.tsx - Checkboxes (Concluí tarefas, Tenho trabalho em progresso, etc)
+- [ ] SummaryInput.tsx - Textarea com contador de caracteres (max 280)
+- [ ] BlockersInput.tsx - Textarea condicional para impedimentos
+- [ ] NavigationButtons.tsx - Botões [Anterior] [Próximo Dev] [⚡Flag]
+
+## Telas Principais
+- [ ] Reescrever DailyActive.tsx com layout split-screen 40/60 exato
+- [ ] Corrigir DailyHistory conforme especificação
+- [ ] Corrigir DailySummary conforme especificação
+
+## Backend
+- [ ] Implementar endpoints de API faltantes
+- [ ] Validações conforme PRD
