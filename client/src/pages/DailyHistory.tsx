@@ -15,6 +15,9 @@ import {
   TrendingUp,
   ArrowLeft,
   Download,
+  FileText,
+  Copy,
+  X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +26,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Skeleton } from '@/components/ui/skeleton';
 import { Streamdown } from 'streamdown';
 import { useLocation } from 'wouter';
+import { toast } from 'sonner';
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -40,11 +44,17 @@ function formatDate(date: Date | string): string {
 function MeetingCard({ meeting }: { meeting: any }) {
   const [open, setOpen] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showAta, setShowAta] = useState(false);
   const [, navigate] = useLocation();
 
   const { data: detail, isLoading } = trpc.dailyHistory.getMeetingDetail.useQuery(
     { meetingId: meeting.id },
     { enabled: open }
+  );
+
+  const { data: minutesData, isLoading: minutesLoading } = trpc.dailyMeeting.getMinutes.useQuery(
+    { meetingId: meeting.id },
+    { enabled: showAta }
   );
 
   const registeredCount = meeting.registeredDevs ?? 0;
@@ -53,7 +63,7 @@ function MeetingCard({ meeting }: { meeting: any }) {
     ? meeting.silentDevs
     : (typeof meeting.silentDevs === 'string' ? JSON.parse(meeting.silentDevs || '[]') : []);
 
-  const impedimentTurns = detail?.turns?.filter((t: any) => t.hasImpediment) ?? [];
+  const impedimentTurns = detail?.turns?.filter((t: any) => t.hasImpediment || t.hasBlockers) ?? [];
 
   return (
     <Card className="border border-border/50 hover:border-border transition-colors">
@@ -78,6 +88,19 @@ function MeetingCard({ meeting }: { meeting: any }) {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Ver Ata */}
+                {meeting.status === 'concluded' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-7 px-2 gap-1"
+                    onClick={(e) => { e.stopPropagation(); setShowAta(v => !v); setOpen(true); }}
+                  >
+                    <FileText className="w-3 h-3" />
+                    Ver Ata
+                  </Button>
+                )}
+
                 {/* View Summary Link */}
                 {meeting.status === 'concluded' && (
                   <Button
@@ -164,27 +187,50 @@ function MeetingCard({ meeting }: { meeting: any }) {
                           </div>
 
                           {turn.registered && (
-                            <div className="mt-2 pl-6 space-y-1 text-muted-foreground">
-                              {turn.currentTask && (
+                            <div className="mt-2 pl-6 space-y-2 text-muted-foreground">
+                              {/* New format: summary prominently */}
+                              {turn.summary && (
+                                <p className="text-sm text-foreground">
+                                  <MessageSquare className="w-3.5 h-3.5 inline mr-1 text-muted-foreground" />
+                                  {turn.summary}
+                                </p>
+                              )}
+
+                              {/* Legacy format: currentTask/nextTask fallback */}
+                              {!turn.summary && turn.currentTask && (
                                 <p><span className="text-foreground font-medium">Atual:</span> {turn.currentTask}
                                   {turn.currentTaskComment && <span className="text-xs ml-1 italic">— {turn.currentTaskComment}</span>}
                                 </p>
                               )}
-                              {turn.nextTask && (
+                              {!turn.summary && turn.nextTask && (
                                 <p><span className="text-foreground font-medium">Próxima:</span> {turn.nextTask}
                                   {turn.nextTaskComment && <span className="text-xs ml-1 italic">— {turn.nextTaskComment}</span>}
                                 </p>
                               )}
-                              {turn.hasImpediment && turn.impedimentIssue && (
-                                <p className="text-amber-600">
-                                  <span className="font-medium">Impedimento:</span> {turn.impedimentIssue}
-                                  {turn.impedimentComment && <span className="text-xs ml-1 italic">— {turn.impedimentComment}</span>}
-                                </p>
+
+                              {/* Status flags (new format) */}
+                              {(!!turn.completedTasks || !!turn.hasWorkInProgress || !!turn.willStartNewTask) && (
+                                <div className="flex flex-wrap gap-1">
+                                  {!!turn.completedTasks && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">✅ Concluiu tarefas</span>}
+                                  {!!turn.hasWorkInProgress && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">🔄 Em progresso</span>}
+                                  {!!turn.willStartNewTask && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">🚀 Nova tarefa</span>}
+                                </div>
                               )}
-                              {turn.summary && (
-                                <p className="text-xs italic border-t border-border/30 pt-1 mt-1">
-                                  <MessageSquare className="w-3 h-3 inline mr-1" />
-                                  {turn.summary}
+
+                              {/* Issues (new format) */}
+                              {turn.issues && Array.isArray(turn.issues) && turn.issues.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {(turn.issues as string[]).map((k) => (
+                                    <span key={k} className="font-mono text-xs border border-border/50 rounded px-1 py-0.5 text-foreground">{k}</span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Blocker description: new format (blockersDescription) or legacy (impedimentComment/impedimentIssue) */}
+                              {(turn.hasImpediment || turn.hasBlockers) && (turn.blockersDescription || turn.impedimentComment || turn.impedimentIssue) && (
+                                <p className="text-amber-600 text-xs">
+                                  <span className="font-medium">🚫 Impedimento:</span>{' '}
+                                  {turn.blockersDescription || turn.impedimentComment || turn.impedimentIssue}
                                 </p>
                               )}
                             </div>
@@ -222,6 +268,47 @@ function MeetingCard({ meeting }: { meeting: any }) {
                       <div className="rounded-lg bg-muted/30 border border-border/50 p-4 text-sm">
                         <Streamdown>{meeting.aiReport}</Streamdown>
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Ata (Markdown minutes) */}
+                {showAta && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Ata da Daily
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-7 gap-1"
+                          onClick={() => {
+                            if (minutesData?.markdown) {
+                              navigator.clipboard.writeText(minutesData.markdown);
+                              toast.success('Ata copiada!');
+                            }
+                          }}
+                          disabled={!minutesData?.markdown}
+                        >
+                          <Copy className="w-3 h-3" />
+                          Copiar
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowAta(false)}>
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    {minutesLoading ? (
+                      <Skeleton className="h-32 w-full" />
+                    ) : minutesData?.markdown ? (
+                      <div className="rounded-lg bg-muted/20 border border-border/50 p-4 text-sm max-h-96 overflow-y-auto">
+                        <Streamdown>{minutesData.markdown}</Streamdown>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Ata não disponível.</p>
                     )}
                   </div>
                 )}
@@ -363,7 +450,7 @@ export default function DailyHistory() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/daily-entrance')}
                 className="flex items-center gap-2 text-sm"
               >
                 <ArrowLeft className="w-4 h-4" />

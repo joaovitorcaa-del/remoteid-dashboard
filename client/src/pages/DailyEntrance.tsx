@@ -155,7 +155,7 @@ export default function DailyEntrance() {
               />
 
               <AttentionItems
-                unassignedCount={0}
+                unassignedCount={sprintStats.unassigned_count ?? 0}
                 devsWithoutUpdate={0}
                 prsAwaitingReview={0}
                 blockersCount={sprintStats.blockers?.length || 0}

@@ -10,6 +10,26 @@ import { dailyMeetings, dailyDevTurns } from "../../drizzle/schema";
 const jiraCache = new Map<string, { data: any; fetchedAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+async function resolveJiraAccountId(
+  jiraUsername: string,
+  authHeader: string,
+  baseUrl: string,
+): Promise<string> {
+  // First try: search users by displayName to resolve accountId
+  const userSearchUrl = `${baseUrl}/rest/api/3/user/search?query=${encodeURIComponent(jiraUsername)}&maxResults=5`;
+  const res = await fetch(userSearchUrl, {
+    headers: { Authorization: authHeader, Accept: "application/json" },
+  });
+  if (!res.ok) return jiraUsername;
+  const users: any[] = await res.json();
+  if (users.length === 0) return jiraUsername;
+  // Prefer exact displayName match, fall back to first result
+  const exact = users.find(
+    (u) => (u.displayName || "").toLowerCase() === jiraUsername.toLowerCase(),
+  );
+  return (exact ?? users[0]).accountId ?? jiraUsername;
+}
+
 async function fetchJiraIssuesByAssignee(jiraUsername: string): Promise<any[]> {
   const cacheKey = `assignee:${jiraUsername}`;
   const cached = jiraCache.get(cacheKey);
@@ -25,25 +45,38 @@ async function fetchJiraIssuesByAssignee(jiraUsername: string): Promise<any[]> {
     throw new Error("JIRA credentials not configured");
   }
 
-  const jql = `assignee = "${jiraUsername}" AND sprint in openSprints() ORDER BY updated DESC`;
+  const authHeader = `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`;
+  const commonHeaders = {
+    Authorization: authHeader,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
   const fields = "key,summary,status,assignee,priority,updated";
-  const searchUrl = `${url}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=50&fields=${fields}`;
 
-  const response = await fetch(searchUrl, {
-    method: "GET",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`JIRA API error: ${response.status} ${response.statusText} - ${body.substring(0, 200)}`);
+  // Helper to execute a JQL search
+  async function runSearch(jql: string) {
+    const searchUrl = `${url}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=50&fields=${fields}`;
+    const response = await fetch(searchUrl, { method: "GET", headers: commonHeaders });
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`JIRA API error: ${response.status} ${response.statusText} - ${body.substring(0, 200)}`);
+    }
+    return response.json();
   }
 
-  const data = await response.json();
+  // 1st attempt: use the value as-is (works when jiraUsername is an email/accountId)
+  let jql = `assignee = "${jiraUsername}" AND sprint in openSprints() ORDER BY updated DESC`;
+  let data = await runSearch(jql);
+
+  // 2nd attempt: if no issues found, try resolving the displayName to an accountId
+  if ((data.issues || []).length === 0) {
+    const accountId = await resolveJiraAccountId(jiraUsername, authHeader, url).catch(() => jiraUsername);
+    if (accountId !== jiraUsername) {
+      jql = `assignee = "${accountId}" AND sprint in openSprints() ORDER BY updated DESC`;
+      data = await runSearch(jql).catch(() => ({ issues: [] }));
+    }
+  }
+
   const issues = (data.issues || []).map((i: any) => ({
     key: i.key,
     summary: i.fields?.summary || "",
@@ -64,6 +97,7 @@ async function fetchSprintStats(jql: string): Promise<{
   todo: number;
   completion_percentage: number;
   blockers: Array<{ key: string; assignee: string; days_blocked: number }>;
+  unassigned_count: number;
 }> {
   const cacheKey = `sprint_stats:${jql}`;
   const cached = jiraCache.get(cacheKey);
@@ -131,6 +165,7 @@ async function fetchSprintStats(jql: string): Promise<{
   }
 
   const total = issues.length;
+  const unassignedCount = issues.filter((i: any) => !i.fields?.assignee).length;
   const result = {
     total_issues: total,
     completed,
@@ -138,6 +173,7 @@ async function fetchSprintStats(jql: string): Promise<{
     todo,
     completion_percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
     blockers: blockers.sort((a, b) => b.days_blocked - a.days_blocked).slice(0, 10),
+    unassigned_count: unassignedCount,
   };
 
   jiraCache.set(cacheKey, { data: result, fetchedAt: Date.now() });
@@ -461,9 +497,11 @@ export const dailyMeetingRouter = router({
       jiraUsername: z.string(),
     }))
     .query(async ({ input }) => {
+      const cacheKey = `assignee:${input.jiraUsername}`;
+      const wasInCache = jiraCache.has(cacheKey) && (Date.now() - (jiraCache.get(cacheKey)?.fetchedAt ?? 0) < CACHE_TTL_MS);
       try {
         const issues = await fetchJiraIssuesByAssignee(input.jiraUsername);
-        return { issues, fromCache: false };
+        return { issues, fromCache: wasInCache };
       } catch (err: any) {
         console.error("[dailyMeeting] Failed to fetch JIRA issues:", err.message);
         // Return empty list but don't block the daily
@@ -491,6 +529,7 @@ export const dailyMeetingRouter = router({
           todo: 0,
           completion_percentage: 0,
           blockers: [],
+          unassigned_count: 0,
           fromCache: false,
           error: err.message,
         };
