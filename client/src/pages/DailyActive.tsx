@@ -95,6 +95,8 @@ export default function DailyActive() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingIssues, setIsLoadingIssues] = useState(false);
   const [turnStartTime, setTurnStartTime] = useState<Date>(new Date());
+  const [loadedIssues, setLoadedIssues] = useState<Array<{key: string; summary: string; status: string}>>([]);
+  const [newIssueInput, setNewIssueInput] = useState('');
 
   const utils = trpc.useUtils();
 
@@ -145,10 +147,17 @@ export default function DailyActive() {
     if (!dev || !dev.jiraUsername) return;
 
     setIsLoadingIssues(true);
+    setLoadedIssues([]);
     utils.dailyMeeting.getIssuesByAssignee.fetch({ jiraUsername: dev.jiraUsername })
       .then((result) => {
-        const issueKeys = (result.issues || []).map((i: any) => i.key);
+        const issues = result.issues || [];
+        const mapped = issues.map((i: any) => ({ key: i.key, summary: i.summary || '', status: i.status || '' }));
+        setLoadedIssues(mapped);
+        const issueKeys = mapped.map((i) => i.key);
         setForm(prev => ({ ...prev, issues: issueKeys }));
+        if (result.fromCache) {
+          toast.info('Usando dados em cache — JIRA pode estar desatualizado');
+        }
         if (result.error) {
           toast.warning('Não foi possível carregar issues do JIRA. Continuando sem dados.');
         }
@@ -218,6 +227,8 @@ export default function DailyActive() {
       const nextIndex = currentDevIndex + 1;
       setCurrentDevIndex(nextIndex);
       setForm(emptyForm());
+      setLoadedIssues([]);
+      setNewIssueInput('');
       setDevSeconds(0);
       setTurnStartTime(new Date());
 
@@ -238,9 +249,28 @@ export default function DailyActive() {
     }));
     setCurrentDevIndex(prev => prev + 1);
     setForm(emptyForm());
+    setLoadedIssues([]);
+    setNewIssueInput('');
     setDevSeconds(0);
     setTurnStartTime(new Date());
     toast.info(`${dev.name} pulado`);
+  };
+
+  const handleGoBack = () => {
+    if (currentDevIndex === 0) return;
+    const prevIndex = currentDevIndex - 1;
+    setDevelopers(prev => prev.map((d, i) => {
+      if (i === currentDevIndex) return { ...d, status: 'pending' };
+      if (i === prevIndex) return { ...d, status: 'current' };
+      return d;
+    }));
+    setCurrentDevIndex(prevIndex);
+    setForm(emptyForm());
+    setLoadedIssues([]);
+    setNewIssueInput('');
+    setDevSeconds(0);
+    setTurnStartTime(new Date());
+    toast.info('Voltou ao desenvolvedor anterior');
   };
 
   const handleConclude = async () => {
@@ -316,18 +346,32 @@ export default function DailyActive() {
           )}
           <Button
             size="sm"
-            variant="outline"
-            className="border-blue-400 text-white hover:bg-blue-600 gap-2"
-            onClick={handleConclude}
-            disabled={concludeMutation.isPending}
+            variant="ghost"
+            className="text-blue-200 hover:text-white hover:bg-blue-600"
+            onClick={() => {
+              if (window.confirm('Deseja sair? A daily ficará salva como "em andamento" e pode ser continuada depois.')) {
+                navigate('/daily-entrance');
+              }
+            }}
           >
-            {concludeMutation.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Trophy className="w-4 h-4" />
-            )}
-            Concluir Daily
+            Sair
           </Button>
+          {isLastDev && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-blue-400 text-white hover:bg-blue-600 gap-2"
+              onClick={handleConclude}
+              disabled={concludeMutation.isPending}
+            >
+              {concludeMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trophy className="w-4 h-4" />
+              )}
+              Concluir Daily
+            </Button>
+          )}
         </div>
       </div>
 
@@ -338,7 +382,7 @@ export default function DailyActive() {
         <div className="w-2/5 bg-white border-r border-gray-200 overflow-y-auto p-4 space-y-4">
 
           {/* Sprint Progress Mini */}
-          {sprintStats && (
+          {sprintStats ? (
             <Card className="shadow-sm">
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center justify-between mb-2">
@@ -353,6 +397,8 @@ export default function DailyActive() {
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <Skeleton className="h-24 w-full rounded-lg" />
           )}
 
           {/* Blockers */}
@@ -488,16 +534,57 @@ export default function DailyActive() {
                       <Skeleton className="h-8 w-full" />
                       <Skeleton className="h-8 w-3/4" />
                     </div>
-                  ) : form.issues.length > 0 ? (
-                    <div className="space-y-1">
-                      {form.issues.map((key) => (
-                        <div key={key} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
-                          <Badge variant="outline" className="font-mono text-xs">{key}</Badge>
-                        </div>
-                      ))}
-                    </div>
                   ) : (
-                    <p className="text-xs text-gray-400">Nenhuma issue encontrada no JIRA para este dev.</p>
+                    <div className="space-y-2">
+                      {loadedIssues.length > 0 ? (
+                        <div className="space-y-1">
+                          {loadedIssues.map((issue) => (
+                            <div key={issue.key} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
+                              <Checkbox
+                                id={`issue-${issue.key}`}
+                                checked={form.issues.includes(issue.key)}
+                                onCheckedChange={(checked) =>
+                                  setForm(prev => ({
+                                    ...prev,
+                                    issues: checked
+                                      ? [...prev.issues, issue.key]
+                                      : prev.issues.filter(k => k !== issue.key)
+                                  }))
+                                }
+                              />
+                              <label htmlFor={`issue-${issue.key}`} className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                                <Badge variant="outline" className="font-mono text-xs shrink-0">{issue.key}</Badge>
+                                {issue.summary && (
+                                  <span className="text-xs text-gray-500 truncate">{issue.summary}</span>
+                                )}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">Nenhuma issue encontrada no JIRA para este dev.</p>
+                      )}
+                      <div className="flex gap-2 mt-1">
+                        <input
+                          className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400 bg-white"
+                          placeholder="Adicionar manualmente (ex: REM-1234) e pressionar Enter"
+                          value={newIssueInput}
+                          onChange={(e) => setNewIssueInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newIssueInput.trim()) {
+                              const key = newIssueInput.trim().toUpperCase();
+                              if (!form.issues.includes(key)) {
+                                setForm(prev => ({ ...prev, issues: [...prev.issues, key] }));
+                                setLoadedIssues(prev =>
+                                  prev.some(i => i.key === key) ? prev : [...prev, { key, summary: '', status: '' }]
+                                );
+                              }
+                              setNewIssueInput('');
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -540,11 +627,13 @@ export default function DailyActive() {
                     placeholder="O que fez ontem? O que vai fazer hoje?"
                     value={form.summary}
                     onChange={(e) => setForm(prev => ({ ...prev, summary: e.target.value }))}
-                    maxLength={500}
+                    maxLength={280}
                     rows={3}
                     className="resize-none"
                   />
-                  <p className="text-xs text-gray-400 text-right mt-1">{form.summary.length}/500</p>
+                  <p className={`text-xs text-right mt-1 ${form.summary.length > 250 ? 'text-orange-500 font-medium' : 'text-gray-400'}`}>
+                    {form.summary.length}/280
+                  </p>
                 </CardContent>
               </Card>
 
@@ -571,6 +660,16 @@ export default function DailyActive() {
 
               {/* Navigation Buttons */}
               <div className="flex items-center gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGoBack}
+                  disabled={currentDevIndex === 0}
+                  className="gap-2 text-gray-500"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Anterior
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -616,12 +715,15 @@ export default function DailyActive() {
             {registeredTurns.map((turn, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 text-xs bg-green-50 border border-green-200 rounded-lg px-3 py-1.5"
+                className="flex items-center gap-2 text-xs bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 max-w-xs"
               >
                 <CheckCircle2 className="w-3 h-3 text-green-600 flex-shrink-0" />
-                <span className="font-medium text-green-800">{turn.devName}</span>
-                <span className="text-green-600">({formatTimer(turn.durationSeconds)})</span>
-                {turn.hasBlockers && <Flag className="w-3 h-3 text-red-500" />}
+                <span className="font-medium text-green-800 shrink-0">{turn.devName}</span>
+                <span className="text-green-600 shrink-0">({formatTimer(turn.durationSeconds)})</span>
+                {turn.hasBlockers && <Flag className="w-3 h-3 text-red-500 shrink-0" />}
+                {turn.summary && (
+                  <span className="text-green-700 italic truncate">"{turn.summary.substring(0, 50)}{turn.summary.length > 50 ? '...' : ''}"</span>
+                )}
               </div>
             ))}
           </div>
