@@ -3,7 +3,6 @@ import { useLocation, useParams } from 'wouter';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertCircle, Trophy, CheckCircle2, Flag, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
-import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,6 +19,10 @@ import { QuickStatus } from '@/components/daily-active/QuickStatus';
 import { SummaryInput } from '@/components/daily-active/SummaryInput';
 import { BlockersInput } from '@/components/daily-active/BlockersInput';
 import { NavigationButtons } from '@/components/daily-active/NavigationButtons';
+
+// Import feedback components
+import { FeedbackContainer } from '@/components/FeedbackContainer';
+import { useFeedback } from '@/hooks/useFeedback';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -106,12 +109,17 @@ export default function DailyActive() {
   const [newIssueInput, setNewIssueInput] = useState('');
 
   const utils = trpc.useUtils();
+  const { feedbacks, removeFeedback, success, error, warning, info } = useFeedback();
 
   // Mutations
   const saveTurnMutation = trpc.dailyMeeting.saveTurn.useMutation();
   const concludeMutation = trpc.dailyMeeting.concludeMeeting.useMutation({
     onSuccess: () => {
-      navigate(`/daily-summary/${meetingId}`);
+      success('Daily concluída!', 'Redirecionando para resumo...');
+      setTimeout(() => navigate(`/daily-summary/${meetingId}`), 1500);
+    },
+    onError: (err) => {
+      error('Erro ao concluir', err.message);
     },
   });
 
@@ -164,30 +172,30 @@ export default function DailyActive() {
         const issueKeys = mapped.map((i) => i.key);
         setForm(prev => ({ ...prev, issues: issueKeys }));
         if (result.fromCache) {
-          toast.info('Usando dados em cache — JIRA pode estar desatualizado');
+          info('Dados em cache', 'JIRA pode estar desatualizado');
         }
         if (result.error) {
-          toast.warning('Não foi possível carregar issues do JIRA. Continuando sem dados.');
+          warning('Erro ao carregar issues', 'Continuando sem dados do JIRA');
         }
       })
       .catch((err) => {
         console.error('Failed to load issues:', err);
-        toast.warning('Erro ao carregar issues do JIRA');
+        error('Erro ao carregar issues', 'Verifique sua conexão com JIRA');
       })
       .finally(() => {
         setIsLoadingIssues(false);
       });
-  }, [currentDevIndex, developers, utils]);
+  }, [currentDevIndex, developers, utils, info, warning, error]);
 
   // Handlers
   const handleRegisterTurn = async () => {
     if (!form.summary.trim()) {
-      toast.error('Resumo é obrigatório');
+      error('Resumo obrigatório', 'Por favor, adicione um resumo antes de continuar');
       return;
     }
 
     if (form.hasBlockers && !form.blockersDescription.trim()) {
-      toast.error('Descreva o impedimento');
+      error('Impedimento incompleto', 'Descreva o impedimento ou desmarque a opção');
       return;
     }
 
@@ -233,9 +241,9 @@ export default function DailyActive() {
       setDevSeconds(0);
       setTurnStartTime(new Date());
 
-      toast.success(`Turno de ${dev.name} registrado!`);
+      success(`Turno de ${dev.name} registrado!`, `${formatTimer(devSeconds)} de duração`);
     } catch (err: any) {
-      toast.error(`Erro ao salvar: ${err.message}`);
+      error('Erro ao salvar turno', err.message);
     } finally {
       setIsSaving(false);
     }
@@ -254,11 +262,14 @@ export default function DailyActive() {
     setNewIssueInput('');
     setDevSeconds(0);
     setTurnStartTime(new Date());
-    toast.info(`${dev.name} pulado`);
+    info(`${dev.name} pulado`, 'Passando para o próximo desenvolvedor');
   };
 
   const handleGoBack = () => {
-    if (currentDevIndex === 0) return;
+    if (currentDevIndex === 0) {
+      warning('Não é possível voltar', 'Você já está no primeiro desenvolvedor');
+      return;
+    }
     const prevIndex = currentDevIndex - 1;
     setDevelopers(prev => prev.map((d, i) => {
       if (i === currentDevIndex) return { ...d, status: 'pending' };
@@ -271,11 +282,14 @@ export default function DailyActive() {
     setNewIssueInput('');
     setDevSeconds(0);
     setTurnStartTime(new Date());
-    toast.info('Voltou ao desenvolvedor anterior');
+    info('Voltou ao desenvolvedor anterior', `Agora editando: ${developers[prevIndex]?.name}`);
   };
 
   const handleConclude = async () => {
-    if (!window.confirm('Concluir a daily? Esta ação não pode ser desfeita.')) return;
+    if (!window.confirm('Concluir a daily? Esta ação não pode ser desfeita.')) {
+      info('Conclusão cancelada', 'A daily continua ativa');
+      return;
+    }
     concludeMutation.mutate({ meetingId, durationSeconds: totalSeconds });
   };
 
@@ -292,7 +306,13 @@ export default function DailyActive() {
   };
 
   const handleFlag = () => {
-    setForm(prev => ({ ...prev, hasBlockers: !prev.hasBlockers }));
+    const newHasBlockers = !form.hasBlockers;
+    setForm(prev => ({ ...prev, hasBlockers: newHasBlockers }));
+    if (newHasBlockers) {
+      warning('Impedimento marcado', 'Descreva o impedimento no campo abaixo');
+    } else {
+      info('Impedimento desmarcado', 'Campo de descrição removido');
+    }
   };
 
   const handleSaveAndNext = () => {
@@ -336,6 +356,13 @@ export default function DailyActive() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
+      {/* Feedback Container */}
+      <FeedbackContainer
+        feedbacks={feedbacks}
+        onRemove={removeFeedback}
+        position="top-right"
+        maxVisible={5}
+      />
       {/* Header */}
       <div className="bg-blue-900 text-white px-6 py-4 shadow-md">
         <div className="flex items-center justify-between mb-2">

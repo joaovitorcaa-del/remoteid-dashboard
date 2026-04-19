@@ -915,3 +915,14 @@
 ## Backend
 - [ ] Implementar endpoints de API faltantes
 - [ ] Validações conforme PRD
+
+
+## Componente de Feedback Visual
+- [x] Criar componente FeedbackToast reutilizável com animações
+- [x] Adicionar suporte para tipos: success, error, warning, info
+- [x] Implementar ícones descritivos para cada tipo
+- [x] Integrar feedback visual no DailyActive.tsx
+- [x] Criar testes unitários para FeedbackToast
+- [x] Criar testes unitários para useFeedback hook
+- [x] Criar testes unitários para FeedbackContainer
+- [ ] Validar integração e salvar checkpoint
