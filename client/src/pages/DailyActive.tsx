@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, Trophy } from 'lucide-react';
+import { Loader2, AlertCircle, Trophy, CheckCircle2, Flag, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
 import { toast } from 'sonner';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Import new components
 import { SprintProgressMini } from '@/components/daily-active/SprintProgressMini';
@@ -146,7 +151,6 @@ export default function DailyActive() {
 
   // Load issues for current dev
   useEffect(() => {
-<<<<<<< Updated upstream
     const dev = developers[currentDevIndex];
     if (!dev || !dev.jiraUsername) return;
 
@@ -164,30 +168,16 @@ export default function DailyActive() {
         }
         if (result.error) {
           toast.warning('Não foi possível carregar issues do JIRA. Continuando sem dados.');
-=======
-    if (!currentDev || !activeFilter?.jql) return;
-
-    const loadIssues = async () => {
-      setIsLoadingIssues(true);
-      try {
-        const response = await fetch('/api/trpc/dailyMeeting.getDevIssues?input=' + encodeURIComponent(JSON.stringify({
-          jql: activeFilter.jql,
-          devName: currentDev.jiraUsername,
-        })), { credentials: 'include' });
-        const data = await response.json();
-        if (data.result?.data?.issues) {
-          setForm(prev => ({ ...prev, issues: data.result.data.issues }));
->>>>>>> Stashed changes
         }
-      } catch (err) {
+      })
+      .catch((err) => {
         console.error('Failed to load issues:', err);
-      } finally {
+        toast.warning('Erro ao carregar issues do JIRA');
+      })
+      .finally(() => {
         setIsLoadingIssues(false);
-      }
-    };
-
-    loadIssues();
-  }, [currentDev, activeFilter?.jql]);
+      });
+  }, [currentDevIndex, developers, utils]);
 
   // Handlers
   const handleRegisterTurn = async () => {
@@ -207,6 +197,7 @@ export default function DailyActive() {
       await saveTurnMutation.mutateAsync({
         meetingId,
         devName: dev.name,
+        turnOrder: dev.turnOrder,
         jiraUsername: dev.jiraUsername,
         completedTasks: form.completedTasks,
         hasWorkInProgress: form.hasWorkInProgress,
@@ -304,99 +295,74 @@ export default function DailyActive() {
     setForm(prev => ({ ...prev, hasBlockers: !prev.hasBlockers }));
   };
 
+  const handleSaveAndNext = () => {
+    if (currentDevIndex + 1 >= developers.length) {
+      handleConclude();
+    } else {
+      handleRegisterTurn();
+    }
+  };
+
   const isLastDev = currentDevIndex >= developers.length;
   const currentDev = developers[currentDevIndex];
   const completedCount = developers.filter(d => d.status === 'completed').length;
 
+  // Loading state
   if (meetingLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-          <p className="text-gray-600 font-medium">Carregando daily...</p>
-          <p className="text-gray-400 text-sm mt-1">Buscando dados do sprint e do JIRA</p>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Carregando reunião...</p>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (meetingError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Ops! Algo deu errado</h3>
-          <p className="text-gray-500 text-sm mb-4">{meetingError.message}</p>
-          <div className="flex gap-3 justify-center">
-            <Button onClick={() => refetchMeeting()} className="bg-blue-600 hover:bg-blue-700 text-white">
-              Tentar Novamente
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/daily-entrance')}>
-              Voltar
-            </Button>
-          </div>
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-600" />
+          <p className="text-gray-600">Erro ao carregar reunião</p>
+          <Button onClick={() => refetchMeeting()} className="mt-4">
+            Tentar novamente
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-gray-900 flex flex-col">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 font-mono text-xl font-bold">
-            {formatTimer(totalSeconds)}
-            <span className="text-blue-200 text-sm font-sans">total</span>
+      <div className="bg-blue-900 text-white px-6 py-4 shadow-md">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-xl font-bold">Daily Meeting</h1>
+            <p className="text-sm text-blue-100">Duração total: {formatTimer(totalSeconds)}</p>
           </div>
-          <div className="text-blue-200 text-sm">|</div>
-          <div className="flex items-center gap-2 font-mono text-lg">
-            {formatTimer(devSeconds)}
-            <span className="text-blue-200 text-sm font-sans">dev atual</span>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-sm font-semibold">{completedCount} de {developers.length} devs</p>
+              <p className="text-xs text-blue-100">Progresso: {Math.round((completedCount / developers.length) * 100)}%</p>
+            </div>
+            {isLastDev ? (
+              <Button
+                onClick={handleConclude}
+                disabled={concludeMutation.isPending}
+                className="bg-green-600 hover:bg-green-700 text-white gap-2"
+              >
+                {concludeMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trophy className="w-4 h-4" />
+                )}
+                Concluir Daily
+              </Button>
+            ) : null}
           </div>
-          {developers.length > 0 && (
-            <>
-              <div className="text-blue-200 text-sm">|</div>
-              <span className="text-blue-100 text-sm">
-                {completedCount}/{developers.length} devs
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {developers.length > 0 && totalSeconds > 0 && completedCount > 0 && (
-            <span className="text-blue-200 text-xs">
-              Média: {Math.round(totalSeconds / completedCount / 60 * 10) / 10} min/dev
-            </span>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-blue-200 hover:text-white hover:bg-blue-600"
-            onClick={() => {
-              if (window.confirm('Deseja sair? A daily ficará salva como "em andamento" e pode ser continuada depois.')) {
-                navigate('/daily-entrance');
-              }
-            }}
-          >
-            Sair
-          </Button>
-          {isLastDev && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-blue-400 text-white hover:bg-blue-600 gap-2"
-              onClick={handleConclude}
-              disabled={concludeMutation.isPending}
-            >
-              {concludeMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Trophy className="w-4 h-4" />
-              )}
-              Concluir Daily
-            </Button>
-          )}
         </div>
       </div>
 
@@ -405,54 +371,12 @@ export default function DailyActive() {
 
         {/* LEFT PANEL - Board Context (40%) */}
         <div className="w-2/5 bg-white border-r border-gray-200 overflow-y-auto p-4 space-y-4">
-<<<<<<< Updated upstream
-
-          {/* Sprint Progress Mini */}
-          {sprintStats ? (
-            <Card className="shadow-sm">
-              <CardContent className="pt-4 pb-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Sprint</span>
-                  <span className="text-sm font-bold text-blue-600">{sprintStats.completion_percentage}%</span>
-                </div>
-                <Progress value={sprintStats.completion_percentage} className="h-2 mb-2" />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>✅ {sprintStats.completed}</span>
-                  <span>🔄 {sprintStats.in_progress}</span>
-                  <span>📋 {sprintStats.todo}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Skeleton className="h-24 w-full rounded-lg" />
-          )}
-
-          {/* Blockers */}
-          {sprintStats?.blockers && sprintStats.blockers.length > 0 && (
-            <Card className="border-red-200 shadow-sm">
-              <CardHeader className="pb-2 pt-3 px-4">
-                <CardTitle className="text-xs font-semibold text-red-700 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Bloqueios ({sprintStats.blockers.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-3 space-y-1">
-                {sprintStats.blockers.slice(0, 5).map((b: any) => (
-                  <div key={b.key} className="flex items-center justify-between text-xs">
-                    <span className="font-mono text-red-700">{b.key}</span>
-                    <span className="text-red-500">{b.days_blocked}d</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-=======
           {sprintStats && (
             <SprintProgressMini
               completed={sprintStats.completed}
               total={sprintStats.total_issues}
               percentage={sprintStats.completion_percentage}
             />
->>>>>>> Stashed changes
           )}
           <DailyQueue developers={developers} currentDevIndex={currentDevIndex} />
           {sprintStats && (
@@ -466,42 +390,17 @@ export default function DailyActive() {
 
         {/* RIGHT PANEL - Daily Flow (60%) */}
         <div className="w-3/5 overflow-y-auto p-5 space-y-4">
-
-          {isLastDev ? (
-            /* All devs done */
-            <div className="flex flex-col items-center justify-center h-full text-center py-16">
-              <Trophy className="w-16 h-16 text-yellow-500 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Todos os turnos registrados!</h2>
-              <p className="text-gray-500 mb-6">
-                {completedCount} de {developers.length} desenvolvedores participaram.
-              </p>
-              <Button
-                size="lg"
-                onClick={handleConclude}
-                disabled={concludeMutation.isPending}
-                className="bg-green-600 hover:bg-green-700 text-white gap-2"
-              >
-                {concludeMutation.isPending ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Trophy className="w-5 h-5" />
-                )}
-                Concluir Daily
-              </Button>
-            </div>
-          ) : currentDev ? (
+          {currentDev && !isLastDev ? (
             <>
-<<<<<<< Updated upstream
               {/* Current Dev Header */}
-              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                  {currentDev.name.substring(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-bold text-blue-900 text-lg">{currentDev.name}</p>
-                  <p className="text-xs text-blue-600">
-                    Dev {currentDevIndex + 1} de {developers.length} • {formatTimer(devSeconds)} neste turno
-                  </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-blue-900 text-lg">{currentDev.name}</p>
+                    <p className="text-xs text-blue-600">
+                      Dev {currentDevIndex + 1} de {developers.length} • {formatTimer(devSeconds)} neste turno
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -677,37 +576,6 @@ export default function DailyActive() {
                   {currentDevIndex + 1 >= developers.length ? 'Registrar e Concluir' : 'Próximo Dev →'}
                 </Button>
               </div>
-=======
-              <CurrentDev name={currentDev.name} />
-              <IssuesList issues={form.issues.map(key => ({ key, summary: '', status: '' }))} isLoading={isLoadingIssues} />
-              <QuickStatus
-                completedTasks={form.completedTasks}
-                hasWorkInProgress={form.hasWorkInProgress}
-                willStartNewTask={form.willStartNewTask}
-                hasBlockers={form.hasBlockers}
-                onCompletedTasksChange={(value) => setForm(prev => ({ ...prev, completedTasks: value }))}
-                onWorkInProgressChange={(value) => setForm(prev => ({ ...prev, hasWorkInProgress: value }))}
-                onWillStartNewTaskChange={(value) => setForm(prev => ({ ...prev, willStartNewTask: value }))}
-                onBlockersChange={(value) => setForm(prev => ({ ...prev, hasBlockers: value }))}
-              />
-              <SummaryInput
-                value={form.summary}
-                onChange={(value) => setForm(prev => ({ ...prev, summary: value }))}
-              />
-              <BlockersInput
-                value={form.blockersDescription}
-                onChange={(value) => setForm(prev => ({ ...prev, blockersDescription: value }))}
-                isVisible={form.hasBlockers}
-              />
-              <NavigationButtons
-                onPrevious={handlePrevious}
-                onNext={handleNext}
-                onFlag={handleFlag}
-                canGoPrevious={currentDevIndex > 0}
-                canGoNext={!isSaving}
-                isLoading={isSaving}
-              />
->>>>>>> Stashed changes
             </>
           ) : (
             <div className="flex items-center justify-center h-full">
@@ -716,7 +584,6 @@ export default function DailyActive() {
           )}
         </div>
       </div>
-<<<<<<< Updated upstream
 
       {/* Footer - Registered Turns */}
       {registeredTurns.length > 0 && (
@@ -740,8 +607,6 @@ export default function DailyActive() {
           </div>
         </div>
       )}
-=======
->>>>>>> Stashed changes
     </div>
   );
 }
