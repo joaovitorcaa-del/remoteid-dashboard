@@ -1,28 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, Trophy, CheckCircle2, Flag, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-
-// Import new components
-import { SprintProgressMini } from '@/components/daily-active/SprintProgressMini';
-import { DailyQueue } from '@/components/daily-active/DailyQueue';
-import { MiniKanban } from '@/components/daily-active/MiniKanban';
-import { CurrentDev } from '@/components/daily-active/CurrentDev';
-import { IssuesList } from '@/components/daily-active/IssuesList';
-import { QuickStatus } from '@/components/daily-active/QuickStatus';
-import { SummaryInput } from '@/components/daily-active/SummaryInput';
-import { BlockersInput } from '@/components/daily-active/BlockersInput';
-import { NavigationButtons } from '@/components/daily-active/NavigationButtons';
-
-// Import feedback components
-import { FeedbackContainer } from '@/components/FeedbackContainer';
-import { useFeedback } from '@/hooks/useFeedback';
+import {
+  CheckCircle2, Clock, AlertTriangle, Flag, ChevronLeft, ChevronRight,
+  Loader2, User, AlertCircle, SkipForward, Trophy
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -109,44 +99,38 @@ export default function DailyActive() {
   const [newIssueInput, setNewIssueInput] = useState('');
 
   const utils = trpc.useUtils();
-  const { feedbacks, removeFeedback, success, error, warning, info } = useFeedback();
 
   // Mutations
   const saveTurnMutation = trpc.dailyMeeting.saveTurn.useMutation();
   const concludeMutation = trpc.dailyMeeting.concludeMeeting.useMutation({
     onSuccess: () => {
-      success('Daily concluída!', 'Redirecionando para resumo...');
-      setTimeout(() => navigate(`/daily-summary/${meetingId}`), 1500);
+      navigate(`/daily-summary/${meetingId}`);
     },
     onError: (err) => {
-      error('Erro ao concluir', err.message);
+      toast.error(`Erro ao concluir: ${err.message}`);
     },
   });
 
-  // Initialize developers from metrics
+  // Build developers list from metrics data - extract unique assignees from issues
   useEffect(() => {
-    if (metricsData?.issues && metricsData.issues.length > 0) {
-      const uniqueDevs = Array.from(
-        new Map(
-          metricsData.issues
-            .filter((issue: any) => issue.responsavel)
-            .map((issue: any) => [
-              issue.responsavel,
-              {
-                name: issue.responsavel,
-                jiraUsername: issue.responsavel,
-                status: 'pending' as const,
-                turnOrder: 0,
-              },
-            ])
-        ).values()
-      );
-      setDevelopers(uniqueDevs.map((dev, i) => ({ ...dev, turnOrder: i })));
-      if (uniqueDevs.length > 0) {
-        setDevelopers(prev => prev.map((d, i) => (i === 0 ? { ...d, status: 'current' } : d)));
+    if (metricsData?.issues && developers.length === 0) {
+      const seen = new Set<string>();
+      const devs: Developer[] = [];
+      for (const issue of metricsData.issues as any[]) {
+        const name = issue.responsavel || issue.assignee || '';
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          devs.push({
+            name,
+            jiraUsername: name,
+            status: devs.length === 0 ? 'current' : 'pending',
+            turnOrder: devs.length,
+          });
+        }
       }
+      setDevelopers(devs);
     }
-  }, [metricsData]);
+  }, [metricsData, developers.length]);
 
   // Timers
   useEffect(() => {
@@ -157,7 +141,7 @@ export default function DailyActive() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load issues for current dev
+  // Fetch JIRA issues when dev changes
   useEffect(() => {
     const dev = developers[currentDevIndex];
     if (!dev || !dev.jiraUsername) return;
@@ -172,48 +156,55 @@ export default function DailyActive() {
         const issueKeys = mapped.map((i) => i.key);
         setForm(prev => ({ ...prev, issues: issueKeys }));
         if (result.fromCache) {
-          info('Dados em cache', 'JIRA pode estar desatualizado');
+          toast.info('Usando dados em cache — JIRA pode estar desatualizado');
         }
         if (result.error) {
-          warning('Erro ao carregar issues', 'Continuando sem dados do JIRA');
+          toast.warning('Não foi possível carregar issues do JIRA. Continuando sem dados.');
         }
       })
-      .catch((err) => {
-        console.error('Failed to load issues:', err);
-        error('Erro ao carregar issues', 'Verifique sua conexão com JIRA');
+      .catch(() => {
+        toast.warning('Erro ao buscar issues. Continuando sem dados do JIRA.');
       })
-      .finally(() => {
-        setIsLoadingIssues(false);
-      });
-  }, [currentDevIndex, developers, utils, info, warning, error]);
+      .finally(() => setIsLoadingIssues(false));
+  }, [currentDevIndex, developers]);
 
-  // Handlers
-  const handleRegisterTurn = async () => {
+  const handleSaveAndNext = async () => {
+    // Validate
     if (!form.summary.trim()) {
-      error('Resumo obrigatório', 'Por favor, adicione um resumo antes de continuar');
+      toast.error('Por favor, preencha o resumo da daily');
       return;
     }
-
     if (form.hasBlockers && !form.blockersDescription.trim()) {
-      error('Impedimento incompleto', 'Descreva o impedimento ou desmarque a opção');
+      toast.error('Por favor, descreva o impedimento');
+      return;
+    }
+    const hasAnyStatus = form.completedTasks || form.hasWorkInProgress || form.willStartNewTask || form.hasBlockers;
+    if (!hasAnyStatus) {
+      toast.error('Selecione ao menos um status');
       return;
     }
 
     setIsSaving(true);
+    const dev = developers[currentDevIndex];
+    const finishedAt = new Date();
+
     try {
-      const dev = developers[currentDevIndex];
       await saveTurnMutation.mutateAsync({
         meetingId,
         devName: dev.name,
-        turnOrder: dev.turnOrder,
+        devId: dev.jiraUsername,
         jiraUsername: dev.jiraUsername,
+        turnOrder: currentDevIndex,
+        startedAt: turnStartTime.toISOString(),
+        finishedAt: finishedAt.toISOString(),
+        durationSeconds: devSeconds,
+        issues: form.issues,
         completedTasks: form.completedTasks,
         hasWorkInProgress: form.hasWorkInProgress,
         willStartNewTask: form.willStartNewTask,
         hasBlockers: form.hasBlockers,
-        blockersDescription: form.blockersDescription,
         summary: form.summary,
-        issues: form.issues,
+        blockersDescription: form.blockersDescription,
       });
 
       // Add to registered turns
@@ -241,9 +232,9 @@ export default function DailyActive() {
       setDevSeconds(0);
       setTurnStartTime(new Date());
 
-      success(`Turno de ${dev.name} registrado!`, `${formatTimer(devSeconds)} de duração`);
+      toast.success(`Turno de ${dev.name} registrado!`);
     } catch (err: any) {
-      error('Erro ao salvar turno', err.message);
+      toast.error(`Erro ao salvar: ${err.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -262,14 +253,11 @@ export default function DailyActive() {
     setNewIssueInput('');
     setDevSeconds(0);
     setTurnStartTime(new Date());
-    info(`${dev.name} pulado`, 'Passando para o próximo desenvolvedor');
+    toast.info(`${dev.name} pulado`);
   };
 
   const handleGoBack = () => {
-    if (currentDevIndex === 0) {
-      warning('Não é possível voltar', 'Você já está no primeiro desenvolvedor');
-      return;
-    }
+    if (currentDevIndex === 0) return;
     const prevIndex = currentDevIndex - 1;
     setDevelopers(prev => prev.map((d, i) => {
       if (i === currentDevIndex) return { ...d, status: 'pending' };
@@ -282,114 +270,108 @@ export default function DailyActive() {
     setNewIssueInput('');
     setDevSeconds(0);
     setTurnStartTime(new Date());
-    info('Voltou ao desenvolvedor anterior', `Agora editando: ${developers[prevIndex]?.name}`);
+    toast.info('Voltou ao desenvolvedor anterior');
   };
 
   const handleConclude = async () => {
-    if (!window.confirm('Concluir a daily? Esta ação não pode ser desfeita.')) {
-      info('Conclusão cancelada', 'A daily continua ativa');
-      return;
-    }
+    if (!window.confirm('Concluir a daily? Esta ação não pode ser desfeita.')) return;
     concludeMutation.mutate({ meetingId, durationSeconds: totalSeconds });
-  };
-
-  const handlePrevious = () => {
-    if (currentDevIndex > 0) {
-      setCurrentDevIndex(prev => prev - 1);
-      setForm(emptyForm());
-      setDevSeconds(0);
-    }
-  };
-
-  const handleNext = () => {
-    handleRegisterTurn();
-  };
-
-  const handleFlag = () => {
-    const newHasBlockers = !form.hasBlockers;
-    setForm(prev => ({ ...prev, hasBlockers: newHasBlockers }));
-    if (newHasBlockers) {
-      warning('Impedimento marcado', 'Descreva o impedimento no campo abaixo');
-    } else {
-      info('Impedimento desmarcado', 'Campo de descrição removido');
-    }
-  };
-
-  const handleSaveAndNext = () => {
-    if (currentDevIndex + 1 >= developers.length) {
-      handleConclude();
-    } else {
-      handleRegisterTurn();
-    }
   };
 
   const isLastDev = currentDevIndex >= developers.length;
   const currentDev = developers[currentDevIndex];
   const completedCount = developers.filter(d => d.status === 'completed').length;
 
-  // Loading state
   if (meetingLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Carregando reunião...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">Carregando daily...</p>
+          <p className="text-gray-400 text-sm mt-1">Buscando dados do sprint e do JIRA</p>
         </div>
       </div>
     );
   }
 
-  // Error state
   if (meetingError) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-600" />
-          <p className="text-gray-600">Erro ao carregar reunião</p>
-          <Button onClick={() => refetchMeeting()} className="mt-4">
-            Tentar novamente
-          </Button>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Ops! Algo deu errado</h3>
+          <p className="text-gray-500 text-sm mb-4">{meetingError.message}</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => refetchMeeting()} className="bg-blue-600 hover:bg-blue-700 text-white">
+              Tentar Novamente
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/daily-entrance')}>
+              Voltar
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Feedback Container */}
-      <FeedbackContainer
-        feedbacks={feedbacks}
-        onRemove={removeFeedback}
-        position="top-right"
-        maxVisible={5}
-      />
+    <div className="h-screen bg-gray-900 flex flex-col">
       {/* Header */}
-      <div className="bg-blue-900 text-white px-6 py-4 shadow-md">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <h1 className="text-xl font-bold">Daily Meeting</h1>
-            <p className="text-sm text-blue-100">Duração total: {formatTimer(totalSeconds)}</p>
+      <div className="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow-md">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            <span className="font-mono text-xl font-bold">{formatTimer(totalSeconds)}</span>
+            <span className="text-blue-200 text-sm">total</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-semibold">{completedCount} de {developers.length} devs</p>
-              <p className="text-xs text-blue-100">Progresso: {Math.round((completedCount / developers.length) * 100)}%</p>
-            </div>
-            {isLastDev ? (
-              <Button
-                onClick={handleConclude}
-                disabled={concludeMutation.isPending}
-                className="bg-green-600 hover:bg-green-700 text-white gap-2"
-              >
-                {concludeMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Trophy className="w-4 h-4" />
-                )}
-                Concluir Daily
-              </Button>
-            ) : null}
+          <div className="text-blue-200 text-sm">|</div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-lg">{formatTimer(devSeconds)}</span>
+            <span className="text-blue-200 text-sm">dev atual</span>
           </div>
+          {developers.length > 0 && (
+            <>
+              <div className="text-blue-200 text-sm">|</div>
+              <span className="text-blue-100 text-sm">
+                {completedCount}/{developers.length} devs
+              </span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {developers.length > 0 && totalSeconds > 0 && completedCount > 0 && (
+            <span className="text-blue-200 text-xs">
+              Média: {Math.round(totalSeconds / completedCount / 60 * 10) / 10} min/dev
+            </span>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-blue-200 hover:text-white hover:bg-blue-600"
+            onClick={() => {
+              if (window.confirm('Deseja sair? A daily ficará salva como "em andamento" e pode ser continuada depois.')) {
+                navigate('/daily-entrance');
+              }
+            }}
+          >
+            Sair
+          </Button>
+          {isLastDev && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-blue-400 text-white hover:bg-blue-600 gap-2"
+              onClick={handleConclude}
+              disabled={concludeMutation.isPending}
+            >
+              {concludeMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trophy className="w-4 h-4" />
+              )}
+              Concluir Daily
+            </Button>
+          )}
         </div>
       </div>
 
@@ -398,36 +380,143 @@ export default function DailyActive() {
 
         {/* LEFT PANEL - Board Context (40%) */}
         <div className="w-2/5 bg-white border-r border-gray-200 overflow-y-auto p-4 space-y-4">
-          {sprintStats && (
-            <SprintProgressMini
-              completed={sprintStats.completed}
-              total={sprintStats.total_issues}
-              percentage={sprintStats.completion_percentage}
-            />
+
+          {/* Sprint Progress Mini */}
+          {sprintStats ? (
+            <Card className="shadow-sm">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-700">Sprint</span>
+                  <span className="text-sm font-bold text-blue-600">{sprintStats.completion_percentage}%</span>
+                </div>
+                <Progress value={sprintStats.completion_percentage} className="h-2 mb-2" />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>✅ {sprintStats.completed}</span>
+                  <span>🔄 {sprintStats.in_progress}</span>
+                  <span>📋 {sprintStats.todo}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Skeleton className="h-24 w-full rounded-lg" />
           )}
-          <DailyQueue developers={developers} currentDevIndex={currentDevIndex} />
+
+          {/* Blockers */}
+          {sprintStats?.blockers && sprintStats.blockers.length > 0 && (
+            <Card className="border-red-200 shadow-sm">
+              <CardHeader className="pb-2 pt-3 px-4">
+                <CardTitle className="text-xs font-semibold text-red-700 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Bloqueios ({sprintStats.blockers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-3 space-y-1">
+                {sprintStats.blockers.slice(0, 5).map((b: any) => (
+                  <div key={b.key} className="flex items-center justify-between text-xs">
+                    <span className="font-mono text-red-700">{b.key}</span>
+                    <span className="text-red-500">{b.days_blocked}d</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Daily Queue */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-xs font-semibold text-gray-700">Fila Daily</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3 space-y-1">
+              {developers.length === 0 ? (
+                <p className="text-xs text-gray-400">Carregando desenvolvedores...</p>
+              ) : (
+                developers.map((dev, i) => (
+                  <div
+                    key={dev.name}
+                    className={`flex items-center gap-2 text-xs py-1 px-2 rounded ${
+                      dev.status === 'current'
+                        ? 'bg-blue-100 text-blue-800 font-semibold'
+                        : dev.status === 'completed'
+                        ? 'text-green-700'
+                        : dev.status === 'skipped'
+                        ? 'text-gray-400 line-through'
+                        : 'text-gray-600'
+                    }`}
+                  >
+                    {dev.status === 'completed' && <CheckCircle2 className="w-3 h-3 text-green-600 flex-shrink-0" />}
+                    {dev.status === 'current' && <span className="text-blue-600">→</span>}
+                    {dev.status === 'pending' && <span className="text-gray-300">•</span>}
+                    {dev.status === 'skipped' && <SkipForward className="w-3 h-3 flex-shrink-0" />}
+                    <span className="truncate">{dev.name}</span>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Mini Kanban */}
           {sprintStats && (
-            <MiniKanban
-              todo={sprintStats.todo}
-              doing={sprintStats.in_progress}
-              done={sprintStats.completed}
-            />
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2 pt-3 px-4">
+                <CardTitle className="text-xs font-semibold text-gray-700">Kanban</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-3">
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="bg-gray-50 rounded p-2">
+                    <p className="font-bold text-gray-700 text-lg">{sprintStats.todo}</p>
+                    <p className="text-gray-500">TODO</p>
+                  </div>
+                  <div className="bg-blue-50 rounded p-2">
+                    <p className="font-bold text-blue-700 text-lg">{sprintStats.in_progress}</p>
+                    <p className="text-blue-500">DOING</p>
+                  </div>
+                  <div className="bg-green-50 rounded p-2">
+                    <p className="font-bold text-green-700 text-lg">{sprintStats.completed}</p>
+                    <p className="text-green-500">DONE</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 
         {/* RIGHT PANEL - Daily Flow (60%) */}
         <div className="w-3/5 overflow-y-auto p-5 space-y-4">
-          {currentDev && !isLastDev ? (
+
+          {isLastDev ? (
+            /* All devs done */
+            <div className="flex flex-col items-center justify-center h-full text-center py-16">
+              <Trophy className="w-16 h-16 text-yellow-500 mb-4" />
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Todos os turnos registrados!</h2>
+              <p className="text-gray-500 mb-6">
+                {completedCount} de {developers.length} desenvolvedores participaram.
+              </p>
+              <Button
+                size="lg"
+                onClick={handleConclude}
+                disabled={concludeMutation.isPending}
+                className="bg-green-600 hover:bg-green-700 text-white gap-2"
+              >
+                {concludeMutation.isPending ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5" />
+                )}
+                Concluir Daily
+              </Button>
+            </div>
+          ) : currentDev ? (
             <>
               {/* Current Dev Header */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-blue-900 text-lg">{currentDev.name}</p>
-                    <p className="text-xs text-blue-600">
-                      Dev {currentDevIndex + 1} de {developers.length} • {formatTimer(devSeconds)} neste turno
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+                  {currentDev.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-blue-900 text-lg">{currentDev.name}</p>
+                  <p className="text-xs text-blue-600">
+                    Dev {currentDevIndex + 1} de {developers.length} • {formatTimer(devSeconds)} neste turno
+                  </p>
                 </div>
               </div>
 
@@ -605,8 +694,14 @@ export default function DailyActive() {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-gray-500">Carregando desenvolvedores...</p>
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+                <p className="text-gray-500">Carregando desenvolvedores do sprint...</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Os desenvolvedores são carregados a partir do JQL configurado.
+                </p>
+              </div>
             </div>
           )}
         </div>
